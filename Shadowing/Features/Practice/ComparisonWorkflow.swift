@@ -58,8 +58,8 @@ extension PracticeViewModel {
         Task { [weak self] in
             await self?.loadTakeWaveform(for: take)
         }
-        playhead = take.region.start
-        project.playhead = take.region.start
+        // Keep the Original-timeline playhead where it is so overwrite recording
+        // still starts from the user's current cursor (PRD §10.6).
         updateRegionSnapshotNotice(for: take)
         persistProjectImmediately()
     }

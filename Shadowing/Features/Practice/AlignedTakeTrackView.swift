@@ -100,20 +100,20 @@ struct AlignedTakeTrackView: View {
 
     private var liveWaveform: some View {
         ZStack {
-            if waveform != nil {
-                WaveformTimelineTrack(
-                    waveform: waveform,
-                    assetTimelineStart: take.region.start,
-                    viewport: viewport,
-                    color: .orange.opacity(0.35),
-                    playhead: nil,
-                    selection: take.region,
-                    emphasized: false,
-                    showsChrome: false
-                )
-            }
+            // Keep the committed take visible underneath so overwrite recording
+            // does not flash an empty track before live peaks arrive.
             WaveformTimelineTrack(
-                waveform: liveTakePoints.isEmpty ? waveform : nil,
+                waveform: waveform,
+                assetTimelineStart: take.region.start,
+                viewport: viewport,
+                color: .orange.opacity(0.35),
+                playhead: nil,
+                selection: take.region,
+                emphasized: false,
+                showsChrome: false
+            )
+            WaveformTimelineTrack(
+                waveform: nil,
                 timedPoints: liveTakePoints,
                 assetTimelineStart: liveRegion?.start ?? take.region.start,
                 viewport: viewport,
@@ -121,14 +121,10 @@ struct AlignedTakeTrackView: View {
                 playhead: playhead,
                 selection: liveRegion ?? take.region,
                 emphasized: true,
-                showsChrome: liveTakePoints.isEmpty
+                showsChrome: false
             )
         }
-        .background {
-            if !liveTakePoints.isEmpty {
-                Color(nsColor: .controlBackgroundColor)
-            }
-        }
+        .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

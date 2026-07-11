@@ -376,11 +376,12 @@ extension PracticeAudioEngine {
             takePlayer.stop()
             takeLoopRegion = nil
             takeFirstScheduledFrameCount = 0
+            takeFile = nil
+            takeInfo = nil
             playbackTarget = .original
             isPlaying = false
             playheadTask?.cancel()
-            // Keep the ViewModel's already-mapped source playhead; do not publish
-            // take-local time after playingTakeID may already be cleared.
+            // Keep ViewModel source playhead; do not publish take-local time.
             return
         case .together:
             takePausedFrame = currentTakeFrame()

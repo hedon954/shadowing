@@ -179,19 +179,10 @@ extension PracticeViewModel {
         )
     }
 
-    /// Grows the overview window so recording start → current playhead stays visible.
+    /// Keeps a stable zoom while recording and only pans so the playhead stays visible.
+    /// Expanding the window to cover the full recording span caused continuous zoom jumps
+    /// when recording toward the end of a long source file.
     func revealRecordingProgress(at position: TimeInterval) {
-        let recordingStart = recordingTimelineRegion?.start ?? position
-        let trailingPadding = max(min(timelineViewport.duration * 0.08, 1.5), 0.25)
-        let expanded = timelineViewport.covering(
-            start: recordingStart,
-            end: position,
-            sourceDuration: project.duration,
-            trailingPadding: trailingPadding
-        )
-        guard expanded != timelineViewport else {
-            return
-        }
-        timelineViewport = expanded
+        followPlayheadInTimeline(at: position)
     }
 }
