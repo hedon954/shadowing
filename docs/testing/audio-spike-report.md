@@ -62,8 +62,9 @@ being exposed as a valid Take.
 
 ### Quality gate snapshot
 
-The final `make check` run executed **34 tests with 0 failures** in **0.258 seconds** of
-test time.
+The M2 spike landed with **34 tests**. The P0 implementation gate now expects the full
+suite under `make check`; see `docs/testing/p0-acceptance-checklist.md` for the current
+acceptance split between automated and hardware evidence.
 
 ## Implementation boundaries verified by inspection
 

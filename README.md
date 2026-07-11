@@ -43,6 +43,8 @@ generates `Shadowing/Shadowing.xcodeproj`. The generated project is not committe
 - [MVP PRD](docs/prd/prd-v0.0.1-2026-07-11.md)
 - [ADR roadmap and index](docs/adr/README.md)
 - [Engineering guide](CLAUDE.md)
+- [P0 acceptance checklist](docs/testing/p0-acceptance-checklist.md)
+- [Audio spike report](docs/testing/audio-spike-report.md)
 - [Initial UI references](assets/img/)
 
 ## Source layout
