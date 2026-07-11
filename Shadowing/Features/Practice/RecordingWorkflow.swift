@@ -122,8 +122,14 @@ extension PracticeViewModel {
     }
 
     func startRecording() {
-        guard recordingTask == nil,
-              finalizationTask == nil,
+        guard recordingTask == nil else {
+            return
+        }
+        // Comparison can become ready before the finalization task clears itself.
+        if case .comparisonReady = recordingPresentation {
+            finalizationTask = nil
+        }
+        guard finalizationTask == nil,
               !recordingPresentation.locksPracticeControls
         else {
             return
@@ -284,18 +290,7 @@ extension PracticeViewModel {
                 temporaryFile: url
             )
             recordingContext = nil
-            activeTake = take
-            project.selectedTakeID = take.id
-            project.currentRegion = take.region
-            project.playhead = take.region.start
-            playhead = take.region.start
-            do {
-                try await projects.save(project)
-            } catch {
-                show(error)
-            }
-            recordingPresentation = .comparisonReady(take)
-            interactionPhase = .practicing
+            await enterComparison(with: take, takePeaks: liveRecordingPeaks)
         } catch {
             handleRecordingFailure(error, reason: reason)
         }

@@ -57,6 +57,10 @@ final class PracticeViewModel: ObservableObject {
     @Published var recordingPresentation = RecordingPresentation.idle
     @Published var liveRecordingPeaks: [Float] = []
     @Published var activeTake: Take?
+    @Published var takes: [Take] = []
+    @Published var comparisonMode = ComparisonMode.selectedTake
+    @Published var selectedTakePeaks: [Float] = []
+    @Published var takePendingDeletion: Take?
     @Published var lastRecordingStopReason: RecordingStopReason?
     @Published var microphonePermissionPrompt: MicrophonePermissionState?
     @Published var recordingNotice: String?
@@ -67,7 +71,7 @@ final class PracticeViewModel: ObservableObject {
     private let sessionPreparer: any PracticeSessionPreparing
     let recordingDependencies: RecordingDependencies?
     private var eventTask: Task<Void, Never>?
-    private var commandTask: Task<Void, Never>?
+    var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
     var finalizationTask: Task<Void, Never>?
     var recordingContext: PendingRecordingContext?
@@ -76,6 +80,29 @@ final class PracticeViewModel: ObservableObject {
 
     var region: PracticeRegion? {
         project.currentRegion
+    }
+
+    var isComparing: Bool {
+        if case .comparisonReady = recordingPresentation {
+            true
+        } else {
+            false
+        }
+    }
+
+    var comparisonRegionNotice: String? {
+        guard isComparing,
+              let take = activeTake,
+              let currentRegion = project.currentRegion,
+              take.region != currentRegion
+        else {
+            return nil
+        }
+        return """
+        This take keeps its recorded region \
+        (\(Self.formatTime(take.region.start))–\(Self.formatTime(take.region.end))). \
+        Changing the practice region does not change past takes.
+        """
     }
 
     var controlsLocked: Bool {
@@ -87,7 +114,14 @@ final class PracticeViewModel: ObservableObject {
     }
 
     var canToggleLoop: Bool {
-        region != nil && !controlsLocked
+        region != nil && !controlsLocked && !isComparing
+    }
+
+    static func formatTime(_ time: TimeInterval) -> String {
+        let totalSeconds = max(Int(time.rounded()), 0)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     init(
@@ -196,6 +230,10 @@ final class PracticeViewModel: ObservableObject {
 
 extension PracticeViewModel {
     private func togglePlaybackCommand() {
+        if isComparing {
+            toggleComparisonPlayback()
+            return
+        }
         performCommand { [audioClient, isPlaying, loopEnabled, playhead, project, rate] in
             if isPlaying {
                 try await audioClient.execute(.pause)
@@ -330,142 +368,6 @@ extension PracticeViewModel {
         await sessionPreparer.endSession()
         if let closeError {
             show(closeError)
-        }
-    }
-
-    private func receive(_ event: PracticeAudioEvent) {
-        switch event {
-        case .recordingStarted,
-             .recordingProgress,
-             .recordingPeaks,
-             .recordingFinished:
-            receiveRecordingEvent(event)
-        default:
-            receiveTransportEvent(event)
-        }
-    }
-
-    private func receiveTransportEvent(_ event: PracticeAudioEvent) {
-        switch event {
-        case .sourceLoaded:
-            break
-        case let .playheadChanged(position):
-            playhead = min(max(position, 0), project.duration)
-        case .playbackFinished:
-            isPlaying = false
-            playhead = project.duration
-            persistPosition()
-        case let .interrupted(interruption):
-            isPlaying = false
-            if recordingPresentation.locksPracticeControls {
-                recordingPresentation = .finalizing
-                recordingNotice = interruption == .inputDeviceRemoved
-                    ? "The microphone was disconnected. Saving the valid recorded portion."
-                    : "Recording was interrupted. Saving the valid recorded portion."
-            } else {
-                show(
-                    AudioSourceError.failed(
-                        interruption == .outputDeviceChanged
-                            ? "The audio output changed. Press Play to continue."
-                            : "Playback was interrupted. Press Play to continue."
-                    )
-                )
-            }
-        case let .failed(audioFailure):
-            isPlaying = false
-            if audioFailure.operation == .recording {
-                handleRecordingFailure(audioFailure, reason: .writeFailure)
-            } else {
-                show(audioFailure)
-            }
-        case .recordingStarted,
-             .recordingProgress,
-             .recordingPeaks,
-             .recordingFinished:
-            break
-        }
-    }
-
-    private func receiveRecordingEvent(_ event: PracticeAudioEvent) {
-        switch event {
-        case .recordingStarted:
-            recordingPresentation = .recording(elapsed: 0)
-            playhead = recordingContext?.region.start ?? playhead
-        case let .recordingProgress(elapsed):
-            recordingPresentation = .recording(elapsed: elapsed)
-            if let region = recordingContext?.region {
-                playhead = min(region.start + elapsed * rate, region.end)
-            }
-        case let .recordingPeaks(peaks):
-            appendLivePeaks(peaks)
-        case let .recordingFinished(url, duration, reason):
-            recordingPresentation = .finalizing
-            finalizationTask?.cancel()
-            finalizationTask = Task { [weak self] in
-                await self?.finishRecording(url: url, duration: duration, reason: reason)
-                self?.finalizationTask = nil
-            }
-        case .sourceLoaded,
-             .playheadChanged,
-             .playbackFinished,
-             .interrupted,
-             .failed:
-            break
-        }
-    }
-
-    private func persistPosition() {
-        project.playhead = min(max(playhead, 0), project.duration)
-        Task { [weak self, projects, project] in
-            do {
-                try await projects.save(project)
-            } catch {
-                self?.show(error)
-            }
-        }
-    }
-
-    private func performVoidCommand(
-        _ operation: @escaping @Sendable () async throws -> Void,
-        completion: @escaping @MainActor () -> Void = {}
-    ) {
-        let previousCommand = commandTask
-        commandTask = Task { [weak self] in
-            await previousCommand?.value
-            guard !Task.isCancelled else {
-                return
-            }
-            do {
-                try await operation()
-                try Task.checkCancellation()
-                completion()
-            } catch is CancellationError {
-                return
-            } catch {
-                self?.show(error)
-            }
-        }
-    }
-
-    private func performCommand<Value: Sendable>(
-        _ operation: @escaping @Sendable () async throws -> Value,
-        completion: @escaping @MainActor (Value) -> Void
-    ) {
-        let previousCommand = commandTask
-        commandTask = Task { [weak self] in
-            await previousCommand?.value
-            guard !Task.isCancelled else {
-                return
-            }
-            do {
-                let value = try await operation()
-                try Task.checkCancellation()
-                completion(value)
-            } catch is CancellationError {
-                return
-            } catch {
-                self?.show(error)
-            }
         }
     }
 

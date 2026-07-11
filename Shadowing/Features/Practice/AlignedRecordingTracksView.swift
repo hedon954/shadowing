@@ -5,6 +5,16 @@ struct RecordingWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if viewModel.isComparing {
+                CompareWorkspaceView(viewModel: viewModel)
+            } else {
+                recordingContent
+            }
+        }
+    }
+
+    private var recordingContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
             AlignedRecordingTracksView(
                 originalPeaks: viewModel.originalRecordingRegionPeaks,
                 recordingPeaks: viewModel.liveRecordingPeaks,
@@ -54,12 +64,8 @@ struct RecordingWorkspaceView: View {
             )
         case .finalizing:
             Label("Saving recording…", systemImage: "waveform.badge.magnifyingglass")
-        case let .comparisonReady(take):
-            Label(
-                "Take \(take.sequence) is ready to compare",
-                systemImage: "checkmark.circle.fill"
-            )
-            .foregroundStyle(.green)
+        case .comparisonReady:
+            EmptyView()
         }
     }
 
@@ -87,50 +93,65 @@ struct AlignedRecordingTracksView: View {
     let originalPeaks: [Float]
     let recordingPeaks: [Float]
     let recordingProgress: Double
+    var originalEmphasis: Bool = true
+    var takeEmphasis: Bool = true
+    var playheadFraction: Double?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             track(
-                title: "Original",
-                peaks: originalPeaks,
-                color: .accentColor,
-                fillFraction: 1
+                TrackPresentation(
+                    title: "Original",
+                    peaks: originalPeaks,
+                    color: .accentColor,
+                    fillFraction: 1,
+                    emphasized: originalEmphasis
+                )
             )
             track(
-                title: "Your Recording",
-                peaks: recordingPeaks,
-                color: .orange,
-                fillFraction: recordingProgress
+                TrackPresentation(
+                    title: "My Take",
+                    peaks: recordingPeaks,
+                    color: .orange,
+                    fillFraction: recordingProgress,
+                    emphasized: takeEmphasis
+                )
             )
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Aligned original and recording waveforms")
     }
 
-    private func track(
-        title: String,
-        peaks: [Float],
-        color: Color,
-        fillFraction: Double
-    ) -> some View {
+    private func track(_ presentation: TrackPresentation) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title)
+            Text(presentation.title)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(presentation.emphasized ? .secondary : .tertiary)
             PeakTrack(
-                peaks: peaks,
-                color: color,
-                fillFraction: fillFraction
+                peaks: presentation.peaks,
+                color: presentation.color.opacity(presentation.emphasized ? 1 : 0.35),
+                fillFraction: presentation.fillFraction,
+                playheadFraction: playheadFraction
             )
             .frame(height: 82)
+            .opacity(presentation.emphasized ? 1 : 0.55)
         }
     }
+}
+
+private struct TrackPresentation {
+    let title: String
+    let peaks: [Float]
+    let color: Color
+    let fillFraction: Double
+    let emphasized: Bool
 }
 
 private struct PeakTrack: View {
     let peaks: [Float]
     let color: Color
     let fillFraction: Double
+    var playheadFraction: Double?
 
     var body: some View {
         Canvas { context, size in
@@ -157,6 +178,18 @@ private struct PeakTrack: View {
                         lineWidth: max(spacing * 0.55, 1),
                         lineCap: .round
                     )
+                )
+            }
+
+            if let playheadFraction {
+                let xPosition = size.width * min(max(playheadFraction, 0), 1)
+                var cursor = Path()
+                cursor.move(to: CGPoint(x: xPosition, y: 0))
+                cursor.addLine(to: CGPoint(x: xPosition, y: size.height))
+                context.stroke(
+                    cursor,
+                    with: .color(.primary.opacity(0.55)),
+                    lineWidth: 1
                 )
             }
         }

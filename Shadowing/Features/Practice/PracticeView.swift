@@ -38,6 +38,28 @@ struct PracticeView: View {
             )
         }
         .alert(
+            "Delete Take?",
+            isPresented: Binding(
+                get: { viewModel.takePendingDeletion != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.cancelDeleteTake()
+                    }
+                }
+            ),
+            presenting: viewModel.takePendingDeletion
+        ) { take in
+            Button("Delete", role: .destructive) {
+                viewModel.confirmDeleteTake()
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.cancelDeleteTake()
+            }
+            .accessibilityLabel("Cancel delete take \(take.sequence)")
+        } message: { take in
+            Text("Delete Take \(take.sequence)? This cannot be undone.")
+        }
+        .alert(
             "Microphone Access Required",
             isPresented: Binding(
                 get: { viewModel.microphonePermissionPrompt != nil },
@@ -151,7 +173,7 @@ struct PracticeView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(viewModel.controlsLocked)
+            .disabled(viewModel.controlsLocked || viewModel.isComparing)
             .accessibilityLabel("Back 5 seconds")
 
             Button {
@@ -174,7 +196,7 @@ struct PracticeView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(viewModel.controlsLocked)
+            .disabled(viewModel.controlsLocked || viewModel.isComparing)
             .accessibilityLabel("Forward 5 seconds")
 
             Button {
@@ -241,7 +263,11 @@ struct PracticeView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-            .disabled(viewModel.controlsLocked || viewModel.region == nil)
+            .disabled(
+                viewModel.controlsLocked
+                    || viewModel.region == nil
+                    || viewModel.isComparing
+            )
             .accessibilityHint(
                 viewModel.region == nil
                     ? "Select a practice region before recording."
