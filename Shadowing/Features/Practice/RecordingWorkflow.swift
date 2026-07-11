@@ -85,6 +85,7 @@ struct PendingRecordingContext: Sendable {
     let id: UUID
     let region: PracticeRegion
     let sequence: Int
+    let displayOrder: Int
     let temporaryURL: URL
     let createdAt: Date
     let replacesExisting: Bool
@@ -276,17 +277,20 @@ extension PracticeViewModel {
         let overwriteTarget = activeTake
         let takeID: UUID
         let sequence: Int
+        let displayOrder: Int
         let createdAt: Date
         let replacesExisting: Bool
         if let overwriteTarget {
             takeID = overwriteTarget.id
             sequence = overwriteTarget.sequence
+            displayOrder = overwriteTarget.displayOrder
             createdAt = overwriteTarget.createdAt
             replacesExisting = true
         } else {
             let existingTakes = try await dependencies.takes.takes(projectID: project.id)
             takeID = dependencies.makeID()
             sequence = (existingTakes.map(\.sequence).max() ?? 0) + 1
+            displayOrder = TakeDisplayOrdering.nextTopDisplayOrder(existing: existingTakes)
             createdAt = dependencies.now()
             replacesExisting = false
         }
@@ -295,6 +299,7 @@ extension PracticeViewModel {
             id: takeID,
             region: region,
             sequence: sequence,
+            displayOrder: displayOrder,
             temporaryURL: temporaryURL,
             createdAt: createdAt,
             replacesExisting: replacesExisting,
@@ -372,6 +377,7 @@ extension PracticeViewModel {
                 projectID: project.id,
                 region: prepared.region,
                 sequence: context.sequence,
+                displayOrder: context.displayOrder,
                 duration: prepared.duration,
                 createdAt: context.createdAt
             )

@@ -239,7 +239,10 @@ struct Take: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     let projectID: UUID
     let region: PracticeRegion
+    /// Stable label number ("Take N"); does not change when the track is reordered.
     let sequence: Int
+    /// Vertical order under Original; lower values appear closer to Original.
+    let displayOrder: Int
     let relativeAudioPath: String
     let duration: TimeInterval
     let createdAt: Date
@@ -249,6 +252,7 @@ struct Take: Codable, Equatable, Identifiable, Sendable {
         projectID: UUID,
         region: PracticeRegion,
         sequence: Int,
+        displayOrder: Int? = nil,
         relativeAudioPath: String,
         duration: TimeInterval,
         createdAt: Date
@@ -265,9 +269,23 @@ struct Take: Codable, Equatable, Identifiable, Sendable {
         self.projectID = projectID
         self.region = region
         self.sequence = sequence
+        self.displayOrder = displayOrder ?? sequence
         self.relativeAudioPath = relativeAudioPath
         self.duration = duration
         self.createdAt = createdAt
+    }
+
+    func withDisplayOrder(_ displayOrder: Int) throws -> Take {
+        try Take(
+            id: id,
+            projectID: projectID,
+            region: region,
+            sequence: sequence,
+            displayOrder: displayOrder,
+            relativeAudioPath: relativeAudioPath,
+            duration: duration,
+            createdAt: createdAt
+        )
     }
 }
 

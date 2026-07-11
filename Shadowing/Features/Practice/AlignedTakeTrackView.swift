@@ -13,6 +13,7 @@ struct AlignedTakeTrackView: View {
     let isLive: Bool
     let isPlaying: Bool
     let isInteractive: Bool
+    var canReorder = false
     let onSelectTake: () -> Void
     let onTogglePlayback: () -> Void
     let onSeek: (TimeInterval) -> Void
@@ -23,7 +24,14 @@ struct AlignedTakeTrackView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 8) {
+                if canReorder {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .help("Drag to reorder takes")
+                        .accessibilityLabel("Reorder Take \(take.sequence)")
+                }
                 Text("Take \(take.sequence)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(isSelected || isLive ? .secondary : .tertiary)

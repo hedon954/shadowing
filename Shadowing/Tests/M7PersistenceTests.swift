@@ -136,6 +136,21 @@ final class M7PersistenceTests: XCTestCase {
                 table.column("kept_take_id", .text)
                 table.column("last_opened_at", .datetime).notNull()
             }
+            try database.create(table: "takes") { table in
+                table.column("id", .text).primaryKey()
+                table.column("project_id", .text)
+                    .notNull()
+                    .indexed()
+                    .references("projects", onDelete: .cascade)
+                table.column("region_id", .text).notNull()
+                table.column("region_start", .double).notNull()
+                table.column("region_end", .double).notNull()
+                table.column("sequence", .integer).notNull()
+                table.column("relative_audio_path", .text).notNull().unique()
+                table.column("duration", .double).notNull()
+                table.column("created_at", .datetime).notNull()
+                table.uniqueKey(["project_id", "sequence"])
+            }
         }
         try migrator.migrate(database)
         try database.write { database in

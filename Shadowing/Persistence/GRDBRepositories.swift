@@ -232,7 +232,7 @@ actor GRDBTakeRepository: TakeRepository {
                 SELECT *
                 FROM takes
                 WHERE project_id = ?
-                ORDER BY sequence ASC
+                ORDER BY display_order ASC, sequence ASC
                 """,
                 arguments: [projectID.uuidString]
             )
@@ -268,17 +268,19 @@ actor GRDBTakeRepository: TakeRepository {
                     region_start,
                     region_end,
                     sequence,
+                    display_order,
                     relative_audio_path,
                     duration,
                     created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     project_id = excluded.project_id,
                     region_id = excluded.region_id,
                     region_start = excluded.region_start,
                     region_end = excluded.region_end,
                     sequence = excluded.sequence,
+                    display_order = excluded.display_order,
                     relative_audio_path = excluded.relative_audio_path,
                     duration = excluded.duration,
                     created_at = excluded.created_at
@@ -290,11 +292,43 @@ actor GRDBTakeRepository: TakeRepository {
                     take.region.start,
                     take.region.end,
                     take.sequence,
+                    take.displayOrder,
                     take.relativeAudioPath,
                     take.duration,
                     take.createdAt
                 ]
             )
+        }
+    }
+
+    func reorderTakes(_ orderedTakes: [Take]) async throws {
+        guard !orderedTakes.isEmpty else {
+            return
+        }
+        try await database.write { database in
+            // Two-phase update avoids unique (project_id, display_order) collisions,
+            // including with negative "newest on top" display orders.
+            let temporaryBase = Int.min / 2
+            for (index, take) in orderedTakes.enumerated() {
+                try database.execute(
+                    sql: """
+                    UPDATE takes
+                    SET display_order = ?
+                    WHERE id = ?
+                    """,
+                    arguments: [temporaryBase + index, take.id.uuidString]
+                )
+            }
+            for (index, take) in orderedTakes.enumerated() {
+                try database.execute(
+                    sql: """
+                    UPDATE takes
+                    SET display_order = ?
+                    WHERE id = ?
+                    """,
+                    arguments: [index, take.id.uuidString]
+                )
+            }
         }
     }
 
@@ -330,6 +364,7 @@ actor GRDBTakeRepository: TakeRepository {
                 projectID: projectID,
                 region: region,
                 sequence: row["sequence"],
+                displayOrder: row["display_order"],
                 relativeAudioPath: row["relative_audio_path"],
                 duration: row["duration"],
                 createdAt: row["created_at"]

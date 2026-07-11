@@ -55,7 +55,7 @@ final class M6ViewModelTests: XCTestCase {
         fixture.viewModel.selectTake(second)
 
         fixture.viewModel.requestDeleteTake(second)
-        await waitUntil {
+        await M6TestSupport.waitUntil {
             fixture.viewModel.activeTake?.id == first.id
         }
 
@@ -70,7 +70,7 @@ final class M6ViewModelTests: XCTestCase {
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
 
         fixture.viewModel.requestDeleteTake(take)
-        await waitUntil {
+        await M6TestSupport.waitUntil {
             fixture.viewModel.takes.isEmpty
         }
 
@@ -87,7 +87,7 @@ final class M6ViewModelTests: XCTestCase {
         let commandCountBefore = await fixture.audio.commands.count
 
         fixture.viewModel.startRecording()
-        let temporaryURL = await waitForBeginRecording(
+        let temporaryURL = await M6TestSupport.waitForBeginRecording(
             audio: fixture.audio,
             afterCommandCount: commandCountBefore
         )
@@ -102,7 +102,7 @@ final class M6ViewModelTests: XCTestCase {
                 reason: .manual
             )
         )
-        await waitUntil {
+        await M6TestSupport.waitUntil {
             fixture.viewModel.takes.count == 1
                 && fixture.viewModel.activeTake?.duration == 2.0
         }
@@ -119,7 +119,7 @@ final class M6ViewModelTests: XCTestCase {
         let commandCountBefore = await fixture.audio.commands.count
 
         fixture.viewModel.startRecording()
-        let temporaryURL = await waitForBeginRecording(
+        let temporaryURL = await M6TestSupport.waitForBeginRecording(
             audio: fixture.audio,
             afterCommandCount: commandCountBefore
         )
@@ -133,12 +133,16 @@ final class M6ViewModelTests: XCTestCase {
                 reason: .manual
             )
         )
-        await waitUntil {
+        await M6TestSupport.waitUntil {
             fixture.viewModel.takes.count == 2
         }
 
         XCTAssertEqual(Set(fixture.viewModel.takes.map(\.id)).count, 2)
         XCTAssertTrue(fixture.viewModel.takes.contains(where: { $0.id == existing.id }))
+        let newest = try XCTUnwrap(fixture.viewModel.takes.first)
+        XCTAssertNotEqual(newest.id, existing.id)
+        XCTAssertEqual(newest.sequence, existing.sequence + 1)
+        XCTAssertLessThan(newest.displayOrder, existing.displayOrder)
     }
 
     func testTakePlayButtonStartsFromTakeBeginning() async throws {
@@ -148,7 +152,7 @@ final class M6ViewModelTests: XCTestCase {
         fixture.viewModel.seekTimeline(take.region.start + 0.5)
 
         fixture.viewModel.toggleTakePlayback(take)
-        await waitForCommand(
+        await M6TestSupport.waitForCommand(
             .playTake(takeID: take.id, from: 0, loop: nil),
             audio: fixture.audio
         )
@@ -160,7 +164,7 @@ final class M6ViewModelTests: XCTestCase {
         let fixture = try await makeFixtureWithCommittedTake()
         fixture.viewModel.seekTimeline(25)
         fixture.viewModel.togglePlayback()
-        await waitForCommand(
+        await M6TestSupport.waitForCommand(
             .playOriginal(region: nil, from: 25, rate: 1),
             audio: fixture.audio
         )
@@ -180,23 +184,12 @@ final class M6ViewModelTests: XCTestCase {
     }
 
     private func makeFixtureWithCommittedTake() async throws -> M6Fixture {
-        let fixture = try await makeFixture()
-        fixture.viewModel.startRecording()
-        let temporaryURL = await waitForBeginRecording(audio: fixture.audio)
-        try Data([1, 2, 3, 4]).write(to: temporaryURL)
-        await fixture.audio.emit(.recordingStarted)
-        await fixture.audio.emit(
-            .recordingFinished(
-                url: temporaryURL,
-                duration: 1.5,
-                reason: .manual
-            )
-        )
-        await waitUntil {
-            fixture.viewModel.isComparing
-                && fixture.viewModel.recordingPresentation == .idle
+        let pair = try await M6TestSupport.makeFixtureWithCommittedTake()
+        let root = pair.temporaryRoot
+        addTeardownBlock {
+            try FileManager.default.removeItem(at: root)
         }
-        return fixture
+        return pair.fixture
     }
 
     private func commitAdditionalTake(
@@ -216,177 +209,4 @@ final class M6ViewModelTests: XCTestCase {
         try Data([9, 9, 9]).write(to: temporaryURL)
         return try await fixture.committer.commit(draft, temporaryFile: temporaryURL)
     }
-
-    private func makeFixture() async throws -> M6Fixture {
-        let project = makeProject()
-        let region = try PracticeRegion(start: 4, end: 7, sourceDuration: 30)
-        let storage = InMemoryPersistence()
-        let projects = InMemoryProjectRepository(storage: storage)
-        let takes = InMemoryTakeRepository(storage: storage)
-        try await projects.save(project)
-        let audio = PracticeAudioClientSpy()
-        let permissions = M6MicrophonePermissionServiceFake(status: .authorized)
-        let clock = M6ImmediateCountdownClock()
-        let root = try makeTemporaryRoot()
-        addTeardownBlock {
-            try FileManager.default.removeItem(at: root)
-        }
-        let fileStore = LocalRecordingFileStore(rootDirectory: root)
-        let committer = RecordingTakeCommitter(
-            fileStore: fileStore,
-            takeRepository: takes,
-            validator: AlwaysPlayableRecordingValidator()
-        )
-        let viewModel = PracticeViewModel(
-            prepared: PreparedPractice(
-                project: project,
-                waveform: WaveformPresentation(
-                    peaks: Array(repeating: 0.5, count: 64),
-                    warning: nil
-                )
-            ),
-            audioClient: audio,
-            projects: projects,
-            sessionPreparer: M6SessionPreparer(),
-            recordingDependencies: RecordingDependencies(
-                permissions: permissions,
-                countdownClock: clock,
-                fileStore: fileStore,
-                takes: takes,
-                committer: committer,
-                countdownSeconds: 0,
-                now: { Date(timeIntervalSince1970: 200) }
-            )
-        )
-        viewModel.start()
-        viewModel.selectRegion(region)
-        await waitForCommand(.seek(region.start), audio: audio)
-        return M6Fixture(
-            viewModel: viewModel,
-            audio: audio,
-            takes: takes,
-            fileStore: fileStore,
-            committer: committer,
-            project: project,
-            region: region
-        )
-    }
-
-    private func makeProject() -> AudioProject {
-        AudioProject(
-            id: UUID(),
-            sourceDisplayName: "Speech.mp3",
-            sourceBookmark: Data([1]),
-            duration: 30,
-            playhead: 0,
-            currentRegion: nil,
-            selectedTakeID: nil,
-            keptTakeID: nil,
-            lastOpenedAt: Date(timeIntervalSince1970: 100)
-        )
-    }
-
-    private func makeTemporaryRoot() throws -> URL {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Shadowing-M6-\(UUID())", isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: root,
-            withIntermediateDirectories: true
-        )
-        return root
-    }
-
-    private func waitForBeginRecording(
-        audio: PracticeAudioClientSpy,
-        afterCommandCount: Int = 0
-    ) async -> URL {
-        for _ in 0 ..< 200 {
-            let commands = await audio.commands
-            for command in commands.suffix(from: min(afterCommandCount, commands.count)) {
-                if case let .beginRecording(_, url, _) = command {
-                    return url
-                }
-            }
-            await Task.yield()
-        }
-        XCTFail("Expected beginRecording command")
-        return URL(fileURLWithPath: "/missing")
-    }
-
-    private func waitForCommand(
-        _ expected: PracticeAudioCommand,
-        audio: PracticeAudioClientSpy
-    ) async {
-        for _ in 0 ..< 200 {
-            if await audio.commands.contains(expected) {
-                return
-            }
-            await Task.yield()
-        }
-        XCTFail("Expected command \(expected)")
-    }
-
-    private func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0 ..< 200 {
-            if condition() {
-                return
-            }
-            await Task.yield()
-        }
-        XCTFail("Condition was not satisfied")
-    }
-}
-
-private struct M6Fixture {
-    let viewModel: PracticeViewModel
-    let audio: PracticeAudioClientSpy
-    let takes: InMemoryTakeRepository
-    let fileStore: LocalRecordingFileStore
-    let committer: RecordingTakeCommitter
-    let project: AudioProject
-    let region: PracticeRegion
-}
-
-private actor M6MicrophonePermissionServiceFake: MicrophonePermissionService {
-    private let status: MicrophonePermissionState
-
-    init(status: MicrophonePermissionState) {
-        self.status = status
-    }
-
-    func authorizationStatus() -> MicrophonePermissionState {
-        status
-    }
-
-    func requestAuthorization() -> MicrophonePermissionState {
-        status
-    }
-
-    func openSystemSettings() {}
-}
-
-private actor M6ImmediateCountdownClock: RecordingCountdownClock {
-    func waitForNextSecond() async throws {
-        await Task.yield()
-    }
-}
-
-private actor M6SessionPreparer: PracticeSessionPreparing {
-    func prepareNewSource(at _: URL) async throws -> PreparedPractice {
-        throw M6TestError.unexpectedPreparation
-    }
-
-    func prepareExistingProject(id _: UUID) async throws -> PreparedPractice {
-        throw M6TestError.unexpectedPreparation
-    }
-
-    func relocateProject(id _: UUID, to _: URL) async throws -> PreparedPractice {
-        throw M6TestError.unexpectedPreparation
-    }
-
-    func endSession() {}
-}
-
-private enum M6TestError: Error {
-    case unexpectedPreparation
 }

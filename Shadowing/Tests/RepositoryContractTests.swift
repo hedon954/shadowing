@@ -107,6 +107,38 @@ struct TakeRepositoryContract {
         XCTAssertEqual(remaining, [second])
     }
 
+    func assertDisplayOrderSortAndReorder() async throws {
+        let project = makeProject()
+        try await projects.save(project)
+        let region = try PracticeRegion(start: 1, end: 4, sourceDuration: project.duration)
+        let older = try makeTake(
+            projectID: project.id,
+            region: region,
+            sequence: 1,
+            displayOrder: 0,
+            duration: 3
+        )
+        let newer = try makeTake(
+            projectID: project.id,
+            region: region,
+            sequence: 2,
+            displayOrder: -1,
+            duration: 3
+        )
+        try await takes.save(older)
+        try await takes.save(newer)
+
+        let loaded = try await takes.takes(projectID: project.id)
+        XCTAssertEqual(loaded.map(\.id), [newer.id, older.id])
+
+        let reordered = try TakeDisplayOrdering.reindexed([older, newer])
+        try await takes.reorderTakes(reordered)
+        let afterReorder = try await takes.takes(projectID: project.id)
+        XCTAssertEqual(afterReorder.map(\.id), [older.id, newer.id])
+        XCTAssertEqual(afterReorder.map(\.displayOrder), [0, 1])
+        XCTAssertEqual(afterReorder.map(\.sequence), [1, 2])
+    }
+
     func assertProjectDeleteCascadesTakes() async throws {
         let project = makeProject()
         try await projects.save(project)
@@ -143,12 +175,14 @@ struct TakeRepositoryContract {
         projectID: UUID,
         region: PracticeRegion,
         sequence: Int,
+        displayOrder: Int? = nil,
         duration: TimeInterval
     ) throws -> Take {
         try Take(
             projectID: projectID,
             region: region,
             sequence: sequence,
+            displayOrder: displayOrder,
             relativeAudioPath: "projects/\(projectID)/\(UUID()).caf",
             duration: duration,
             createdAt: Date(timeIntervalSince1970: TimeInterval(sequence))
@@ -216,6 +250,12 @@ final class GRDBRepositoryContractTests: XCTestCase {
             .assertSaveUpdateOrderingAndDelete()
     }
 
+    func testTakeDisplayOrderSortAndReorderContract() async throws {
+        let context = try makeContext()
+        try await TakeRepositoryContract(projects: context.projects, takes: context.takes)
+            .assertDisplayOrderSortAndReorder()
+    }
+
     func testProjectDeleteCascadesTakesContract() async throws {
         let context = try makeContext()
         try await TakeRepositoryContract(projects: context.projects, takes: context.takes)
@@ -262,6 +302,7 @@ final class InMemoryRepositoryContractTests: XCTestCase {
             takes: context.takes
         )
         try await contract.assertSaveUpdateOrderingAndDelete()
+        try await contract.assertDisplayOrderSortAndReorder()
         try await contract.assertProjectDeleteCascadesTakes()
     }
 

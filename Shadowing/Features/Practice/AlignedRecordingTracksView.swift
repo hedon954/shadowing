@@ -117,7 +117,8 @@ struct MultiTrackPracticeView: View {
             onSelectTake: viewModel.selectTake,
             onToggleTakePlayback: viewModel.toggleTakePlayback,
             onTakeLoopRegionChanged: viewModel.selectTakeLoopRegion,
-            onTakeLoopRegionCleared: viewModel.clearTakeLoopRegion
+            onTakeLoopRegionCleared: viewModel.clearTakeLoopRegion,
+            onReorderTakes: viewModel.reorderTakes
         )
     }
 
@@ -159,6 +160,7 @@ struct AlignedRecordingTracksView: View {
     let onToggleTakePlayback: (Take) -> Void
     let onTakeLoopRegionChanged: (Take, PracticeRegion) -> Void
     let onTakeLoopRegionCleared: (Take) -> Void
+    var onReorderTakes: ((UUID, UUID) -> Void)?
 
     @State private var magnifyOrigin: TimelineViewport?
 
@@ -221,6 +223,10 @@ struct AlignedRecordingTracksView: View {
             )
             .frame(height: 120)
 
+            if showsAppendLiveRow {
+                appendLiveRecordingRow
+            }
+
             ForEach(takes) { take in
                 AlignedTakeTrackView(
                     take: take,
@@ -235,6 +241,7 @@ struct AlignedRecordingTracksView: View {
                     isLive: liveTakeID == take.id,
                     isPlaying: playingTakeID == take.id && isPlaying,
                     isInteractive: isInteractive,
+                    canReorder: canReorderTakes,
                     onSelectTake: { onSelectTake(take) },
                     onTogglePlayback: { onToggleTakePlayback(take) },
                     onSeek: onSeek,
@@ -247,26 +254,22 @@ struct AlignedRecordingTracksView: View {
                     onViewportChanged: onViewportChanged,
                     onGestureActiveChanged: onGestureActiveChanged
                 )
-            }
-
-            if showsAppendLiveRow {
-                trackHeader(title: "Recording…", emphasized: true) {
-                    EmptyView()
+                .onDrag {
+                    guard canReorderTakes else {
+                        return NSItemProvider()
+                    }
+                    return NSItemProvider(object: take.id.uuidString as NSString)
                 }
-                WaveformTimelineTrack(
-                    waveform: nil,
-                    timedPoints: liveTakePoints,
-                    assetTimelineStart: liveRegion?.start ?? viewport.start,
-                    viewport: viewport,
-                    color: .orange,
-                    playhead: playhead,
-                    selection: liveRegion,
-                    emphasized: true
+                .onDrop(
+                    of: [.plainText],
+                    delegate: TakeTrackReorderDropDelegate(
+                        targetID: take.id,
+                        isEnabled: canReorderTakes,
+                        onMove: { draggedID, targetID in
+                            onReorderTakes?(draggedID, targetID)
+                        }
+                    )
                 )
-                .frame(height: 100)
-                .overlay {
-                    seekOverlay(clearsTakeSelection: false)
-                }
             }
 
             HStack {
@@ -291,11 +294,36 @@ struct AlignedRecordingTracksView: View {
         .accessibilityLabel("Aligned original and recording waveforms")
     }
 
+    private var canReorderTakes: Bool {
+        isInteractive && takes.count > 1 && onReorderTakes != nil
+    }
+
     private var showsAppendLiveRow: Bool {
         guard liveTakeID != nil, !liveTakePoints.isEmpty || liveRegion != nil else {
             return false
         }
         return !takes.contains(where: { $0.id == liveTakeID })
+    }
+
+    @ViewBuilder
+    private var appendLiveRecordingRow: some View {
+        trackHeader(title: "Recording…", emphasized: true) {
+            EmptyView()
+        }
+        WaveformTimelineTrack(
+            waveform: nil,
+            timedPoints: liveTakePoints,
+            assetTimelineStart: liveRegion?.start ?? viewport.start,
+            viewport: viewport,
+            color: .orange,
+            playhead: playhead,
+            selection: liveRegion,
+            emphasized: true
+        )
+        .frame(height: 100)
+        .overlay {
+            seekOverlay(clearsTakeSelection: false)
+        }
     }
 
     private func trackHeader(
@@ -383,5 +411,38 @@ struct AlignedRecordingTracksView: View {
     private func format(_ time: TimeInterval) -> String {
         let seconds = max(Int(time.rounded()), 0)
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+private struct TakeTrackReorderDropDelegate: DropDelegate {
+    let targetID: UUID
+    let isEnabled: Bool
+    let onMove: (UUID, UUID) -> Void
+
+    func validateDrop(info _: DropInfo) -> Bool {
+        isEnabled
+    }
+
+    func dropUpdated(info _: DropInfo) -> DropProposal? {
+        DropProposal(operation: isEnabled ? .move : .cancel)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard isEnabled,
+              let provider = info.itemProviders(for: [.plainText]).first
+        else {
+            return false
+        }
+        _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let string = object as? String,
+                  let draggedID = UUID(uuidString: string)
+            else {
+                return
+            }
+            Task { @MainActor in
+                onMove(draggedID, targetID)
+            }
+        }
+        return true
     }
 }

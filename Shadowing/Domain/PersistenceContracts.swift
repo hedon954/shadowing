@@ -11,6 +11,8 @@ protocol TakeRepository: Sendable {
     func takes(projectID: UUID) async throws -> [Take]
     func take(id: UUID) async throws -> Take?
     func save(_ take: Take) async throws
+    /// Persists vertical order for the given takes (already ordered top → bottom).
+    func reorderTakes(_ orderedTakes: [Take]) async throws
     func deleteTake(id: UUID) async throws
 }
 
@@ -98,6 +100,7 @@ struct TakeDraft: Equatable, Sendable {
     let projectID: UUID
     let region: PracticeRegion
     let sequence: Int
+    let displayOrder: Int
     let duration: TimeInterval
     let createdAt: Date
 
@@ -106,6 +109,7 @@ struct TakeDraft: Equatable, Sendable {
         projectID: UUID,
         region: PracticeRegion,
         sequence: Int,
+        displayOrder: Int? = nil,
         duration: TimeInterval,
         createdAt: Date
     ) throws {
@@ -120,6 +124,7 @@ struct TakeDraft: Equatable, Sendable {
         self.projectID = projectID
         self.region = region
         self.sequence = sequence
+        self.displayOrder = displayOrder ?? sequence
         self.duration = duration
         self.createdAt = createdAt
     }
@@ -130,6 +135,7 @@ struct TakeDraft: Equatable, Sendable {
             projectID: projectID,
             region: region,
             sequence: sequence,
+            displayOrder: displayOrder,
             relativeAudioPath: relativeAudioPath,
             duration: duration,
             createdAt: createdAt

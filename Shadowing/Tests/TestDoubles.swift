@@ -38,7 +38,12 @@ actor InMemoryPersistence {
     func projectTakes(projectID: UUID) -> [Take] {
         takes.values
             .filter { $0.projectID == projectID }
-            .sorted { $0.sequence < $1.sequence }
+            .sorted {
+                if $0.displayOrder == $1.displayOrder {
+                    return $0.sequence < $1.sequence
+                }
+                return $0.displayOrder < $1.displayOrder
+            }
     }
 
     func take(id: UUID) -> Take? {
@@ -50,6 +55,12 @@ actor InMemoryPersistence {
             throw TestDoubleError.missingProject
         }
         takes[take.id] = take
+    }
+
+    func reorderTakes(_ orderedTakes: [Take]) {
+        for take in orderedTakes {
+            takes[take.id] = take
+        }
     }
 
     func deleteTake(id: UUID) {
@@ -100,6 +111,10 @@ struct InMemoryTakeRepository: TakeRepository {
         try await storage.save(take: take)
     }
 
+    func reorderTakes(_ orderedTakes: [Take]) async throws {
+        await storage.reorderTakes(orderedTakes)
+    }
+
     func deleteTake(id: UUID) async throws {
         await storage.deleteTake(id: id)
     }
@@ -144,6 +159,10 @@ actor FailingTakeRepository: TakeRepository {
 
     func save(_: Take) async throws {
         saveAttempts += 1
+        throw TestDoubleError.forcedFailure
+    }
+
+    func reorderTakes(_: [Take]) async throws {
         throw TestDoubleError.forcedFailure
     }
 

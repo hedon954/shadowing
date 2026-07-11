@@ -237,6 +237,39 @@ extension PracticeViewModel {
         }
     }
 
+    /// Reorders Take tracks under Original. Labels (`sequence`) stay unchanged.
+    func reorderTakes(draggedID: UUID, onto targetID: UUID) {
+        guard isInteractiveForTakeReorder,
+              let reordered = try? TakeDisplayOrdering.moving(
+                  takes,
+                  draggedID: draggedID,
+                  onto: targetID
+              )
+        else {
+            return
+        }
+        takes = reordered
+        Task { [weak self] in
+            await self?.persistTakeOrder(reordered)
+        }
+    }
+
+    private var isInteractiveForTakeReorder: Bool {
+        !controlsLocked && takes.count > 1
+    }
+
+    private func persistTakeOrder(_ orderedTakes: [Take]) async {
+        guard let recordingDependencies else {
+            return
+        }
+        do {
+            try await recordingDependencies.takes.reorderTakes(orderedTakes)
+        } catch {
+            show(error)
+            await refreshTakes()
+        }
+    }
+
     func refreshTakes() async {
         guard let recordingDependencies else {
             takes = []
@@ -244,7 +277,12 @@ extension PracticeViewModel {
         }
         do {
             takes = try await recordingDependencies.takes.takes(projectID: project.id)
-                .sorted { $0.sequence < $1.sequence }
+                .sorted {
+                    if $0.displayOrder == $1.displayOrder {
+                        return $0.sequence < $1.sequence
+                    }
+                    return $0.displayOrder < $1.displayOrder
+                }
             let ids = Set(takes.map(\.id))
             takeWaveforms = takeWaveforms.filter { ids.contains($0.key) }
             takeLoopSelections = takeLoopSelections.filter { ids.contains($0.key) }
