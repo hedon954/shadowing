@@ -29,6 +29,7 @@ final class AppNavigationModel: ObservableObject {
 
     let dependencies: AppDependencies
     private var activePracticeCloser: (@MainActor () async -> Void)?
+    private var practiceShortcutHandler: ((PracticeShortcutAction) -> Void)?
     private var transitionTask: Task<Void, Never>?
 
     lazy var filesViewModel = FilesViewModel(
@@ -39,12 +40,41 @@ final class AppNavigationModel: ObservableObject {
         self?.openPrepared(prepared)
     }
 
+    lazy var recordingsViewModel = RecordingsViewModel(
+        projects: dependencies.projects,
+        takes: dependencies.takes,
+        sessionPreparer: dependencies.sessionPreparer,
+        fileChooser: dependencies.fileChooser
+    ) { [weak self] prepared in
+        self?.openPrepared(prepared)
+    }
+
+    lazy var settingsViewModel = SettingsViewModel(
+        store: dependencies.settings,
+        inputDevicesProvider: dependencies.inputDevices,
+        storageDirectory: dependencies.recordingsStorageURL
+    )
+
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
     }
 
     func registerPracticeCloser(_ closer: (@MainActor () async -> Void)?) {
         activePracticeCloser = closer
+    }
+
+    func registerPracticeShortcutHandler(
+        _ handler: ((PracticeShortcutAction) -> Void)?
+    ) {
+        practiceShortcutHandler = handler
+    }
+
+    func handleShortcut(_ action: PracticeShortcutAction) {
+        if action == .openAudio {
+            openAudioChooser()
+            return
+        }
+        practiceShortcutHandler?(action)
     }
 
     func openPrepared(_ prepared: PreparedPractice) {
@@ -77,6 +107,13 @@ final class AppNavigationModel: ObservableObject {
             selectedSection = .files
             practiceControlsLocked = false
         }
+    }
+
+    func openAudioChooser() {
+        if preparedPractice != nil {
+            showFiles()
+        }
+        filesViewModel.chooseFile()
     }
 
     func selectSection(_ section: SidebarSection) {
@@ -126,6 +163,9 @@ struct ContentView: View {
         } detail: {
             detail
         }
+        .practiceKeyboardShortcuts(isEnabled: true) { action in
+            navigation.handleShortcut(action)
+        }
     }
 
     private var sectionSelection: Binding<SidebarSection?> {
@@ -155,17 +195,9 @@ struct ContentView: View {
                 FilesView(viewModel: navigation.filesViewModel)
             }
         case .recordings:
-            ContentUnavailableView(
-                "No Recordings Yet",
-                systemImage: "mic",
-                description: Text("Your completed practice takes will appear here.")
-            )
+            RecordingsView(viewModel: navigation.recordingsViewModel)
         case .settings:
-            ContentUnavailableView(
-                "Settings Coming Later",
-                systemImage: "gearshape",
-                description: Text("Playback settings will be added in a later milestone.")
-            )
+            SettingsView(viewModel: navigation.settingsViewModel)
         }
     }
 }
@@ -197,6 +229,12 @@ private struct PracticeScene: View {
                 navigation.registerPracticeCloser { [weak viewModel] in
                     await viewModel?.close()
                 }
+                navigation.registerPracticeShortcutHandler { [weak viewModel] action in
+                    guard let viewModel else {
+                        return
+                    }
+                    handleShortcut(action, viewModel: viewModel)
+                }
                 navigation.practiceControlsLocked = viewModel.controlsLocked
             }
             .onChange(of: viewModel.controlsLocked) { _, locked in
@@ -204,7 +242,62 @@ private struct PracticeScene: View {
             }
             .onDisappear {
                 navigation.registerPracticeCloser(nil)
+                navigation.registerPracticeShortcutHandler(nil)
                 navigation.practiceControlsLocked = false
             }
+    }
+
+    private func handleShortcut(
+        _ action: PracticeShortcutAction,
+        viewModel: PracticeViewModel
+    ) {
+        switch action {
+        case .togglePlayback:
+            viewModel.togglePlayback()
+        case .toggleRecording:
+            toggleRecording(viewModel)
+        case .toggleLoop:
+            toggleLoop(viewModel)
+        case .jumpBackward:
+            viewModel.jump(by: -5)
+        case .jumpForward:
+            viewModel.jump(by: 5)
+        case .openAudio:
+            navigation.openAudioChooser()
+        case let .comparisonMode(mode):
+            setComparisonMode(mode, viewModel: viewModel)
+        case .rerecord:
+            viewModel.rerecord()
+        case .deleteTake:
+            viewModel.requestDeleteTake()
+        }
+    }
+
+    private func toggleRecording(_ viewModel: PracticeViewModel) {
+        if viewModel.controlsLocked {
+            viewModel.stopRecording()
+            return
+        }
+        guard !viewModel.isComparing else {
+            return
+        }
+        viewModel.startRecording()
+    }
+
+    private func toggleLoop(_ viewModel: PracticeViewModel) {
+        guard viewModel.canToggleLoop else {
+            return
+        }
+        viewModel.setLoopEnabled(!viewModel.loopEnabled)
+    }
+
+    private func setComparisonMode(
+        _ mode: ComparisonMode,
+        viewModel: PracticeViewModel
+    ) {
+        guard viewModel.isComparing else {
+            return
+        }
+        viewModel.setComparisonMode(mode)
     }
 }

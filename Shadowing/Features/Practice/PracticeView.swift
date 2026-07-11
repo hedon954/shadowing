@@ -131,7 +131,6 @@ struct PracticeView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .keyboardShortcut(.space, modifiers: [])
             .disabled(viewModel.controlsLocked)
             .accessibilityLabel(viewModel.isPlaying ? "Pause audio" : "Play audio")
 
