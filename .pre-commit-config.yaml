@@ -1,0 +1,36 @@
+repos:
+  - repo: local
+    hooks:
+      - id: staged-diff-check
+        name: staged whitespace and conflict markers
+        entry: git diff --cached --check
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: swiftformat
+        name: SwiftFormat
+        entry: swiftformat --lint
+        language: system
+        types: [swift]
+
+      - id: swiftlint
+        name: SwiftLint
+        entry: swiftlint lint --strict --config .swiftlint.yml
+        language: system
+        pass_filenames: false
+        types: [swift]
+
+      - id: architecture
+        name: architecture and agent links
+        entry: ./scripts/validate-architecture.sh
+        language: system
+        pass_filenames: false
+        files: '^(CLAUDE\.md|AGENTS\.md|docs/adr/|Shadowing/|\.claude/|\.cursor/|\.codex/)'
+
+      - id: actionlint
+        name: GitHub Actions
+        entry: actionlint
+        language: system
+        pass_filenames: false
+        files: '^\.github/workflows/.*\.ya?ml$'

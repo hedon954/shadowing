@@ -1,0 +1,15 @@
+---
+description: Swift 6 concurrency and layering conventions
+globs: "**/*.swift"
+alwaysApply: false
+---
+
+# Swift Conventions
+
+- Keep Views free of AVFoundation, GRDB, and direct file I/O.
+- Coordinate observable state in `@MainActor` ViewModels.
+- Values crossing isolation boundaries must be `Sendable`.
+- Domain code imports Foundation only when required and never imports UI/I/O frameworks.
+- Persistence and audio implementations depend inward on Domain protocols.
+- Preserve actionable errors; do not use empty `catch` or `try?` for critical operations.
+- Add tests for rule, state-machine, repository, or migration changes.

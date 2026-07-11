@@ -1,0 +1,26 @@
+.DS_Store
+
+# Xcode / XcodeGen
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Local application data
+local-data/
+recordings/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+.claude/settings.local.json

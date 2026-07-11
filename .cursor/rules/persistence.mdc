@@ -1,0 +1,14 @@
+---
+description: Repository, SQLite migration, bookmark, and recording-file rules
+globs: "Shadowing/{Domain,Persistence,Services}/**/*.swift"
+alwaysApply: false
+---
+
+# Persistence
+
+- Apply the `shadowing-development` SOP and read ADR-0006/0007.
+- Domain protocols define behavior; GRDB types stay inside Persistence.
+- Migrations are forward-only, idempotent, and tested from previous schemas.
+- Store recording audio as files and only stable relative paths in SQLite.
+- Keep security-scoped bookmark API usage in Swift.
+- Make file and metadata failure recovery explicit and testable.

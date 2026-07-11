@@ -1,0 +1,15 @@
+---
+description: Shadowing project architecture and source-of-truth documents
+alwaysApply: true
+---
+
+# Shadowing
+
+- Read `CLAUDE.md` before implementation.
+- Product source: `docs/prd/prd-v0.0.1-2026-07-11.md`.
+- Architecture source: `docs/adr/README.md`.
+- Build source: `Makefile`; Xcode source: `Shadowing/project.yml`.
+- MVP uses SwiftUI, AVFoundation, GRDB/SQLite, and local files.
+- Do not add Rust, UniFFI, cargo-swift, network services, AI scoring, or accounts unless a
+  new accepted ADR changes scope.
+- Run `make check` before reporting implementation complete.

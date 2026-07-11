@@ -1,0 +1,14 @@
+---
+description: Real-time audio safety and timing rules
+globs: "Shadowing/Audio/**/*.swift"
+alwaysApply: false
+---
+
+# Real-time Audio
+
+- Apply the `shadowing-development` SOP and read ADR-0004/0005.
+- Use sample/render time for loop and recording boundaries.
+- Keep UI refresh timers outside the real-time clock.
+- Audio callbacks must not block, access SQLite, or allocate without a fixed bound.
+- Handle interruption, route removal, early stop, and file-write failure explicitly.
+- Commit a Take only after its temporary recording is playable and moved successfully.
