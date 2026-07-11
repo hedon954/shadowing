@@ -23,7 +23,7 @@ struct AlignedTakeTrackView: View {
     var onGestureActiveChanged: ((Bool) -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 if canReorder {
                     Image(systemName: "line.3.horizontal")
@@ -80,13 +80,33 @@ struct AlignedTakeTrackView: View {
                 }
             }
             .frame(height: 100)
-            .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(
-                        isSelected ? Color.accentColor.opacity(0.8) : Color.clear,
-                        lineWidth: 2
-                    )
-            }
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(trackFill)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(trackStroke, lineWidth: isSelected || isLive ? 1.5 : 1)
+        }
+    }
+
+    private var trackFill: Color {
+        if isSelected || isLive {
+            Color.accentColor.opacity(0.06)
+        } else {
+            Color.primary.opacity(0.035)
+        }
+    }
+
+    private var trackStroke: Color {
+        if isSelected || isLive {
+            Color.accentColor.opacity(0.55)
+        } else {
+            Color.primary.opacity(0.12)
         }
     }
 

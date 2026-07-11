@@ -179,7 +179,7 @@ struct AlignedRecordingTracksView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             WaveformTimelineOverview(
                 waveform: originalWaveform,
                 takeThumbnails: takeThumbnails,
@@ -222,6 +222,10 @@ struct AlignedRecordingTracksView: View {
                 onGestureActiveChanged: onGestureActiveChanged
             )
             .frame(height: 120)
+
+            Divider()
+                .opacity(0.45)
+                .padding(.vertical, 2)
 
             if showsAppendLiveRow {
                 appendLiveRecordingRow
@@ -305,24 +309,36 @@ struct AlignedRecordingTracksView: View {
         return !takes.contains(where: { $0.id == liveTakeID })
     }
 
-    @ViewBuilder
     private var appendLiveRecordingRow: some View {
-        trackHeader(title: "Recording…", emphasized: true) {
-            EmptyView()
+        VStack(alignment: .leading, spacing: 8) {
+            trackHeader(title: "Recording…", emphasized: true) {
+                EmptyView()
+            }
+            WaveformTimelineTrack(
+                waveform: nil,
+                timedPoints: liveTakePoints,
+                assetTimelineStart: liveRegion?.start ?? viewport.start,
+                viewport: viewport,
+                color: .orange,
+                playhead: playhead,
+                selection: liveRegion,
+                emphasized: true
+            )
+            .frame(height: 100)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                seekOverlay(clearsTakeSelection: false)
+            }
         }
-        WaveformTimelineTrack(
-            waveform: nil,
-            timedPoints: liveTakePoints,
-            assetTimelineStart: liveRegion?.start ?? viewport.start,
-            viewport: viewport,
-            color: .orange,
-            playhead: playhead,
-            selection: liveRegion,
-            emphasized: true
-        )
-        .frame(height: 100)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.accentColor.opacity(0.06))
+        }
         .overlay {
-            seekOverlay(clearsTakeSelection: false)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 1.5)
         }
     }
 
