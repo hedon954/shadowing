@@ -88,6 +88,8 @@ extension PracticeAudioEngine {
         guard sourceFile != nil, let sourceInfo else {
             throw PracticeAudioEngineError.sourceNotLoaded
         }
+        stopTakeNode()
+        playbackTarget = .original
         let converter = try AudioFrameTimeConverter(sampleRate: sourceInfo.sampleRate)
         let requestedFrame = try position.map(converter.frame(at:)) ?? pausedFrame
         let frame = try normalizedPlaybackFrame(requestedFrame)
@@ -98,19 +100,100 @@ extension PracticeAudioEngine {
         startPlayheadUpdates()
     }
 
+    func playTake(url: URL, from position: TimeInterval) throws {
+        guard sourceFile != nil else {
+            throw PracticeAudioEngineError.sourceNotLoaded
+        }
+        scheduleGeneration &+= 1
+        player.stop()
+        isPlaying = false
+        playheadTask?.cancel()
+
+        let file: AVAudioFile
+        do {
+            file = try AVAudioFile(forReading: url)
+        } catch {
+            throw PracticeAudioEngineError.audioEngineFailed(error.localizedDescription)
+        }
+        let sampleRate = file.processingFormat.sampleRate
+        let frameCount = file.length
+        let info = LoadedAudioSource(
+            duration: Double(frameCount) / sampleRate,
+            sampleRate: sampleRate,
+            frameCount: frameCount
+        )
+        takeFile = file
+        takeInfo = info
+        playbackTarget = .take
+
+        let converter = try AudioFrameTimeConverter(sampleRate: sampleRate)
+        let requestedFrame = try converter.frame(at: max(position, 0))
+        let frame = min(max(requestedFrame, 0), max(frameCount - 1, 0))
+        try scheduleTakePlayback(from: frame)
+        try ensureEngineRunning()
+        takePlayer.play()
+        isPlaying = true
+        startPlayheadUpdates()
+    }
+
+    private func scheduleTakePlayback(from sourceFrame: Int64) throws {
+        guard let takeFile, let takeInfo else {
+            throw PracticeAudioEngineError.sourceNotLoaded
+        }
+        takeScheduleGeneration &+= 1
+        let generation = takeScheduleGeneration
+        takePlayer.stop()
+
+        let frameCount = takeInfo.frameCount - sourceFrame
+        guard frameCount > 0, frameCount <= Int64(UInt32.max) else {
+            throw PracticeAudioEngineError.frameCountTooLarge
+        }
+        takeScheduledStartFrame = sourceFrame
+        takePausedFrame = sourceFrame
+        takePlayer.scheduleSegment(
+            takeFile,
+            startingFrame: sourceFrame,
+            frameCount: AVAudioFrameCount(frameCount),
+            at: nil,
+            completionCallbackType: .dataPlayedBack,
+            completionHandler: { [weak self] _ in
+                Task {
+                    await self?.handleTakePlaybackFinished(generation: generation)
+                }
+            }
+        )
+    }
+
+    private func stopTakeNode() {
+        takeScheduleGeneration &+= 1
+        takePlayer.stop()
+    }
+
     func pause() {
         guard isPlaying else {
             return
         }
-        pausedFrame = currentSourceFrame()
-        player.pause()
+        if playbackTarget == .take {
+            takePausedFrame = currentTakeFrame()
+            takePlayer.pause()
+        } else {
+            pausedFrame = currentSourceFrame()
+            player.pause()
+        }
         isPlaying = false
         playheadTask?.cancel()
         publishPlayhead()
     }
 
     func seek(to position: TimeInterval) throws {
-        guard position.isFinite, position >= 0, let sourceInfo else {
+        guard position.isFinite, position >= 0 else {
+            throw PracticeAudioEngineError.invalidSeekTime(position)
+        }
+        if playbackTarget == .take {
+            try seekTake(to: position)
+            return
+        }
+        guard let sourceInfo else {
             throw PracticeAudioEngineError.invalidSeekTime(position)
         }
         let converter = try AudioFrameTimeConverter(sampleRate: sourceInfo.sampleRate)
@@ -129,6 +212,27 @@ extension PracticeAudioEngine {
         publishPlayhead()
     }
 
+    private func seekTake(to position: TimeInterval) throws {
+        guard let takeInfo else {
+            throw PracticeAudioEngineError.sourceNotLoaded
+        }
+        let converter = try AudioFrameTimeConverter(sampleRate: takeInfo.sampleRate)
+        let requestedFrame = try converter.frame(at: position)
+        let frame = min(max(requestedFrame, 0), max(takeInfo.frameCount - 1, 0))
+        let shouldResume = isPlaying
+        takePlayer.stop()
+        isPlaying = false
+        takePausedFrame = frame
+        try scheduleTakePlayback(from: frame)
+        if shouldResume {
+            try ensureEngineRunning()
+            takePlayer.play()
+            isPlaying = true
+            startPlayheadUpdates()
+        }
+        publishPlayhead()
+    }
+
     func setRate(_ rate: Double) throws {
         guard rate.isFinite, 0.5 ... 1.5 ~= rate else {
             throw PracticeAudioEngineError.invalidPlaybackRate(rate)
@@ -136,11 +240,11 @@ extension PracticeAudioEngine {
         guard playbackRate != rate else {
             return
         }
-        let shouldResume = isPlaying
+        let shouldResume = isPlaying && playbackTarget == .original
         let frame = currentSourceFrame()
         playbackRate = rate
         timePitch.rate = Float(rate)
-        if sourceFile != nil {
+        if sourceFile != nil, playbackTarget == .original {
             player.stop()
             isPlaying = false
             pausedFrame = frame
@@ -159,6 +263,7 @@ extension PracticeAudioEngine {
             throw PracticeAudioEngineError.invalidVolume(volume)
         }
         player.volume = volume
+        takePlayer.volume = volume
     }
 
     func setLoop(_ region: PracticeRegion?) throws {
@@ -174,10 +279,10 @@ extension PracticeAudioEngine {
             }
         }
 
-        let shouldResume = isPlaying
+        let shouldResume = isPlaying && playbackTarget == .original
         let currentFrame = currentSourceFrame()
         loopRegion = region
-        guard sourceFile != nil else {
+        guard sourceFile != nil, playbackTarget == .original else {
             return
         }
         player.stop()

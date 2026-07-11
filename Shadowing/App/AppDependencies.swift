@@ -46,7 +46,12 @@ final class AppDependencies {
                 isDirectory: true
             )
         )
-        let audioClient = PracticeAudioEngine()
+        let audioClient = PracticeAudioEngine { takeID in
+            guard let take = try await takes.take(id: takeID) else {
+                throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
+            }
+            return try recordingFiles.audioURL(relativePath: take.relativeAudioPath)
+        }
         let waveformCache = WaveformFileCache(
             directory: applicationSupport.appendingPathComponent("Waveforms", isDirectory: true)
         )

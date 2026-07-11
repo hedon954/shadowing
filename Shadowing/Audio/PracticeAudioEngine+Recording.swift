@@ -51,6 +51,7 @@ extension PracticeAudioEngine {
         guard sourceFile != nil, let sourceInfo else {
             throw PracticeAudioEngineError.sourceNotLoaded
         }
+        stopTakePlayback()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0 else {

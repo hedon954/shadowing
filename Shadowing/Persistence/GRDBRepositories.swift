@@ -231,6 +231,23 @@ actor GRDBTakeRepository: TakeRepository {
         }
     }
 
+    func take(id: UUID) async throws -> Take? {
+        try await database.read { database in
+            guard let row = try Row.fetchOne(
+                database,
+                sql: """
+                SELECT *
+                FROM takes
+                WHERE id = ?
+                """,
+                arguments: [id.uuidString]
+            ) else {
+                return nil
+            }
+            return try Self.makeTake(row)
+        }
+    }
+
     func save(_ take: Take) async throws {
         try await database.write { database in
             try database.execute(

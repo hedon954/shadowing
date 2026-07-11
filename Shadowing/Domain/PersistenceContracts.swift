@@ -9,6 +9,7 @@ protocol ProjectRepository: Sendable {
 
 protocol TakeRepository: Sendable {
     func takes(projectID: UUID) async throws -> [Take]
+    func take(id: UUID) async throws -> Take?
     func save(_ take: Take) async throws
     func deleteTake(id: UUID) async throws
 }

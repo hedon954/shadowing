@@ -41,6 +41,10 @@ actor InMemoryPersistence {
             .sorted { $0.sequence < $1.sequence }
     }
 
+    func take(id: UUID) -> Take? {
+        takes[id]
+    }
+
     func save(take: Take) throws {
         guard projects[take.projectID] != nil else {
             throw TestDoubleError.missingProject
@@ -88,6 +92,10 @@ struct InMemoryTakeRepository: TakeRepository {
         await storage.projectTakes(projectID: projectID)
     }
 
+    func take(id: UUID) async throws -> Take? {
+        await storage.take(id: id)
+    }
+
     func save(_ take: Take) async throws {
         try await storage.save(take: take)
     }
@@ -128,6 +136,10 @@ actor FailingTakeRepository: TakeRepository {
 
     func takes(projectID _: UUID) async throws -> [Take] {
         []
+    }
+
+    func take(id _: UUID) async throws -> Take? {
+        nil
     }
 
     func save(_: Take) async throws {

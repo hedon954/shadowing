@@ -36,6 +36,7 @@ extension PracticeAudioEngine {
         if recordingContext != nil {
             try await finishRecording(reason: .systemInterruption)
         }
+        stopTakePlayback()
         stopPlayback(resetTo: 0)
 
         let file: AVAudioFile
@@ -53,8 +54,10 @@ extension PracticeAudioEngine {
         )
         sourceFile = file
         sourceInfo = info
+        originalSourceURL = sourceURL
         pausedFrame = 0
         loopRegion = nil
+        playbackTarget = .original
         eventContinuation.yield(.sourceLoaded(info))
         eventContinuation.yield(.playheadChanged(0))
         return info
@@ -63,6 +66,7 @@ extension PracticeAudioEngine {
     private func executeTransport(_ command: PracticeAudioCommand) async throws {
         switch command {
         case let .playOriginal(region, position, rate):
+            stopTakePlaybackKeepingIdle()
             try setLoop(region)
             try setRate(rate)
             try play(from: position)
@@ -70,10 +74,8 @@ extension PracticeAudioEngine {
             guard let takeURLResolver else {
                 throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
             }
-            _ = try await load(sourceURL: takeURLResolver(takeID))
-            try setLoop(nil)
-            try setRate(1)
-            try play(from: position)
+            let takeURL = try await takeURLResolver(takeID)
+            try playTake(url: takeURL, from: position)
         case .pause:
             pause()
         case let .seek(position):
@@ -87,6 +89,16 @@ extension PracticeAudioEngine {
         case .loadSource, .beginRecording, .stopRecording:
             return
         }
+    }
+
+    private func stopTakePlaybackKeepingIdle() {
+        takeScheduleGeneration &+= 1
+        takePlayer.stop()
+        if playbackTarget == .take {
+            isPlaying = false
+            playheadTask?.cancel()
+        }
+        playbackTarget = .original
     }
 
     private func operation(for command: PracticeAudioCommand) -> PracticeAudioOperation {

@@ -2,11 +2,17 @@
 @preconcurrency import AVFoundation
 import Foundation
 
+enum PracticePlaybackTarget: Equatable, Sendable {
+    case original
+    case take
+}
+
 actor PracticeAudioEngine: PracticeAudioClient {
     typealias TakeURLResolver = @Sendable (UUID) async throws -> URL
 
     let engine = AVAudioEngine()
     let player = AVAudioPlayerNode()
+    let takePlayer = AVAudioPlayerNode()
     let timePitch = AVAudioUnitTimePitch()
     let takeURLResolver: TakeURLResolver?
     private let events: AsyncStream<PracticeAudioEvent>
@@ -14,13 +20,20 @@ actor PracticeAudioEngine: PracticeAudioClient {
 
     var sourceFile: AVAudioFile?
     var sourceInfo: LoadedAudioSource?
+    var originalSourceURL: URL?
+    var takeFile: AVAudioFile?
+    var takeInfo: LoadedAudioSource?
+    var playbackTarget: PracticePlaybackTarget = .original
     var playbackRate: Double = 1
     var loopRegion: PracticeRegion?
     var scheduledStartFrame: Int64 = 0
     var firstScheduledFrameCount: Int64 = 0
     var scheduleGeneration: UInt64 = 0
+    var takeScheduleGeneration: UInt64 = 0
     var isPlaying = false
     var pausedFrame: Int64 = 0
+    var takePausedFrame: Int64 = 0
+    var takeScheduledStartFrame: Int64 = 0
     var playheadTask: Task<Void, Never>?
     var recordingContext: RecordingContext?
     var recordingPeakTask: Task<Void, Never>?
@@ -37,9 +50,11 @@ actor PracticeAudioEngine: PracticeAudioClient {
         eventContinuation = pair.continuation
 
         engine.attach(player)
+        engine.attach(takePlayer)
         engine.attach(timePitch)
         engine.connect(player, to: timePitch, format: nil)
         engine.connect(timePitch, to: engine.mainMixerNode, format: nil)
+        engine.connect(takePlayer, to: engine.mainMixerNode, format: nil)
 
         let token = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange,
@@ -107,6 +122,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
 
     func currentSourceFrame() -> Int64 {
         guard isPlaying,
+              playbackTarget == .original,
               let renderTime = player.lastRenderTime,
               let playerTime = player.playerTime(forNodeTime: renderTime)
         else {
@@ -129,6 +145,21 @@ actor PracticeAudioEngine: PracticeAudioClient {
         return loopStart + (elapsedFrames - firstScheduledFrameCount) % loopFrameCount
     }
 
+    func currentTakeFrame() -> Int64 {
+        guard isPlaying,
+              playbackTarget == .take,
+              let renderTime = takePlayer.lastRenderTime,
+              let playerTime = takePlayer.playerTime(forNodeTime: renderTime)
+        else {
+            return takePausedFrame
+        }
+        let elapsedFrames = max(Int64(playerTime.sampleTime), 0)
+        return min(
+            takeScheduledStartFrame + elapsedFrames,
+            takeInfo?.frameCount ?? takeScheduledStartFrame + elapsedFrames
+        )
+    }
+
     func startPlayheadUpdates() {
         playheadTask?.cancel()
         playheadTask = Task { [weak self] in
@@ -147,6 +178,14 @@ actor PracticeAudioEngine: PracticeAudioClient {
     }
 
     func publishPlayhead() {
+        if playbackTarget == .take {
+            guard let takeInfo else {
+                return
+            }
+            let position = Double(currentTakeFrame()) / takeInfo.sampleRate
+            eventContinuation.yield(.playheadChanged(position))
+            return
+        }
         guard let sourceInfo else {
             return
         }
@@ -170,7 +209,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
     }
 
     func handlePlaybackFinished(generation: UInt64) async {
-        guard generation == scheduleGeneration else {
+        guard generation == scheduleGeneration, playbackTarget == .original else {
             return
         }
         isPlaying = false
@@ -195,6 +234,19 @@ actor PracticeAudioEngine: PracticeAudioClient {
             }
             eventContinuation.yield(.playbackFinished)
         }
+    }
+
+    func handleTakePlaybackFinished(generation: UInt64) {
+        guard generation == takeScheduleGeneration, playbackTarget == .take else {
+            return
+        }
+        isPlaying = false
+        playheadTask?.cancel()
+        if let takeInfo {
+            takePausedFrame = takeInfo.frameCount
+            eventContinuation.yield(.playheadChanged(takeInfo.duration))
+        }
+        eventContinuation.yield(.playbackFinished)
     }
 
     private func handleEngineConfigurationChange() async {
@@ -241,10 +293,28 @@ actor PracticeAudioEngine: PracticeAudioClient {
 
     func stopPlayback(resetTo frame: Int64) {
         scheduleGeneration &+= 1
+        takeScheduleGeneration &+= 1
         player.stop()
+        takePlayer.stop()
         engine.stop()
         playheadTask?.cancel()
         isPlaying = false
+        playbackTarget = .original
         pausedFrame = frame
+        takePausedFrame = 0
+    }
+
+    func stopTakePlayback() {
+        takeScheduleGeneration &+= 1
+        takePlayer.stop()
+        takeFile = nil
+        takeInfo = nil
+        takePausedFrame = 0
+        takeScheduledStartFrame = 0
+        if playbackTarget == .take {
+            playbackTarget = .original
+            isPlaying = false
+            playheadTask?.cancel()
+        }
     }
 }
