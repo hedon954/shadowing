@@ -62,6 +62,12 @@ enum AppDatabase {
             )
         }
 
+        migrator.registerMigration("v2-project-playback-rate") { database in
+            try database.alter(table: "projects") { table in
+                table.add(column: "playback_rate", .double).notNull().defaults(to: 1)
+            }
+        }
+
         return migrator
     }
 }

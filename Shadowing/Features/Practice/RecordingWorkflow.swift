@@ -273,6 +273,7 @@ extension PracticeViewModel {
         guard duration >= PracticeRegion.minimumDuration else {
             discardPendingRecording()
             show(PracticeRecordingError.tooShort(duration))
+            completePendingLeaveIfNeeded()
             return
         }
 
@@ -291,6 +292,7 @@ extension PracticeViewModel {
             )
             recordingContext = nil
             await enterComparison(with: take, takePeaks: liveRecordingPeaks)
+            completePendingLeaveIfNeeded()
         } catch {
             handleRecordingFailure(error, reason: reason)
         }
@@ -311,6 +313,7 @@ extension PracticeViewModel {
         lastRecordingStopReason = reason
         discardPendingRecording()
         show(error)
+        completePendingLeaveIfNeeded()
     }
 
     func discardPendingRecording() {

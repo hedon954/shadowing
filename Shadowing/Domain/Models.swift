@@ -10,6 +10,7 @@ struct AudioProject: Codable, Equatable, Identifiable, Sendable {
     var selectedTakeID: UUID?
     var keptTakeID: UUID?
     var lastOpenedAt: Date
+    var playbackRate: Double = 1
 }
 
 struct PracticeRegion: Codable, Equatable, Identifiable, Sendable {

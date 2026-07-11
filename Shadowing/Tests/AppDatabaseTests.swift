@@ -23,6 +23,13 @@ final class AppDatabaseTests: XCTestCase {
         XCTAssertTrue(tables.contains("takes"))
         XCTAssertTrue(tables.contains("settings"))
         XCTAssertTrue(tables.contains("grdb_migrations"))
+
+        let columns = try database.read { database in
+            try Row.fetchAll(database, sql: "PRAGMA table_info(projects)").map { row in
+                String(row["name"])
+            }
+        }
+        XCTAssertTrue(columns.contains("playback_rate"))
     }
 
     func testMigrationIsIdempotent() throws {

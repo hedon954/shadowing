@@ -131,6 +131,53 @@ struct LocalRecordingFileStore: RecordingFileStore {
         }
     }
 
+    func removeOrphanedTemporaryTakes() throws -> Int {
+        let directory = temporaryDirectory
+        guard FileManager.default.fileExists(atPath: directory.path) else {
+            return 0
+        }
+
+        let contents: [URL]
+        do {
+            contents = try FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )
+        } catch {
+            throw RecordingFileStoreError.fileOperationFailed(
+                path: directory.path,
+                reason: error.localizedDescription
+            )
+        }
+
+        var removed = 0
+        for url in contents {
+            let values: URLResourceValues
+            do {
+                values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            } catch {
+                throw RecordingFileStoreError.fileOperationFailed(
+                    path: url.path,
+                    reason: error.localizedDescription
+                )
+            }
+            guard values.isRegularFile == true else {
+                continue
+            }
+            do {
+                try FileManager.default.removeItem(at: url)
+                removed += 1
+            } catch {
+                throw RecordingFileStoreError.fileOperationFailed(
+                    path: url.path,
+                    reason: error.localizedDescription
+                )
+            }
+        }
+        return removed
+    }
+
     private var temporaryDirectory: URL {
         rootDirectory.appendingPathComponent(".temporary", isDirectory: true)
     }

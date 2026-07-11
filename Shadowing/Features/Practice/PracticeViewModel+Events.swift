@@ -62,14 +62,7 @@ extension PracticeViewModel {
     }
 
     func persistPosition() {
-        project.playhead = min(max(playhead, 0), project.duration)
-        Task { [weak self, projects, project] in
-            do {
-                try await projects.save(project)
-            } catch {
-                self?.show(error)
-            }
-        }
+        persistProjectImmediately()
     }
 
     func performVoidCommand(
@@ -121,6 +114,9 @@ extension PracticeViewModel {
             playhead = min(max(position, 0), activeTake?.duration ?? position)
         } else {
             playhead = min(max(position, 0), project.duration)
+            if isPlaying {
+                schedulePlayheadPersist()
+            }
         }
     }
 
@@ -132,7 +128,7 @@ extension PracticeViewModel {
             playhead = take.region.end
         } else {
             playhead = project.duration
-            persistPosition()
+            persistProjectImmediately()
         }
     }
 

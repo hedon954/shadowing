@@ -66,7 +66,9 @@ actor GRDBProjectRepository: ProjectRepository {
               project.duration >= 0,
               project.playhead.isFinite,
               project.playhead >= 0,
-              project.playhead <= project.duration
+              project.playhead <= project.duration,
+              project.playbackRate.isFinite,
+              project.playbackRate > 0
         else {
             throw RepositoryError.corruptProject(id: project.id.uuidString)
         }
@@ -85,9 +87,10 @@ actor GRDBProjectRepository: ProjectRepository {
                     region_end,
                     selected_take_id,
                     kept_take_id,
-                    last_opened_at
+                    last_opened_at,
+                    playback_rate
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     source_display_name = excluded.source_display_name,
                     source_bookmark = excluded.source_bookmark,
@@ -98,7 +101,8 @@ actor GRDBProjectRepository: ProjectRepository {
                     region_end = excluded.region_end,
                     selected_take_id = excluded.selected_take_id,
                     kept_take_id = excluded.kept_take_id,
-                    last_opened_at = excluded.last_opened_at
+                    last_opened_at = excluded.last_opened_at,
+                    playback_rate = excluded.playback_rate
                 """,
                 arguments: [
                     project.id.uuidString,
@@ -111,7 +115,8 @@ actor GRDBProjectRepository: ProjectRepository {
                     project.currentRegion?.end,
                     project.selectedTakeID?.uuidString,
                     project.keptTakeID?.uuidString,
-                    project.lastOpenedAt
+                    project.lastOpenedAt,
+                    project.playbackRate
                 ]
             )
         }
@@ -134,11 +139,14 @@ actor GRDBProjectRepository: ProjectRepository {
 
         let duration: TimeInterval = row["duration"]
         let playhead: TimeInterval = row["playhead"]
+        let playbackRate: Double = row["playback_rate"]
         guard duration.isFinite,
               duration >= 0,
               playhead.isFinite,
               playhead >= 0,
-              playhead <= duration
+              playhead <= duration,
+              playbackRate.isFinite,
+              playbackRate > 0
         else {
             throw RepositoryError.corruptProject(id: persistedID)
         }
@@ -167,7 +175,8 @@ actor GRDBProjectRepository: ProjectRepository {
             currentRegion: region,
             selectedTakeID: selectedTakeID,
             keptTakeID: keptTakeID,
-            lastOpenedAt: row["last_opened_at"]
+            lastOpenedAt: row["last_opened_at"],
+            playbackRate: playbackRate
         )
     }
 

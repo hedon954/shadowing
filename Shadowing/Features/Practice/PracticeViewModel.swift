@@ -10,6 +10,10 @@ struct PracticeFailure: Equatable, Identifiable, Sendable {
     }
 }
 
+struct PracticeLeaveConfirmation: Equatable, Identifiable, Sendable {
+    let id = UUID()
+}
+
 enum PracticeIntent: Equatable, Sendable {
     case togglePlayback
     case pause
@@ -52,7 +56,7 @@ final class PracticeViewModel: ObservableObject {
     @Published var playhead: TimeInterval
     @Published private(set) var rate: Double = 1
     @Published private(set) var volume: Double = 0.8
-    @Published private(set) var loopEnabled = false
+    @Published var loopEnabled = false
     @Published var interactionPhase = PracticeInteractionPhase.practicing
     @Published var recordingPresentation = RecordingPresentation.idle
     @Published var liveRecordingPeaks: [Float] = []
@@ -65,18 +69,23 @@ final class PracticeViewModel: ObservableObject {
     @Published var microphonePermissionPrompt: MicrophonePermissionState?
     @Published var recordingNotice: String?
     @Published var failure: PracticeFailure?
+    @Published var leaveConfirmation: PracticeLeaveConfirmation?
 
     let audioClient: any PracticeAudioClient
     let projects: any ProjectRepository
-    private let sessionPreparer: any PracticeSessionPreparing
+    let sessionPreparer: any PracticeSessionPreparing
     let recordingDependencies: RecordingDependencies?
-    private var eventTask: Task<Void, Never>?
+    var eventTask: Task<Void, Never>?
     var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
     var finalizationTask: Task<Void, Never>?
     var recordingContext: PendingRecordingContext?
     private var hasStarted = false
-    private var hasClosed = false
+    var hasClosed = false
+    var playheadPersistTask: Task<Void, Never>?
+    var leaveAfterFinalize: (@MainActor () -> Void)?
+    /// Tests can shorten this; production uses a short debounce for playhead writes.
+    var playheadPersistDelay: Duration = .milliseconds(400)
 
     var region: PracticeRegion? {
         project.currentRegion
@@ -134,6 +143,7 @@ final class PracticeViewModel: ObservableObject {
         project = prepared.project
         waveform = prepared.waveform
         playhead = prepared.project.playhead
+        rate = Self.normalizedRate(prepared.project.playbackRate)
         self.audioClient = audioClient
         self.projects = projects
         self.sessionPreparer = sessionPreparer
@@ -145,6 +155,7 @@ final class PracticeViewModel: ObservableObject {
         commandTask?.cancel()
         recordingTask?.cancel()
         finalizationTask?.cancel()
+        playheadPersistTask?.cancel()
     }
 
     func start() {
@@ -162,6 +173,10 @@ final class PracticeViewModel: ObservableObject {
             }
         }
         setVolume(volume)
+        setRate(rate)
+        Task { [weak self] in
+            await self?.hydrateRestoredSession()
+        }
     }
 
     func send(_ intent: PracticeIntent) {
@@ -251,7 +266,7 @@ extension PracticeViewModel {
         } completion: { [weak self] playing in
             self?.isPlaying = playing
             if !playing {
-                self?.persistPosition()
+                self?.persistProjectImmediately()
             }
         }
     }
@@ -264,7 +279,7 @@ extension PracticeViewModel {
             try await audioClient.execute(.pause)
         } completion: { [weak self] in
             self?.isPlaying = false
-            self?.persistPosition()
+            self?.persistProjectImmediately()
         }
     }
 
@@ -274,7 +289,7 @@ extension PracticeViewModel {
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.seek(clamped))
         } completion: { [weak self] in
-            self?.persistPosition()
+            self?.persistProjectImmediately()
         }
     }
 
@@ -291,7 +306,7 @@ extension PracticeViewModel {
             try await audioClient.execute(.setLoop(region))
             try await audioClient.execute(.seek(region.start))
         } completion: { [weak self] in
-            self?.persistPosition()
+            self?.persistProjectImmediately()
         }
     }
 
@@ -314,8 +329,11 @@ extension PracticeViewModel {
             return
         }
         rate = newRate
+        project.playbackRate = newRate
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.setRate(newRate))
+        } completion: { [weak self] in
+            self?.persistProjectImmediately()
         }
     }
 
@@ -339,39 +357,11 @@ extension PracticeViewModel {
         failure = nil
     }
 
-    func close() async {
-        guard !hasClosed else {
-            return
-        }
-        hasClosed = true
-        recordingTask?.cancel()
-        finalizationTask?.cancel()
-        if case .countingDown = recordingPresentation {
-            discardPendingRecording()
-        }
-        eventTask?.cancel()
-        await commandTask?.value
-        isPlaying = false
-
-        var closeError: Error?
-        do {
-            try await audioClient.execute(.pause)
-        } catch {
-            closeError = error
-        }
-        do {
-            project.playhead = min(max(playhead, 0), project.duration)
-            try await projects.save(project)
-        } catch {
-            closeError = closeError ?? error
-        }
-        await sessionPreparer.endSession()
-        if let closeError {
-            show(closeError)
-        }
-    }
-
     func show(_ error: Error) {
         failure = PracticeFailure(message: error.localizedDescription)
+    }
+
+    static func normalizedRate(_ rate: Double) -> Double {
+        supportedRates.contains(rate) ? rate : 1
     }
 }

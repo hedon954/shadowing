@@ -63,16 +63,14 @@ final class M3ViewModelTests: XCTestCase {
         )
 
         viewModel.start()
-        await waitForCommandCount(1, audio: audio)
+        await waitForCommand(.setVolume(0.8), audio: audio)
         viewModel.togglePlayback()
-        await waitForCommandCount(2, audio: audio)
+        await waitForCommand(
+            .playOriginal(region: nil, from: 4, rate: 1),
+            audio: audio
+        )
 
         var commands = await audio.commands
-        XCTAssertTrue(
-            commands.contains(
-                .playOriginal(region: nil, from: 4, rate: 1)
-            )
-        )
         XCTAssertTrue(viewModel.isPlaying)
 
         await audio.emit(.playheadChanged(9))
@@ -82,11 +80,11 @@ final class M3ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.playhead, 9)
 
         viewModel.jump(by: -5)
-        await waitForCommandCount(3, audio: audio)
+        await waitForCommand(.seek(4), audio: audio)
         viewModel.setRate(1.25)
-        await waitForCommandCount(4, audio: audio)
+        await waitForCommand(.setRate(1.25), audio: audio)
         viewModel.setVolume(0.4)
-        await waitForCommandCount(5, audio: audio)
+        await waitForCommand(.setVolume(0.4), audio: audio)
 
         commands = await audio.commands
         XCTAssertTrue(commands.contains(.seek(4)))
@@ -117,6 +115,20 @@ final class M3ViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.failure?.message, StubM3ViewModelError.failed.localizedDescription)
         XCTAssertFalse(viewModel.isPlaying)
+    }
+
+    @MainActor
+    private func waitForCommand(
+        _ expected: PracticeAudioCommand,
+        audio: PracticeAudioClientSpy
+    ) async {
+        for _ in 0 ..< 100 {
+            if await audio.commands.contains(expected) {
+                return
+            }
+            await Task.yield()
+        }
+        XCTFail("Expected command \(expected)")
     }
 
     @MainActor

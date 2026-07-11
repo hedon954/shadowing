@@ -32,6 +32,9 @@ protocol RecordingFileStore: Sendable {
     func commitTemporaryTake(at temporaryURL: URL, projectID: UUID, takeID: UUID) throws -> String
     func audioURL(relativePath: String) throws -> URL
     func deleteAudio(relativePath: String) throws
+    /// Removes leftover files under the managed temporary directory.
+    /// Returns the number of removed items.
+    func removeOrphanedTemporaryTakes() throws -> Int
 }
 
 protocol BookmarkStore: Sendable {

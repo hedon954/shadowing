@@ -179,8 +179,15 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
             currentRegion: region,
             selectedTakeID: existing?.selectedTakeID,
             keptTakeID: existing?.keptTakeID,
-            lastOpenedAt: now()
+            lastOpenedAt: now(),
+            playbackRate: Self.normalizedPlaybackRate(existing?.playbackRate)
         )
+    }
+
+    private static func normalizedPlaybackRate(_ rate: Double?) -> Double {
+        let candidate = rate ?? 1
+        let supported: [Double] = [0.5, 0.75, 1, 1.25, 1.5]
+        return supported.contains(candidate) ? candidate : 1
     }
 
     private func ensureCurrent(_ expectedGeneration: UInt64) throws {

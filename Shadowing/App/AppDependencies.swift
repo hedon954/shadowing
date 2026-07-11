@@ -46,6 +46,7 @@ final class AppDependencies {
                 isDirectory: true
             )
         )
+        Self.cleanupOrphanedTemporaryTakes(using: recordingFiles)
         let audioClient = PracticeAudioEngine { takeID in
             guard let take = try await takes.take(id: takeID) else {
                 throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
@@ -81,5 +82,15 @@ final class AppDependencies {
                 )
             )
         )
+    }
+
+    private static func cleanupOrphanedTemporaryTakes(using fileStore: LocalRecordingFileStore) {
+        do {
+            _ = try fileStore.removeOrphanedTemporaryTakes()
+        } catch {
+            // Best-effort startup hygiene. Launch must succeed even if leftover temps remain;
+            // later discard/commit paths still manage temporary files explicitly.
+            _ = error.localizedDescription
+        }
     }
 }

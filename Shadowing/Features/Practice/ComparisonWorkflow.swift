@@ -217,13 +217,7 @@ extension PracticeViewModel {
     }
 
     private func persistSelectedTake() {
-        Task { [weak self, projects, project] in
-            do {
-                try await projects.save(project)
-            } catch {
-                self?.show(error)
-            }
-        }
+        persistProjectImmediately()
     }
 
     private func peaks(for region: PracticeRegion) -> [Float] {
