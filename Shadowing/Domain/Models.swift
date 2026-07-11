@@ -44,6 +44,136 @@ struct PracticeRegion: Codable, Equatable, Identifiable, Sendable {
         self.start = start
         self.end = end
     }
+
+    static func fromDrag(
+        anchor: TimeInterval,
+        current: TimeInterval,
+        sourceDuration: TimeInterval,
+        id: UUID = UUID()
+    ) throws -> PracticeRegion {
+        try validateDragInput(anchor, current, sourceDuration: sourceDuration)
+
+        let clampedAnchor = clamp(anchor, to: 0 ... sourceDuration)
+        let clampedCurrent = clamp(current, to: 0 ... sourceDuration)
+        let draggedForward = current >= anchor
+
+        var start: TimeInterval
+        var end: TimeInterval
+        if draggedForward {
+            start = clampedAnchor
+            end = min(
+                max(clampedCurrent, start + minimumDuration),
+                min(start + maximumDuration, sourceDuration)
+            )
+            if end - start < minimumDuration {
+                end = sourceDuration
+                start = end - minimumDuration
+            }
+        } else {
+            end = clampedAnchor
+            start = max(
+                min(clampedCurrent, end - minimumDuration),
+                max(end - maximumDuration, 0)
+            )
+            if end - start < minimumDuration {
+                start = 0
+                end = minimumDuration
+            }
+        }
+
+        return try PracticeRegion(
+            id: id,
+            start: start,
+            end: end,
+            sourceDuration: sourceDuration
+        )
+    }
+
+    func adjustingStart(
+        to proposedStart: TimeInterval,
+        sourceDuration: TimeInterval
+    ) throws -> PracticeRegion {
+        guard proposedStart.isFinite else {
+            throw DomainError.invalidTimeRange
+        }
+        let region = try clamped(to: sourceDuration)
+        let lowerBound = max(0, region.end - Self.maximumDuration)
+        let upperBound = region.end - Self.minimumDuration
+        return try PracticeRegion(
+            id: id,
+            start: Self.clamp(proposedStart, to: lowerBound ... upperBound),
+            end: region.end,
+            sourceDuration: sourceDuration
+        )
+    }
+
+    func adjustingEnd(
+        to proposedEnd: TimeInterval,
+        sourceDuration: TimeInterval
+    ) throws -> PracticeRegion {
+        guard proposedEnd.isFinite else {
+            throw DomainError.invalidTimeRange
+        }
+        let region = try clamped(to: sourceDuration)
+        let lowerBound = region.start + Self.minimumDuration
+        let upperBound = min(sourceDuration, region.start + Self.maximumDuration)
+        return try PracticeRegion(
+            id: id,
+            start: region.start,
+            end: Self.clamp(proposedEnd, to: lowerBound ... upperBound),
+            sourceDuration: sourceDuration
+        )
+    }
+
+    func clamped(to sourceDuration: TimeInterval) throws -> PracticeRegion {
+        try Self.validateSourceDuration(sourceDuration)
+        let clampedDuration = min(duration, sourceDuration, Self.maximumDuration)
+        let clampedStart = Self.clamp(start, to: 0 ... sourceDuration - clampedDuration)
+        return try PracticeRegion(
+            id: id,
+            start: clampedStart,
+            end: clampedStart + clampedDuration,
+            sourceDuration: sourceDuration
+        )
+    }
+
+    init(
+        id: UUID,
+        persistedStart start: TimeInterval,
+        end: TimeInterval
+    ) throws {
+        guard start.isFinite, end.isFinite, start >= 0, end > start else {
+            throw DomainError.invalidTimeRange
+        }
+        guard Self.minimumDuration ... Self.maximumDuration ~= end - start else {
+            throw DomainError.regionDurationOutOfBounds
+        }
+
+        self.id = id
+        self.start = start
+        self.end = end
+    }
+
+    private static func validateDragInput(
+        _ anchor: TimeInterval,
+        _ current: TimeInterval,
+        sourceDuration: TimeInterval
+    ) throws {
+        guard anchor.isFinite, current.isFinite else {
+            throw DomainError.invalidTimeRange
+        }
+        try validateSourceDuration(sourceDuration)
+    }
+
+    private static func validateSourceDuration(_ sourceDuration: TimeInterval) throws {
+        guard sourceDuration.isFinite, sourceDuration >= minimumDuration else {
+            throw DomainError.invalidTimeRange
+        }
+    }
+
+    private static func clamp<T: Comparable>(_ value: T, to range: ClosedRange<T>) -> T {
+        min(max(value, range.lowerBound), range.upperBound)
+    }
 }
 
 struct Take: Codable, Equatable, Identifiable, Sendable {
@@ -54,6 +184,32 @@ struct Take: Codable, Equatable, Identifiable, Sendable {
     let relativeAudioPath: String
     let duration: TimeInterval
     let createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        projectID: UUID,
+        region: PracticeRegion,
+        sequence: Int,
+        relativeAudioPath: String,
+        duration: TimeInterval,
+        createdAt: Date
+    ) throws {
+        guard sequence > 0,
+              !relativeAudioPath.isEmpty,
+              duration.isFinite,
+              duration >= PracticeRegion.minimumDuration
+        else {
+            throw DomainError.invalidTake
+        }
+
+        self.id = id
+        self.projectID = projectID
+        self.region = region
+        self.sequence = sequence
+        self.relativeAudioPath = relativeAudioPath
+        self.duration = duration
+        self.createdAt = createdAt
+    }
 }
 
 enum DomainError: Error, Equatable, LocalizedError, Sendable {

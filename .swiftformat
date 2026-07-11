@@ -3,5 +3,6 @@
 --linebreaks lf
 --trimwhitespace always
 --self remove
+--commas inline
 --stripunusedargs closure-only
 --exclude Shadowing/Shadowing.xcodeproj

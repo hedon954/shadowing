@@ -27,6 +27,7 @@ protocol SettingsStore: Sendable {
 
 protocol RecordingFileStore: Sendable {
     func temporaryTakeURL(id: UUID) throws -> URL
+    func discardTemporaryTake(at temporaryURL: URL) throws
     func commitTemporaryTake(at temporaryURL: URL, projectID: UUID, takeID: UUID) throws -> String
     func audioURL(relativePath: String) throws -> URL
     func deleteAudio(relativePath: String) throws
@@ -34,10 +35,84 @@ protocol RecordingFileStore: Sendable {
 
 protocol BookmarkStore: Sendable {
     func createBookmark(for url: URL) throws -> Data
-    func resolveBookmark(_ data: Data) throws -> ResolvedBookmark
+    func beginAccess(to data: Data) async throws -> any BookmarkAccess
+    func withAccess<Value: Sendable>(
+        to data: Data,
+        operation: @Sendable (ResolvedBookmark) async throws -> Value
+    ) async throws -> Value
 }
 
-struct ResolvedBookmark: Sendable {
+extension BookmarkStore {
+    func withAccess<Value: Sendable>(
+        to data: Data,
+        operation: @Sendable (ResolvedBookmark) async throws -> Value
+    ) async throws -> Value {
+        let access = try await beginAccess(to: data)
+        do {
+            let value = try await operation(access.resolvedBookmark)
+            await access.stop()
+            return value
+        } catch {
+            await access.stop()
+            throw error
+        }
+    }
+}
+
+protocol BookmarkAccess: Sendable {
+    var resolvedBookmark: ResolvedBookmark { get async }
+    func stop() async
+}
+
+struct ResolvedBookmark: Equatable, Sendable {
     let url: URL
     let isStale: Bool
+}
+
+struct TakeDraft: Equatable, Sendable {
+    let id: UUID
+    let projectID: UUID
+    let region: PracticeRegion
+    let sequence: Int
+    let duration: TimeInterval
+    let createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        projectID: UUID,
+        region: PracticeRegion,
+        sequence: Int,
+        duration: TimeInterval,
+        createdAt: Date
+    ) throws {
+        guard sequence > 0,
+              duration.isFinite,
+              duration >= PracticeRegion.minimumDuration
+        else {
+            throw DomainError.invalidTake
+        }
+
+        self.id = id
+        self.projectID = projectID
+        self.region = region
+        self.sequence = sequence
+        self.duration = duration
+        self.createdAt = createdAt
+    }
+
+    func makeTake(relativeAudioPath: String) throws -> Take {
+        try Take(
+            id: id,
+            projectID: projectID,
+            region: region,
+            sequence: sequence,
+            relativeAudioPath: relativeAudioPath,
+            duration: duration,
+            createdAt: createdAt
+        )
+    }
+}
+
+protocol TakeCommitting: Sendable {
+    func commit(_ draft: TakeDraft, temporaryFile: URL) async throws -> Take
 }
