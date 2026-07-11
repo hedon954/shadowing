@@ -6,3 +6,5 @@
 --commas inline
 --stripunusedargs closure-only
 --exclude Shadowing/Shadowing.xcodeproj
+# Keep explicit Sendable for Swift 6 clarity; avoid default-rule drift across SwiftFormat minors.
+--disable preferCountWhere,redundantSendable
