@@ -66,16 +66,13 @@ extension PracticeAudioEngine {
     private func executeTransport(_ command: PracticeAudioCommand) async throws {
         switch command {
         case let .playOriginal(region, position, rate):
-            stopTakePlaybackKeepingIdle()
-            try setLoop(region)
-            try setRate(rate)
-            try play(from: position)
+            try await playOriginalCommand(region: region, from: position, rate: rate)
+        case let .playOriginalSegment(region, position, rate):
+            try await playOriginalSegmentCommand(region: region, from: position, rate: rate)
         case let .playTake(takeID, position):
-            guard let takeURLResolver else {
-                throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
-            }
-            let takeURL = try await takeURLResolver(takeID)
-            try playTake(url: takeURL, from: position)
+            try await playTakeCommand(takeID: takeID, from: position)
+        case let .playTogether(region, takeID, rate):
+            try await playTogetherCommand(region: region, takeID: takeID, rate: rate)
         case .pause:
             pause()
         case let .seek(position):
@@ -89,6 +86,48 @@ extension PracticeAudioEngine {
         case .loadSource, .beginRecording, .stopRecording:
             return
         }
+    }
+
+    private func playOriginalCommand(
+        region: PracticeRegion?,
+        from position: TimeInterval,
+        rate: Double
+    ) async throws {
+        stopTakePlaybackKeepingIdle()
+        try setLoop(region)
+        try setRate(rate)
+        try play(from: position)
+    }
+
+    private func playOriginalSegmentCommand(
+        region: PracticeRegion,
+        from position: TimeInterval,
+        rate: Double
+    ) async throws {
+        stopTakePlaybackKeepingIdle()
+        try setLoop(nil)
+        try setRate(rate)
+        try playRegionOnce(region, from: position)
+    }
+
+    private func playTakeCommand(takeID: UUID, from position: TimeInterval) async throws {
+        guard let takeURLResolver else {
+            throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
+        }
+        let takeURL = try await takeURLResolver(takeID)
+        try playTake(url: takeURL, from: position)
+    }
+
+    private func playTogetherCommand(
+        region: PracticeRegion,
+        takeID: UUID,
+        rate: Double
+    ) async throws {
+        guard let takeURLResolver else {
+            throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
+        }
+        let takeURL = try await takeURLResolver(takeID)
+        try playTogether(region: region, takeURL: takeURL, rate: rate)
     }
 
     private func stopTakePlaybackKeepingIdle() {

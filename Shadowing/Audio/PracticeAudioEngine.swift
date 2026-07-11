@@ -5,6 +5,7 @@ import Foundation
 enum PracticePlaybackTarget: Equatable, Sendable {
     case original
     case take
+    case together
 }
 
 actor PracticeAudioEngine: PracticeAudioClient {
@@ -122,7 +123,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
 
     func currentSourceFrame() -> Int64 {
         guard isPlaying,
-              playbackTarget == .original,
+              playbackTarget == .original || playbackTarget == .together,
               let renderTime = player.lastRenderTime,
               let playerTime = player.playerTime(forNodeTime: renderTime)
         else {
@@ -178,22 +179,23 @@ actor PracticeAudioEngine: PracticeAudioClient {
     }
 
     func publishPlayhead() {
-        if playbackTarget == .take {
+        switch playbackTarget {
+        case .take:
             guard let takeInfo else {
                 return
             }
             let position = Double(currentTakeFrame()) / takeInfo.sampleRate
             eventContinuation.yield(.playheadChanged(position))
-            return
-        }
-        guard let sourceInfo else {
-            return
-        }
-        let position = Double(currentSourceFrame()) / sourceInfo.sampleRate
-        eventContinuation.yield(.playheadChanged(position))
-        if let recordingContext {
-            let progress = max(position - recordingContext.region.start, 0) / playbackRate
-            eventContinuation.yield(.recordingProgress(progress))
+        case .original, .together:
+            guard let sourceInfo else {
+                return
+            }
+            let position = Double(currentSourceFrame()) / sourceInfo.sampleRate
+            eventContinuation.yield(.playheadChanged(position))
+            if let recordingContext {
+                let progress = max(position - recordingContext.region.start, 0) / playbackRate
+                eventContinuation.yield(.recordingProgress(progress))
+            }
         }
     }
 
@@ -206,47 +208,6 @@ actor PracticeAudioEngine: PracticeAudioClient {
             converter: AudioFrameTimeConverter(sampleRate: sourceInfo.sampleRate),
             playbackRate: playbackRate
         )
-    }
-
-    func handlePlaybackFinished(generation: UInt64) async {
-        guard generation == scheduleGeneration, playbackTarget == .original else {
-            return
-        }
-        isPlaying = false
-        playheadTask?.cancel()
-        if recordingContext != nil {
-            do {
-                try await finishRecording(reason: .regionEnd)
-            } catch {
-                eventContinuation.yield(
-                    .failed(
-                        PracticeAudioFailure(
-                            operation: .recording,
-                            message: error.localizedDescription
-                        )
-                    )
-                )
-            }
-        } else {
-            if let sourceInfo {
-                pausedFrame = sourceInfo.frameCount
-                eventContinuation.yield(.playheadChanged(sourceInfo.duration))
-            }
-            eventContinuation.yield(.playbackFinished)
-        }
-    }
-
-    func handleTakePlaybackFinished(generation: UInt64) {
-        guard generation == takeScheduleGeneration, playbackTarget == .take else {
-            return
-        }
-        isPlaying = false
-        playheadTask?.cancel()
-        if let takeInfo {
-            takePausedFrame = takeInfo.frameCount
-            eventContinuation.yield(.playheadChanged(takeInfo.duration))
-        }
-        eventContinuation.yield(.playbackFinished)
     }
 
     private func handleEngineConfigurationChange() async {
@@ -316,5 +277,10 @@ actor PracticeAudioEngine: PracticeAudioClient {
             isPlaying = false
             playheadTask?.cancel()
         }
+    }
+
+    func stopTakeNode() {
+        takeScheduleGeneration &+= 1
+        takePlayer.stop()
     }
 }
