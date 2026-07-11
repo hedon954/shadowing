@@ -37,7 +37,6 @@ targets:
         optional: true
       - path: Resources
         optional: true
-        buildPhase: resources
     dependencies:
       - package: GRDB
     settings:
@@ -47,6 +46,7 @@ targets:
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: Shadowing.entitlements
         GENERATE_INFOPLIST_FILE: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     scheme:
       testTargets:
         - ShadowingTests
