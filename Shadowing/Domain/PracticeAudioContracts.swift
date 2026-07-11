@@ -3,7 +3,10 @@ import Foundation
 enum PracticeAudioCommand: Equatable, Sendable {
     case loadSource(URL)
     case playOriginal(region: PracticeRegion?, from: TimeInterval, rate: Double)
+    /// Plays the region once without looping; used by A/B comparison.
+    case playOriginalSegment(region: PracticeRegion, from: TimeInterval, rate: Double)
     case playTake(takeID: UUID, from: TimeInterval)
+    case playTogether(region: PracticeRegion, takeID: UUID, rate: Double)
     case pause
     case seek(TimeInterval)
     case setRate(Double)

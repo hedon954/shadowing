@@ -32,9 +32,11 @@ struct RecordingState: Equatable, Sendable {
     var phase: RecordingPhase
 }
 
-enum ComparisonMode: Equatable, Sendable {
+enum ComparisonMode: Equatable, Sendable, CaseIterable {
     case original
     case selectedTake
+    case ab
+    case together
 }
 
 struct ComparisonState: Equatable, Sendable {
