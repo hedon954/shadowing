@@ -28,72 +28,19 @@ struct PracticeView: View {
                 await viewModel.close()
             }
         }
-        .alert(item: $viewModel.failure) { failure in
-            Alert(
-                title: Text("Practice Error"),
-                message: Text(failure.message),
-                dismissButton: .default(Text("OK")) {
-                    viewModel.dismissFailure()
-                }
-            )
-        }
-        .alert(
-            "Delete Take?",
-            isPresented: Binding(
-                get: { viewModel.takePendingDeletion != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.cancelDeleteTake()
-                    }
-                }
-            ),
-            presenting: viewModel.takePendingDeletion
-        ) { take in
-            Button("Delete", role: .destructive) {
-                viewModel.confirmDeleteTake()
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.cancelDeleteTake()
-            }
-            .accessibilityLabel("Cancel delete take \(take.sequence)")
-        } message: { take in
-            Text("Delete Take \(take.sequence)? This cannot be undone.")
-        }
-        .alert(
-            "Microphone Access Required",
-            isPresented: Binding(
-                get: { viewModel.microphonePermissionPrompt != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.dismissMicrophonePermissionPrompt()
-                    }
-                }
-            ),
-            presenting: viewModel.microphonePermissionPrompt
-        ) { _ in
-            Button("Open System Settings") {
-                viewModel.openMicrophoneSettings()
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.dismissMicrophonePermissionPrompt()
-            }
-        } message: { permission in
-            Text(permissionMessage(permission))
-        }
+        .modifier(PracticeAlertsModifier(viewModel: viewModel))
     }
 
     private var header: some View {
         HStack(spacing: 14) {
             Button {
-                Task {
-                    await viewModel.close()
+                viewModel.requestLeave {
                     onBack()
                 }
             } label: {
                 Label("Files", systemImage: "chevron.left")
             }
             .buttonStyle(.bordered)
-            .disabled(viewModel.controlsLocked)
             .accessibilityLabel("Back to Files")
 
             Image(systemName: "music.note")
@@ -297,18 +244,5 @@ struct PracticeView: View {
         return hours > 0
             ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
             : String(format: "%d:%02d", minutes, seconds)
-    }
-
-    private func permissionMessage(_ permission: MicrophonePermissionState) -> String {
-        switch permission {
-        case .denied:
-            "Microphone access is denied. Enable it for Shadowing in System Settings."
-        case .restricted:
-            "Microphone access is restricted on this Mac."
-        case .notDetermined:
-            "Shadowing needs microphone access to record your practice."
-        case .authorized:
-            "Microphone access is available."
-        }
     }
 }

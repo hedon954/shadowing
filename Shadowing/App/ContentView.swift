@@ -28,23 +28,78 @@ final class AppNavigationModel: ObservableObject {
     @Published var practiceControlsLocked = false
 
     let dependencies: AppDependencies
+    private var activePracticeCloser: (@MainActor () async -> Void)?
+    private var transitionTask: Task<Void, Never>?
 
     lazy var filesViewModel = FilesViewModel(
         chooser: dependencies.fileChooser,
         sessionPreparer: dependencies.sessionPreparer,
         projects: dependencies.projects
     ) { [weak self] prepared in
-        self?.selectedSection = .files
-        self?.preparedPractice = prepared
+        self?.openPrepared(prepared)
     }
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
     }
 
+    func registerPracticeCloser(_ closer: (@MainActor () async -> Void)?) {
+        activePracticeCloser = closer
+    }
+
+    func openPrepared(_ prepared: PreparedPractice) {
+        transitionTask?.cancel()
+        transitionTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            await activePracticeCloser?()
+            guard !Task.isCancelled else {
+                return
+            }
+            selectedSection = .files
+            preparedPractice = prepared
+            practiceControlsLocked = false
+        }
+    }
+
     func showFiles() {
-        preparedPractice = nil
-        selectedSection = .files
+        transitionTask?.cancel()
+        transitionTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            await activePracticeCloser?()
+            guard !Task.isCancelled else {
+                return
+            }
+            preparedPractice = nil
+            selectedSection = .files
+            practiceControlsLocked = false
+        }
+    }
+
+    func selectSection(_ section: SidebarSection) {
+        guard section != selectedSection else {
+            return
+        }
+        if section == .files {
+            selectedSection = .files
+            return
+        }
+        transitionTask?.cancel()
+        transitionTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            await activePracticeCloser?()
+            guard !Task.isCancelled else {
+                return
+            }
+            preparedPractice = nil
+            selectedSection = section
+            practiceControlsLocked = false
+        }
     }
 }
 
@@ -59,7 +114,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $navigation.selectedSection) {
+            List(selection: sectionSelection) {
                 ForEach(SidebarSection.allCases) { section in
                     Label(section.rawValue, systemImage: section.systemImage)
                         .tag(section)
@@ -71,11 +126,18 @@ struct ContentView: View {
         } detail: {
             detail
         }
-        .onChange(of: navigation.selectedSection) { _, section in
-            if section != .files {
-                navigation.preparedPractice = nil
+    }
+
+    private var sectionSelection: Binding<SidebarSection?> {
+        Binding(
+            get: { navigation.selectedSection },
+            set: { newValue in
+                guard let newValue else {
+                    return
+                }
+                navigation.selectSection(newValue)
             }
-        }
+        )
     }
 
     @ViewBuilder
@@ -86,10 +148,7 @@ struct ContentView: View {
                 PracticeScene(
                     prepared: prepared,
                     dependencies: navigation.dependencies,
-                    onBack: navigation.showFiles,
-                    onLockChanged: { locked in
-                        navigation.practiceControlsLocked = locked
-                    }
+                    navigation: navigation
                 )
                 .id(prepared.project.id)
             } else {
@@ -113,14 +172,12 @@ struct ContentView: View {
 
 private struct PracticeScene: View {
     @StateObject private var viewModel: PracticeViewModel
-    let onBack: () -> Void
-    let onLockChanged: (Bool) -> Void
+    @ObservedObject var navigation: AppNavigationModel
 
     init(
         prepared: PreparedPractice,
         dependencies: AppDependencies,
-        onBack: @escaping () -> Void,
-        onLockChanged: @escaping (Bool) -> Void
+        navigation: AppNavigationModel
     ) {
         _viewModel = StateObject(
             wrappedValue: PracticeViewModel(
@@ -131,20 +188,23 @@ private struct PracticeScene: View {
                 recordingDependencies: dependencies.recording
             )
         )
-        self.onBack = onBack
-        self.onLockChanged = onLockChanged
+        self.navigation = navigation
     }
 
     var body: some View {
-        PracticeView(viewModel: viewModel, onBack: onBack)
+        PracticeView(viewModel: viewModel, onBack: navigation.showFiles)
             .onAppear {
-                onLockChanged(viewModel.controlsLocked)
+                navigation.registerPracticeCloser { [weak viewModel] in
+                    await viewModel?.close()
+                }
+                navigation.practiceControlsLocked = viewModel.controlsLocked
             }
             .onChange(of: viewModel.controlsLocked) { _, locked in
-                onLockChanged(locked)
+                navigation.practiceControlsLocked = locked
             }
             .onDisappear {
-                onLockChanged(false)
+                navigation.registerPracticeCloser(nil)
+                navigation.practiceControlsLocked = false
             }
     }
 }
