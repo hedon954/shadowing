@@ -6,17 +6,17 @@ struct FilesView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 28) {
                 dropZone
-                recentProjects
+                librarySection
             }
             .frame(maxWidth: 760)
             .padding(36)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Files")
+        .navigationTitle("Library")
         .task {
-            await viewModel.loadRecentProjects()
+            await viewModel.loadLibrary()
         }
         .alert(item: failureBinding) { failure in
             Alert(
@@ -63,7 +63,11 @@ struct FilesView: View {
         .padding(28)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(isDropTargeted ? Color.accentColor.opacity(0.09) : Color(nsColor: .controlBackgroundColor))
+                .fill(
+                    isDropTargeted
+                        ? Color.accentColor.opacity(0.09)
+                        : Color(nsColor: .controlBackgroundColor)
+                )
         )
         .overlay {
             RoundedRectangle(cornerRadius: 18)
@@ -86,52 +90,48 @@ struct FilesView: View {
         .accessibilityHint("Drop an MP3 here or use the Choose File button.")
     }
 
-    @ViewBuilder
-    private var recentProjects: some View {
-        if viewModel.recentProjects.isEmpty {
-            ContentUnavailableView(
-                "No Recent Files",
-                systemImage: "clock",
-                description: Text("MP3 files you open will appear here.")
-            )
-            .frame(maxWidth: .infinity, minHeight: 150)
-        } else {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Recent")
-                    .font(.headline)
+    private var librarySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Projects")
+                .font(.headline)
 
-                ForEach(viewModel.recentProjects) { project in
+            if viewModel.libraryItems.isEmpty {
+                ContentUnavailableView(
+                    "No Projects Yet",
+                    systemImage: "music.note.list",
+                    description: Text("Open an MP3 to start practicing. Projects with recordings appear here too.")
+                )
+                .frame(maxWidth: .infinity, minHeight: 120)
+            } else {
+                ForEach(viewModel.libraryItems) { item in
                     Button {
-                        viewModel.openRecentProject(project)
+                        viewModel.openLibraryItem(item)
                     } label: {
-                        recentRow(project)
+                        libraryRow(item)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Open \(project.sourceDisplayName)")
-                    .accessibilityValue(accessibilityValue(for: project))
+                    .accessibilityLabel("Open \(item.project.sourceDisplayName)")
+                    .accessibilityValue(accessibilityValue(for: item))
                 }
             }
         }
     }
 
-    private func recentRow(_ project: AudioProject) -> some View {
+    private func libraryRow(_ item: LibraryProjectItem) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: "music.note")
+            Image(systemName: item.takeCount > 0 ? "waveform" : "music.note")
                 .font(.title2)
                 .foregroundStyle(.tint)
                 .frame(width: 48, height: 48)
                 .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(project.sourceDisplayName)
+                Text(item.project.sourceDisplayName)
                     .font(.headline)
                     .lineLimit(1)
-                HStack(spacing: 10) {
-                    Label(formatDuration(project.duration), systemImage: "clock")
-                    Text(project.lastOpenedAt.formatted(.relative(presentation: .named)))
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(subtitle(for: item))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
             Text("Start Practice")
@@ -147,6 +147,15 @@ struct FilesView: View {
                 .stroke(Color.secondary.opacity(0.15))
         }
         .contentShape(Rectangle())
+    }
+
+    private func subtitle(for item: LibraryProjectItem) -> String {
+        let duration = formatDuration(item.project.duration)
+        let activity = item.activityDate.formatted(.relative(presentation: .named))
+        if item.takeCount > 0 {
+            return "\(item.takeCount) Takes · \(duration) · \(activity)"
+        }
+        return "\(duration) · \(activity)"
     }
 
     private func loadingOverlay(name: String) -> some View {
@@ -193,8 +202,7 @@ struct FilesView: View {
             : String(format: "%d:%02d", minutes, seconds)
     }
 
-    private func accessibilityValue(for project: AudioProject) -> String {
-        let relativeDate = project.lastOpenedAt.formatted(.relative(presentation: .named))
-        return "\(formatDuration(project.duration)), last opened \(relativeDate)"
+    private func accessibilityValue(for item: LibraryProjectItem) -> String {
+        subtitle(for: item)
     }
 }

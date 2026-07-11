@@ -18,50 +18,44 @@ final class M9SettingsAndRecordingsTests: XCTestCase {
         XCTAssertEqual(loaded, value)
     }
 
-    func testRecordingsListSortsByMostRecentTake() async throws {
+    func testLibraryListMergesProjectsAndSortsByActivity() async throws {
         let storage = InMemoryPersistence()
         let projects = InMemoryProjectRepository(storage: storage)
         let takes = InMemoryTakeRepository(storage: storage)
-        let olderProject = M9TestSupport.makeProject(name: "Older.mp3", openedAt: 100)
-        let newerProject = M9TestSupport.makeProject(name: "Newer.mp3", openedAt: 200)
-        try await projects.save(olderProject)
-        try await projects.save(newerProject)
+        let olderOpen = M9TestSupport.makeProject(name: "OlderOpen.mp3", openedAt: 100)
+        let newerWithTake = M9TestSupport.makeProject(name: "NewerTake.mp3", openedAt: 200)
+        let newestOpen = M9TestSupport.makeProject(name: "NewestOpen.mp3", openedAt: 400)
+        try await projects.save(olderOpen)
+        try await projects.save(newerWithTake)
+        try await projects.save(newestOpen)
 
         let region = try PracticeRegion(start: 1, end: 3, sourceDuration: 30)
         try await takes.save(
             Take(
-                projectID: olderProject.id,
-                region: region,
-                sequence: 1,
-                relativeAudioPath: "a.caf",
-                duration: 2,
-                createdAt: Date(timeIntervalSince1970: 500)
-            )
-        )
-        try await takes.save(
-            Take(
-                projectID: newerProject.id,
+                projectID: newerWithTake.id,
                 region: region,
                 sequence: 1,
                 relativeAudioPath: "b.caf",
                 duration: 2,
-                createdAt: Date(timeIntervalSince1970: 300)
+                createdAt: Date(timeIntervalSince1970: 500)
             )
         )
 
-        let viewModel = RecordingsViewModel(
-            projects: projects,
-            takes: takes,
+        let viewModel = FilesViewModel(
+            chooser: M9FileChooser(),
             sessionPreparer: M9SessionPreparer(),
-            fileChooser: M9FileChooser()
+            projects: projects,
+            takes: takes
         ) { _ in }
-        await viewModel.load()
+        await viewModel.loadLibrary()
 
-        XCTAssertEqual(viewModel.items.map(\.project.sourceDisplayName), [
-            "Older.mp3",
-            "Newer.mp3"
+        // Activity: newerWithTake (take at 500) > newestOpen (400) > olderOpen (100)
+        XCTAssertEqual(viewModel.libraryItems.map(\.project.sourceDisplayName), [
+            "NewerTake.mp3",
+            "NewestOpen.mp3",
+            "OlderOpen.mp3"
         ])
-        XCTAssertEqual(viewModel.items.map(\.takeCount), [1, 1])
+        XCTAssertEqual(viewModel.libraryItems.map(\.takeCount), [1, 0, 0])
     }
 
     func testAppSettingsNormalizesUnsupportedValues() {

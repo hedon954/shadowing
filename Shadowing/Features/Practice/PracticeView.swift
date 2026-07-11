@@ -31,23 +31,24 @@ struct PracticeView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Button {
                 viewModel.requestLeave {
                     onBack()
                 }
             } label: {
-                Label("Files", systemImage: "chevron.left")
+                Image(systemName: "chevron.backward")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.bordered)
-            .accessibilityLabel("Back to Files")
-
-            Image(systemName: "music.note")
-                .font(.title2)
-                .foregroundStyle(.tint)
+            .buttonStyle(.plain)
+            .help("Back to Library")
+            .accessibilityLabel("Back to Library")
 
             Text(viewModel.project.sourceDisplayName)
-                .font(.title2.weight(.semibold))
+                .font(.title3.weight(.semibold))
                 .lineLimit(1)
 
             Spacer()

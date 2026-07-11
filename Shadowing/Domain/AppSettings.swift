@@ -86,16 +86,6 @@ struct ImmediateComparisonPlaybackScheduler: ComparisonPlaybackScheduler {
     }
 }
 
-struct RecordingListItem: Equatable, Identifiable, Sendable {
-    var id: UUID {
-        project.id
-    }
-
-    let project: AudioProject
-    let takeCount: Int
-    let lastRecordedAt: Date
-}
-
 struct AudioInputDevice: Equatable, Identifiable, Sendable {
     let id: String
     let name: String

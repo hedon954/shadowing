@@ -89,12 +89,14 @@ final class M7PersistenceTests: XCTestCase {
         let viewModel = FilesViewModel(
             chooser: M7Chooser(url: nil),
             sessionPreparer: M7FailingSessionPreparer(error: .fileMissing),
-            projects: InMemoryProjectRepository(storage: storage)
+            projects: InMemoryProjectRepository(storage: storage),
+            takes: InMemoryTakeRepository(storage: storage)
         ) { prepared in
             opened = prepared
         }
 
-        viewModel.openRecentProject(project)
+        let item = LibraryProjectItem(project: project, takeCount: 0, lastRecordedAt: nil)
+        viewModel.openLibraryItem(item)
         for _ in 0 ..< 200 where viewModel.state.failure == nil {
             await Task.yield()
         }

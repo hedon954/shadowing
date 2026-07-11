@@ -11,7 +11,8 @@ final class M3ViewModelTests: XCTestCase {
         let viewModel = FilesViewModel(
             chooser: StubAudioFileChooser(url: nil),
             sessionPreparer: preparer,
-            projects: InMemoryProjectRepository(storage: storage)
+            projects: InMemoryProjectRepository(storage: storage),
+            takes: InMemoryTakeRepository(storage: storage)
         ) { prepared in
             openedPractice = prepared
         }
@@ -33,7 +34,8 @@ final class M3ViewModelTests: XCTestCase {
         let viewModel = FilesViewModel(
             chooser: StubAudioFileChooser(url: nil),
             sessionPreparer: StubSessionPreparer(behavior: .failure(.unsupportedFormat)),
-            projects: InMemoryProjectRepository(storage: storage)
+            projects: InMemoryProjectRepository(storage: storage),
+            takes: InMemoryTakeRepository(storage: storage)
         ) { _ in
             XCTFail("A failed load must not navigate")
         }

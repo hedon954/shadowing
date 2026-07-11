@@ -27,15 +27,15 @@ struct AlignedTakeTrackView: View {
             HStack(spacing: 8) {
                 if canReorder {
                     Image(systemName: "line.3.horizontal")
-                        .font(.caption.weight(.semibold))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.tertiary)
                         .help("Drag to reorder takes")
                         .accessibilityLabel("Reorder Take \(take.sequence)")
                 }
                 Text("Take \(take.sequence)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(isSelected || isLive ? .secondary : .tertiary)
-                Spacer()
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(labelColor)
+                Spacer(minLength: 8)
                 playButton
             }
             .contentShape(Rectangle())
@@ -79,22 +79,24 @@ struct AlignedTakeTrackView: View {
                     )
                 }
             }
-            .frame(height: 100)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
-        .background {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(trackFill)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(trackStroke, lineWidth: isSelected || isLive ? 1.5 : 1)
+            .frame(height: 96)
+            .padding(6)
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(waveformWell)
+            }
         }
     }
 
-    private var trackFill: Color {
+    private var labelColor: Color {
+        if isSelected || isLive {
+            Color.accentColor
+        } else {
+            Color.secondary
+        }
+    }
+
+    private var waveformWell: Color {
         if isSelected || isLive {
             Color.accentColor.opacity(0.06)
         } else {
@@ -102,22 +104,14 @@ struct AlignedTakeTrackView: View {
         }
     }
 
-    private var trackStroke: Color {
-        if isSelected || isLive {
-            Color.accentColor.opacity(0.55)
-        } else {
-            Color.primary.opacity(0.12)
-        }
-    }
-
     private var playButton: some View {
         Button(action: onTogglePlayback) {
-            Image(
-                systemName: isPlaying ? "pause.fill" : "play.fill"
-            )
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.caption.weight(.semibold))
+                .frame(width: 18, height: 18)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        .buttonStyle(.borderless)
+        .foregroundStyle(isPlaying ? Color.accentColor : Color.secondary)
         .disabled(!isInteractive)
         .accessibilityLabel(
             isPlaying
@@ -152,7 +146,5 @@ struct AlignedTakeTrackView: View {
                 showsChrome: false
             )
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

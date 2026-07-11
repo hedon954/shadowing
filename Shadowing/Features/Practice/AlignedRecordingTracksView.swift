@@ -179,7 +179,7 @@ struct AlignedRecordingTracksView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             WaveformTimelineOverview(
                 waveform: originalWaveform,
                 takeThumbnails: takeThumbnails,
@@ -223,15 +223,19 @@ struct AlignedRecordingTracksView: View {
             )
             .frame(height: 120)
 
-            Divider()
-                .opacity(0.45)
-                .padding(.vertical, 2)
+            if showsAppendLiveRow || !takes.isEmpty {
+                trackSeparator
+            }
 
             if showsAppendLiveRow {
                 appendLiveRecordingRow
             }
 
-            ForEach(takes) { take in
+            ForEach(Array(takes.enumerated()), id: \.element.id) { index, take in
+                if index > 0 || showsAppendLiveRow {
+                    trackSeparator
+                }
+
                 AlignedTakeTrackView(
                     take: take,
                     waveform: takeWaveforms[take.id],
@@ -302,6 +306,13 @@ struct AlignedRecordingTracksView: View {
         isInteractive && takes.count > 1 && onReorderTakes != nil
     }
 
+    private var trackSeparator: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.1))
+            .frame(height: 1)
+            .padding(.vertical, 8)
+    }
+
     private var showsAppendLiveRow: Bool {
         guard liveTakeID != nil, !liveTakePoints.isEmpty || liveRegion != nil else {
             return false
@@ -324,21 +335,15 @@ struct AlignedRecordingTracksView: View {
                 selection: liveRegion,
                 emphasized: true
             )
-            .frame(height: 100)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .frame(height: 96)
+            .padding(6)
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.06))
+            }
             .overlay {
                 seekOverlay(clearsTakeSelection: false)
             }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
-        .background {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.accentColor.opacity(0.06))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 1.5)
         }
     }
 
@@ -349,8 +354,8 @@ struct AlignedRecordingTracksView: View {
     ) -> some View {
         HStack {
             Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(emphasized ? .secondary : .tertiary)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(emphasized ? Color.accentColor : Color.secondary)
             Spacer()
             trailing()
         }

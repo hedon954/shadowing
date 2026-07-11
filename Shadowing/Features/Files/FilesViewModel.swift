@@ -44,14 +44,30 @@ enum FilesLoadState: Equatable, Sendable {
     }
 }
 
+struct LibraryProjectItem: Equatable, Identifiable, Sendable {
+    var id: UUID {
+        project.id
+    }
+
+    let project: AudioProject
+    let takeCount: Int
+    let lastRecordedAt: Date?
+
+    /// Sort key: most recent of last open and last recording.
+    var activityDate: Date {
+        max(project.lastOpenedAt, lastRecordedAt ?? .distantPast)
+    }
+}
+
 @MainActor
 final class FilesViewModel: ObservableObject {
     @Published private(set) var state: FilesLoadState = .idle
-    @Published private(set) var recentProjects: [AudioProject] = []
+    @Published private(set) var libraryItems: [LibraryProjectItem] = []
 
     private let chooser: any AudioFileChoosing
     private let sessionPreparer: any PracticeSessionPreparing
     private let projects: any ProjectRepository
+    private let takes: any TakeRepository
     private let onPracticeReady: @MainActor (PreparedPractice) -> Void
     private var loadTask: Task<Void, Never>?
 
@@ -59,11 +75,13 @@ final class FilesViewModel: ObservableObject {
         chooser: any AudioFileChoosing,
         sessionPreparer: any PracticeSessionPreparing,
         projects: any ProjectRepository,
+        takes: any TakeRepository,
         onPracticeReady: @escaping @MainActor (PreparedPractice) -> Void
     ) {
         self.chooser = chooser
         self.sessionPreparer = sessionPreparer
         self.projects = projects
+        self.takes = takes
         self.onPracticeReady = onPracticeReady
     }
 
@@ -71,15 +89,28 @@ final class FilesViewModel: ObservableObject {
         loadTask?.cancel()
     }
 
-    func loadRecentProjects() async {
+    func loadLibrary() async {
         do {
-            recentProjects = try await projects.recentProjects(limit: 8)
+            let recent = try await projects.recentProjects(limit: 50)
+            var items: [LibraryProjectItem] = []
+            items.reserveCapacity(recent.count)
+            for project in recent {
+                let projectTakes = try await takes.takes(projectID: project.id)
+                items.append(
+                    LibraryProjectItem(
+                        project: project,
+                        takeCount: projectTakes.count,
+                        lastRecordedAt: projectTakes.map(\.createdAt).max()
+                    )
+                )
+            }
+            libraryItems = items.sorted { $0.activityDate > $1.activityDate }
         } catch is CancellationError {
             return
         } catch {
             state = .failed(
                 FileLoadFailure(
-                    message: "Recent files could not be loaded.",
+                    message: "Library could not be loaded.",
                     suggestion: "Try loading the list again.",
                     action: .reloadRecents
                 )
@@ -103,7 +134,8 @@ final class FilesViewModel: ObservableObject {
         }
     }
 
-    func openRecentProject(_ project: AudioProject) {
+    func openLibraryItem(_ item: LibraryProjectItem) {
+        let project = item.project
         startLoading(name: project.sourceDisplayName, recovery: .relocate(project.id)) { [sessionPreparer] in
             try await sessionPreparer.prepareExistingProject(id: project.id)
         }
@@ -124,7 +156,7 @@ final class FilesViewModel: ObservableObject {
                     return
                 }
                 state = .idle
-                await loadRecentProjects()
+                await loadLibrary()
             }
         }
     }
@@ -146,7 +178,7 @@ final class FilesViewModel: ObservableObject {
             try Task.checkCancellation()
             state = .idle
             onPracticeReady(prepared)
-            await loadRecentProjects()
+            await loadLibrary()
         } catch is CancellationError {
             state = .idle
         } catch {
@@ -182,7 +214,7 @@ final class FilesViewModel: ObservableObject {
                 try Task.checkCancellation()
                 state = .idle
                 onPracticeReady(prepared)
-                await loadRecentProjects()
+                await loadLibrary()
             } catch is CancellationError {
                 state = .idle
             } catch {
