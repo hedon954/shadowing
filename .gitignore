@@ -14,7 +14,7 @@ build/
 
 # Local application data
 local-data/
-recordings/
+/recordings/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
