@@ -12,8 +12,8 @@ struct CompareWorkspaceView: View {
                     originalPeaks: viewModel.comparisonOriginalPeaks,
                     recordingPeaks: viewModel.selectedTakePeaks,
                     recordingProgress: 1,
-                    originalEmphasis: viewModel.comparisonMode == .original,
-                    takeEmphasis: viewModel.comparisonMode == .selectedTake,
+                    originalEmphasis: viewModel.comparisonMode.emphasizesOriginal,
+                    takeEmphasis: viewModel.comparisonMode.emphasizesTake,
                     playheadFraction: viewModel.comparisonProgressFraction
                 )
                 .frame(maxWidth: .infinity)
@@ -42,11 +42,12 @@ struct CompareWorkspaceView: View {
                 }
             )
         ) {
-            Text("Original").tag(ComparisonMode.original)
-            Text("My Take").tag(ComparisonMode.selectedTake)
+            ForEach(ComparisonMode.allCases, id: \.self) { mode in
+                Text(mode.displayName).tag(mode)
+            }
         }
         .pickerStyle(.segmented)
-        .frame(maxWidth: 320)
+        .frame(maxWidth: 420)
         .accessibilityLabel("Comparison mode")
     }
 
@@ -80,16 +81,28 @@ struct CompareWorkspaceView: View {
 
     private func takeRow(_ take: Take) -> some View {
         let isSelected = viewModel.activeTake?.id == take.id
+        let isKept = viewModel.project.keptTakeID == take.id
         return Button {
             viewModel.selectTake(take)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Take \(take.sequence)")
-                        .fontWeight(isSelected ? .semibold : .regular)
+                    HStack(spacing: 4) {
+                        Text("Take \(take.sequence)")
+                            .fontWeight(isSelected ? .semibold : .regular)
+                        if isKept {
+                            Image(systemName: "bookmark.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.tint)
+                                .accessibilityLabel("Kept take")
+                        }
+                    }
                     Text(durationLabel(take.duration))
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
+                    Text(take.createdAt.formatted(.relative(presentation: .named)))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
                 Spacer(minLength: 4)
                 if isSelected {
@@ -109,8 +122,15 @@ struct CompareWorkspaceView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Take \(take.sequence)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-        .accessibilityHint(durationLabel(take.duration))
+        .accessibilityValue(
+            ([
+                isSelected ? "Selected" : "Not selected",
+                isKept ? "Kept" : nil,
+                durationLabel(take.duration)
+            ] as [String?])
+                .compactMap(\.self)
+                .joined(separator: ", ")
+        )
     }
 
     private var comparisonControls: some View {
@@ -129,12 +149,33 @@ struct CompareWorkspaceView: View {
                 viewModel.toggleComparisonPlayback()
             } label: {
                 Label(
-                    viewModel.isPlaying ? "Pause" : "Play",
-                    systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill"
+                    viewModel.isPlaying || viewModel.abPlaybackPhase != .idle
+                        ? "Pause"
+                        : "Play",
+                    systemImage: viewModel.isPlaying || viewModel.abPlaybackPhase != .idle
+                        ? "pause.fill"
+                        : "play.fill"
                 )
             }
             .buttonStyle(.borderedProminent)
-            .accessibilityLabel(viewModel.isPlaying ? "Pause comparison" : "Play comparison")
+            .accessibilityLabel(
+                viewModel.isPlaying || viewModel.abPlaybackPhase != .idle
+                    ? "Pause comparison"
+                    : "Play comparison"
+            )
+
+            Button {
+                viewModel.keepThisTake()
+            } label: {
+                Label(
+                    viewModel.isCurrentTakeKept ? "Kept" : "Keep This Take",
+                    systemImage: viewModel.isCurrentTakeKept ? "bookmark.fill" : "bookmark"
+                )
+            }
+            .buttonStyle(.bordered)
+            .disabled(viewModel.activeTake == nil)
+            .accessibilityLabel("Keep This Take")
+            .accessibilityValue(viewModel.isCurrentTakeKept ? "Kept" : "Not kept")
 
             Button("Re-record") {
                 viewModel.rerecord()

@@ -20,7 +20,11 @@ extension PracticeViewModel {
         case let .playheadChanged(position):
             updatePlayhead(from: position)
         case .playbackFinished:
-            handlePlaybackFinished()
+            if isComparing {
+                handleComparisonPlaybackFinished()
+            } else {
+                handlePlaybackFinished()
+            }
         case let .interrupted(interruption):
             handleInterruption(interruption)
         case let .failed(audioFailure):
@@ -110,29 +114,31 @@ extension PracticeViewModel {
     }
 
     private func updatePlayhead(from position: TimeInterval) {
-        if isComparing, comparisonMode == .selectedTake {
-            playhead = min(max(position, 0), activeTake?.duration ?? position)
-        } else {
-            playhead = min(max(position, 0), project.duration)
-            if isPlaying {
-                schedulePlayheadPersist()
+        if isComparing {
+            switch comparisonMode {
+            case .selectedTake:
+                playhead = min(max(position, 0), activeTake?.duration ?? position)
+            case .ab where abPlaybackPhase == .playingTake:
+                playhead = min(max(position, 0), activeTake?.duration ?? position)
+            case .original, .ab, .together:
+                playhead = min(max(position, 0), project.duration)
             }
+            return
+        }
+        playhead = min(max(position, 0), project.duration)
+        if isPlaying {
+            schedulePlayheadPersist()
         }
     }
 
     private func handlePlaybackFinished() {
         isPlaying = false
-        if isComparing, comparisonMode == .selectedTake {
-            playhead = activeTake?.duration ?? playhead
-        } else if isComparing, let take = activeTake {
-            playhead = take.region.end
-        } else {
-            playhead = project.duration
-            persistProjectImmediately()
-        }
+        playhead = project.duration
+        persistProjectImmediately()
     }
 
     private func handleInterruption(_ interruption: PracticeAudioInterruption) {
+        cancelABPlayback()
         isPlaying = false
         if recordingPresentation.locksPracticeControls {
             recordingPresentation = .finalizing

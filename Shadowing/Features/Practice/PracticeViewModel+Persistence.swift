@@ -63,6 +63,7 @@ extension PracticeViewModel {
         playheadPersistTask = nil
         recordingTask?.cancel()
         finalizationTask?.cancel()
+        cancelABPlayback()
         var closeError: Error?
         if case .countingDown = recordingPresentation {
             discardPendingRecording()

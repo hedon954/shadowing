@@ -70,15 +70,18 @@ final class PracticeViewModel: ObservableObject {
     @Published var recordingNotice: String?
     @Published var failure: PracticeFailure?
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
+    @Published var abPlaybackPhase = ABPlaybackPhase.idle
 
     let audioClient: any PracticeAudioClient
     let projects: any ProjectRepository
     let sessionPreparer: any PracticeSessionPreparing
     let recordingDependencies: RecordingDependencies?
+    let comparisonScheduler: any ComparisonPlaybackScheduler
     var eventTask: Task<Void, Never>?
     var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
     var finalizationTask: Task<Void, Never>?
+    var abPlaybackTask: Task<Void, Never>?
     var recordingContext: PendingRecordingContext?
     private var hasStarted = false
     var hasClosed = false
@@ -138,7 +141,8 @@ final class PracticeViewModel: ObservableObject {
         audioClient: any PracticeAudioClient,
         projects: any ProjectRepository,
         sessionPreparer: any PracticeSessionPreparing,
-        recordingDependencies: RecordingDependencies? = nil
+        recordingDependencies: RecordingDependencies? = nil,
+        comparisonScheduler: any ComparisonPlaybackScheduler = ContinuousComparisonPlaybackScheduler()
     ) {
         project = prepared.project
         waveform = prepared.waveform
@@ -148,6 +152,7 @@ final class PracticeViewModel: ObservableObject {
         self.projects = projects
         self.sessionPreparer = sessionPreparer
         self.recordingDependencies = recordingDependencies
+        self.comparisonScheduler = comparisonScheduler
     }
 
     deinit {
@@ -155,6 +160,7 @@ final class PracticeViewModel: ObservableObject {
         commandTask?.cancel()
         recordingTask?.cancel()
         finalizationTask?.cancel()
+        abPlaybackTask?.cancel()
         playheadPersistTask?.cancel()
     }
 

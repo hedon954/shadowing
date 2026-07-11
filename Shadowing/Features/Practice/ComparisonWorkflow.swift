@@ -1,5 +1,12 @@
 import Foundation
 
+enum ABPlaybackPhase: Equatable, Sendable {
+    case idle
+    case playingOriginal
+    case waitingForGap
+    case playingTake
+}
+
 extension PracticeViewModel {
     var comparisonOriginalPeaks: [Float] {
         guard let take = activeTake else {
@@ -13,7 +20,7 @@ extension PracticeViewModel {
             return 0
         }
         switch comparisonMode {
-        case .original:
+        case .original, .together:
             guard take.region.duration > 0 else {
                 return 0
             }
@@ -26,10 +33,34 @@ extension PracticeViewModel {
                 return 0
             }
             return min(max(playhead / take.duration, 0), 1)
+        case .ab:
+            switch abPlaybackPhase {
+            case .playingTake:
+                guard take.duration > 0 else {
+                    return 0
+                }
+                return min(max(playhead / take.duration, 0), 1)
+            case .idle, .playingOriginal, .waitingForGap:
+                guard take.region.duration > 0 else {
+                    return 0
+                }
+                return min(
+                    max((playhead - take.region.start) / take.region.duration, 0),
+                    1
+                )
+            }
         }
     }
 
+    var isCurrentTakeKept: Bool {
+        guard let take = activeTake else {
+            return false
+        }
+        return project.keptTakeID == take.id
+    }
+
     func enterComparison(with take: Take, takePeaks: [Float] = []) async {
+        cancelABPlayback()
         activeTake = take
         selectedTakePeaks = takePeaks
         comparisonMode = .selectedTake
@@ -59,7 +90,7 @@ extension PracticeViewModel {
         }
         project.selectedTakeID = take.id
         recordingPresentation = .comparisonReady(take)
-        playhead = comparisonMode == .original ? take.region.start : 0
+        playhead = comparisonMode.usesOriginalTimeline ? take.region.start : 0
         updateRegionSnapshotNotice(for: take)
         persistSelectedTake()
     }
@@ -71,15 +102,23 @@ extension PracticeViewModel {
         pauseComparisonPlaybackIfNeeded()
         comparisonMode = mode
         if let take = activeTake {
-            playhead = mode == .original ? take.region.start : 0
+            playhead = mode.usesOriginalTimeline ? take.region.start : 0
         }
+    }
+
+    func keepThisTake() {
+        guard isComparing, let take = activeTake else {
+            return
+        }
+        project.keptTakeID = take.id
+        persistProjectImmediately()
     }
 
     func toggleComparisonPlayback() {
         guard isComparing, let take = activeTake else {
             return
         }
-        if isPlaying {
+        if isPlaying || abPlaybackPhase != .idle {
             pauseComparisonPlaybackIfNeeded()
             return
         }
@@ -110,6 +149,34 @@ extension PracticeViewModel {
                 return true
             } completion: { [weak self] playing in
                 self?.isPlaying = playing
+            }
+        case .ab:
+            startABPlayback(take: take)
+        case .together:
+            performCommand { [audioClient, rate] in
+                try await audioClient.execute(
+                    .playTogether(region: take.region, takeID: take.id, rate: rate)
+                )
+                return true
+            } completion: { [weak self] playing in
+                self?.isPlaying = playing
+                if playing {
+                    self?.playhead = take.region.start
+                }
+            }
+        }
+    }
+
+    func handleComparisonPlaybackFinished() {
+        switch comparisonMode {
+        case .ab:
+            handleABPlaybackFinished()
+        case .original, .selectedTake, .together:
+            isPlaying = false
+            if comparisonMode == .selectedTake {
+                playhead = activeTake?.duration ?? playhead
+            } else if let take = activeTake {
+                playhead = take.region.end
             }
         }
     }
@@ -161,6 +228,75 @@ extension PracticeViewModel {
         }
     }
 
+    private func startABPlayback(take: Take) {
+        cancelABPlayback()
+        abPlaybackPhase = .playingOriginal
+        playhead = take.region.start
+        isPlaying = true
+        abPlaybackTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            do {
+                try await audioClient.execute(
+                    .playOriginalSegment(
+                        region: take.region,
+                        from: take.region.start,
+                        rate: rate
+                    )
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                abPlaybackPhase = .idle
+                isPlaying = false
+                show(error)
+            }
+        }
+    }
+
+    private func handleABPlaybackFinished() {
+        guard let take = activeTake else {
+            cancelABPlayback()
+            return
+        }
+        switch abPlaybackPhase {
+        case .playingOriginal:
+            abPlaybackPhase = .waitingForGap
+            isPlaying = true
+            abPlaybackTask = Task { [weak self] in
+                guard let self else {
+                    return
+                }
+                do {
+                    try await comparisonScheduler.waitForABGap()
+                    try Task.checkCancellation()
+                    abPlaybackPhase = .playingTake
+                    playhead = 0
+                    try await audioClient.execute(.playTake(takeID: take.id, from: 0))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    cancelABPlayback()
+                    show(error)
+                }
+            }
+        case .playingTake:
+            cancelABPlayback()
+            isPlaying = false
+            playhead = 0
+        case .idle, .waitingForGap:
+            cancelABPlayback()
+            isPlaying = false
+        }
+    }
+
+    func cancelABPlayback() {
+        abPlaybackTask?.cancel()
+        abPlaybackTask = nil
+        abPlaybackPhase = .idle
+    }
+
     private func deleteTake(_ take: Take) async {
         guard let recordingDependencies else {
             show(PracticeRecordingError.unavailable)
@@ -174,6 +310,9 @@ extension PracticeViewModel {
                 )
             } catch {
                 show(error)
+            }
+            if project.keptTakeID == take.id {
+                project.keptTakeID = nil
             }
             await refreshTakes()
             if let next = takes.max(by: { $0.createdAt < $1.createdAt }) {
@@ -197,7 +336,8 @@ extension PracticeViewModel {
         }
     }
 
-    private func pauseComparisonPlaybackIfNeeded() {
+    func pauseComparisonPlaybackIfNeeded() {
+        cancelABPlayback()
         guard isPlaying else {
             return
         }

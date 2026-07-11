@@ -24,7 +24,10 @@ struct RecordingDependencies: Sendable {
     let fileStore: any RecordingFileStore
     let takes: any TakeRepository
     let committer: any TakeCommitting
+    let settings: (any SettingsStore)?
+    /// Fallback when settings are unavailable (tests may inject a fixed value).
     let countdownSeconds: Int
+    let playOriginalWhileRecording: Bool
     let now: @Sendable () -> Date
     let makeID: @Sendable () -> UUID
 
@@ -34,7 +37,9 @@ struct RecordingDependencies: Sendable {
         fileStore: any RecordingFileStore,
         takes: any TakeRepository,
         committer: any TakeCommitting,
+        settings: (any SettingsStore)? = nil,
         countdownSeconds: Int = 3,
+        playOriginalWhileRecording: Bool = true,
         now: @escaping @Sendable () -> Date = Date.init,
         makeID: @escaping @Sendable () -> UUID = UUID.init
     ) {
@@ -43,9 +48,34 @@ struct RecordingDependencies: Sendable {
         self.fileStore = fileStore
         self.takes = takes
         self.committer = committer
+        self.settings = settings
         self.countdownSeconds = max(countdownSeconds, 0)
+        self.playOriginalWhileRecording = playOriginalWhileRecording
         self.now = now
         self.makeID = makeID
+    }
+
+    func resolvedSettings() async -> AppSettings {
+        guard let settings else {
+            return AppSettings(
+                countdownSeconds: countdownSeconds,
+                playOriginalWhileRecording: playOriginalWhileRecording
+            )
+        }
+        do {
+            if let stored = try await settings.value(
+                for: AppSettings.storeKey,
+                as: AppSettings.self
+            ) {
+                return stored
+            }
+        } catch {
+            return AppSettings(
+                countdownSeconds: countdownSeconds,
+                playOriginalWhileRecording: playOriginalWhileRecording
+            )
+        }
+        return AppSettings.default
     }
 }
 
@@ -231,7 +261,11 @@ extension PracticeViewModel {
             activeTake = nil
             lastRecordingStopReason = nil
 
-            try await runCountdown(dependencies)
+            let appSettings = await dependencies.resolvedSettings()
+            try await runCountdown(
+                dependencies,
+                seconds: appSettings.normalizedCountdownSeconds
+            )
             try Task.checkCancellation()
             playhead = region.start
             try await audioClient.execute(.seek(region.start))
@@ -239,7 +273,7 @@ extension PracticeViewModel {
                 .beginRecording(
                     region: region,
                     destinationURL: temporaryURL,
-                    playOriginal: true
+                    playOriginal: appSettings.playOriginalWhileRecording
                 )
             )
         } catch is CancellationError {
@@ -331,16 +365,13 @@ extension PracticeViewModel {
     }
 
     private func runCountdown(
-        _ dependencies: RecordingDependencies
+        _ dependencies: RecordingDependencies,
+        seconds: Int
     ) async throws {
-        guard dependencies.countdownSeconds > 0 else {
+        guard seconds > 0 else {
             return
         }
-        for remaining in stride(
-            from: dependencies.countdownSeconds,
-            through: 1,
-            by: -1
-        ) {
+        for remaining in stride(from: seconds, through: 1, by: -1) {
             try Task.checkCancellation()
             recordingPresentation = .countingDown(remainingSeconds: remaining)
             try await dependencies.countdownClock.waitForNextSecond()

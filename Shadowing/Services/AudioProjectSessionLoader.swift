@@ -7,6 +7,7 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
     private let metadataLoader: any AudioAssetMetadataLoading
     private let waveformService: any WaveformPreparing
     private let audioClient: any PracticeAudioClient
+    private let settings: (any SettingsStore)?
     private let now: @Sendable () -> Date
 
     private var activeAccess: (any BookmarkAccess)?
@@ -19,6 +20,7 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
         metadataLoader: any AudioAssetMetadataLoading,
         waveformService: any WaveformPreparing,
         audioClient: any PracticeAudioClient,
+        settings: (any SettingsStore)? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.projects = projects
@@ -27,6 +29,7 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
         self.metadataLoader = metadataLoader
         self.waveformService = waveformService
         self.audioClient = audioClient
+        self.settings = settings
         self.now = now
     }
 
@@ -129,7 +132,7 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
             let waveform = try await waveformValue
             try ensureCurrent(currentGeneration)
 
-            var project = try makeProject(
+            var project = try await makeProject(
                 existing: existingProject,
                 metadata: metadata,
                 bookmark: resolved.isStale
@@ -165,10 +168,15 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
         existing: AudioProject?,
         metadata: AudioAssetMetadata,
         bookmark: Data
-    ) -> AudioProject {
+    ) async -> AudioProject {
         var region = existing?.currentRegion
         if let currentRegion = region, currentRegion.end > metadata.duration {
             region = nil
+        }
+        let defaultRate: Double = if let existing {
+            Self.normalizedPlaybackRate(existing.playbackRate)
+        } else {
+            await resolvedDefaultPlaybackRate()
         }
         return AudioProject(
             id: existing?.id ?? UUID(),
@@ -180,14 +188,30 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
             selectedTakeID: existing?.selectedTakeID,
             keptTakeID: existing?.keptTakeID,
             lastOpenedAt: now(),
-            playbackRate: Self.normalizedPlaybackRate(existing?.playbackRate)
+            playbackRate: defaultRate
         )
+    }
+
+    private func resolvedDefaultPlaybackRate() async -> Double {
+        guard let settings else {
+            return 1
+        }
+        do {
+            if let stored = try await settings.value(
+                for: AppSettings.storeKey,
+                as: AppSettings.self
+            ) {
+                return stored.normalizedPlaybackRate
+            }
+        } catch {
+            return 1
+        }
+        return 1
     }
 
     private static func normalizedPlaybackRate(_ rate: Double?) -> Double {
         let candidate = rate ?? 1
-        let supported: [Double] = [0.5, 0.75, 1, 1.25, 1.5]
-        return supported.contains(candidate) ? candidate : 1
+        return AppSettings.supportedPlaybackRates.contains(candidate) ? candidate : 1
     }
 
     private func ensureCurrent(_ expectedGeneration: UInt64) throws {
