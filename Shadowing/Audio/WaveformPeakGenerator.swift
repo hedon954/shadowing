@@ -102,9 +102,9 @@ struct WaveformPeakGenerator: Sendable {
             duration: Double(decodedFrames) / sampleRate,
             sampleRate: sampleRate,
             levels: accumulators.map { accumulator in
-                WaveformPeakLevel(
-                    framesPerPeak: accumulator.framesPerPeak,
-                    peaks: accumulator.finishedPeaks()
+                WaveformEnvelopeLevel(
+                    framesPerPoint: accumulator.framesPerPeak,
+                    points: accumulator.finishedPoints()
                 )
             }
         )
@@ -202,9 +202,10 @@ struct WaveformPeakGenerator: Sendable {
 
 private struct PeakAccumulator {
     let framesPerPeak: Int
-    private var peaks: [Float] = []
+    private var points: [WaveformEnvelopePoint] = []
     private var pendingFrameCount = 0
-    private var pendingPeak: Float = 0
+    private var pendingMinimum: Float = 1
+    private var pendingMaximum: Float = -1
 
     init(framesPerPeak: Int) {
         self.framesPerPeak = framesPerPeak
@@ -223,29 +224,48 @@ private struct PeakAccumulator {
             )
             let sampleOffset = frameOffset * channelCount
             let sampleCount = acceptedFrames * channelCount
-            var segmentPeak: Float = 0
-            vDSP_maxmgv(
+            var segmentMinimum: Float = 0
+            var segmentMaximum: Float = 0
+            vDSP_minv(
                 samples.advanced(by: sampleOffset),
                 1,
-                &segmentPeak,
+                &segmentMinimum,
                 vDSP_Length(sampleCount)
             )
-            pendingPeak = max(pendingPeak, segmentPeak)
+            vDSP_maxv(
+                samples.advanced(by: sampleOffset),
+                1,
+                &segmentMaximum,
+                vDSP_Length(sampleCount)
+            )
+            pendingMinimum = min(pendingMinimum, segmentMinimum)
+            pendingMaximum = max(pendingMaximum, segmentMaximum)
             pendingFrameCount += acceptedFrames
             frameOffset += acceptedFrames
 
             if pendingFrameCount == framesPerPeak {
-                peaks.append(min(max(pendingPeak, 0), 1))
+                points.append(
+                    WaveformEnvelopePoint(
+                        minimum: pendingMinimum,
+                        maximum: pendingMaximum
+                    )
+                )
                 pendingFrameCount = 0
-                pendingPeak = 0
+                pendingMinimum = 1
+                pendingMaximum = -1
             }
         }
     }
 
-    func finishedPeaks() -> [Float] {
+    func finishedPoints() -> [WaveformEnvelopePoint] {
         guard pendingFrameCount > 0 else {
-            return peaks
+            return points
         }
-        return peaks + [min(max(pendingPeak, 0), 1)]
+        return points + [
+            WaveformEnvelopePoint(
+                minimum: pendingMinimum,
+                maximum: pendingMaximum
+            )
+        ]
     }
 }

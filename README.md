@@ -30,6 +30,7 @@ coupling Views or Domain types to it. See
 ```bash
 make setup
 make build
+make upgrade
 make test
 make check
 ```
@@ -37,6 +38,9 @@ make check
 `make setup` installs the tools declared in `Brewfile`, installs pre-commit hooks, and
 generates `Shadowing/Shadowing.xcodeproj`. The generated project is not committed; edit
 `Shadowing/project.yml` instead.
+
+`make upgrade` rebuilds the Debug app, stops an existing Shadowing process, and opens the
+new build.
 
 ## Documentation
 

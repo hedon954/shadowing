@@ -60,7 +60,8 @@ struct LocalRecordingFileStore: RecordingFileStore {
     func commitTemporaryTake(
         at temporaryURL: URL,
         projectID: UUID,
-        takeID: UUID
+        takeID: UUID,
+        replaceExisting: Bool = false
     ) throws -> String {
         let temporaryURL = temporaryURL.standardizedFileURL
         guard isDescendant(temporaryURL, of: temporaryDirectory) else {
@@ -84,8 +85,18 @@ struct LocalRecordingFileStore: RecordingFileStore {
         let destinationURL = try audioURL(relativePath: relativePath)
         try createDirectory(destinationURL.deletingLastPathComponent())
 
-        guard !FileManager.default.fileExists(atPath: destinationURL.path) else {
-            throw RecordingFileStoreError.destinationAlreadyExists(destinationURL.path)
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            guard replaceExisting else {
+                throw RecordingFileStoreError.destinationAlreadyExists(destinationURL.path)
+            }
+            do {
+                try FileManager.default.removeItem(at: destinationURL)
+            } catch {
+                throw RecordingFileStoreError.fileOperationFailed(
+                    path: destinationURL.path,
+                    reason: error.localizedDescription
+                )
+            }
         }
 
         do {
@@ -235,12 +246,17 @@ struct RecordingTakeCommitter: TakeCommitting {
         self.validator = validator
     }
 
-    func commit(_ draft: TakeDraft, temporaryFile: URL) async throws -> Take {
+    func commit(
+        _ draft: TakeDraft,
+        temporaryFile: URL,
+        replaceExisting: Bool
+    ) async throws -> Take {
         try validator.validatePlayableRecording(at: temporaryFile)
         let relativePath = try fileStore.commitTemporaryTake(
             at: temporaryFile,
             projectID: draft.projectID,
-            takeID: draft.id
+            takeID: draft.id,
+            replaceExisting: replaceExisting
         )
         let take = try draft.makeTake(relativeAudioPath: relativePath)
 

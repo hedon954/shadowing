@@ -4,19 +4,19 @@ import XCTest
 
 @MainActor
 final class M6ViewModelTests: XCTestCase {
-    func testComparisonModeSwitchResetsPlayhead() async throws {
+    func testSelectTakeIsIdempotentAndClearsViaClearTakeSelection() async throws {
         let fixture = try await makeFixtureWithCommittedTake()
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
 
-        XCTAssertEqual(fixture.viewModel.comparisonMode, .selectedTake)
-        XCTAssertEqual(fixture.viewModel.playhead, 0)
+        fixture.viewModel.selectTake(take)
+        XCTAssertEqual(fixture.viewModel.activeTake?.id, take.id)
 
-        fixture.viewModel.setComparisonMode(.original)
-        XCTAssertEqual(fixture.viewModel.comparisonMode, .original)
-        XCTAssertEqual(fixture.viewModel.playhead, fixture.region.start)
+        fixture.viewModel.clearTakeSelection()
+        XCTAssertNil(fixture.viewModel.activeTake)
+        XCTAssertNil(fixture.viewModel.project.selectedTakeID)
 
-        fixture.viewModel.setComparisonMode(.selectedTake)
-        XCTAssertEqual(fixture.viewModel.comparisonMode, .selectedTake)
-        XCTAssertEqual(fixture.viewModel.playhead, 0)
+        fixture.viewModel.selectTake(take)
+        XCTAssertEqual(fixture.viewModel.activeTake?.id, take.id)
     }
 
     func testSelectTakeSwitchesActiveTakeWithoutOverwritingOthers() async throws {
@@ -30,7 +30,7 @@ final class M6ViewModelTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 300)
         )
 
-        await fixture.viewModel.enterComparison(with: second)
+        await fixture.viewModel.focusTake(second)
         fixture.viewModel.selectTake(first)
 
         XCTAssertEqual(fixture.viewModel.activeTake?.id, first.id)
@@ -55,18 +55,14 @@ final class M6ViewModelTests: XCTestCase {
         fixture.viewModel.selectTake(second)
 
         fixture.viewModel.requestDeleteTake(second)
-        fixture.viewModel.confirmDeleteTake()
         await waitUntil {
             fixture.viewModel.activeTake?.id == first.id
         }
 
         XCTAssertEqual(fixture.viewModel.takes.map(\.id), [first.id])
         XCTAssertEqual(fixture.viewModel.activeTake?.id, first.id)
-        if case let .comparisonReady(take) = fixture.viewModel.recordingPresentation {
-            XCTAssertEqual(take.id, first.id)
-        } else {
-            XCTFail("Expected comparisonReady after deleting one of two takes")
-        }
+        XCTAssertEqual(fixture.viewModel.recordingPresentation, .idle)
+        XCTAssertTrue(fixture.viewModel.showsMultiTrackWorkspace)
     }
 
     func testDeleteLastTakeReturnsToPractice() async throws {
@@ -74,59 +70,101 @@ final class M6ViewModelTests: XCTestCase {
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
 
         fixture.viewModel.requestDeleteTake(take)
-        fixture.viewModel.confirmDeleteTake()
         await waitUntil {
-            fixture.viewModel.recordingPresentation == .idle
+            fixture.viewModel.takes.isEmpty
         }
 
         XCTAssertTrue(fixture.viewModel.takes.isEmpty)
         XCTAssertNil(fixture.viewModel.activeTake)
         XCTAssertNil(fixture.viewModel.project.selectedTakeID)
         XCTAssertFalse(fixture.viewModel.isComparing)
+        XCTAssertFalse(fixture.viewModel.showsMultiTrackWorkspace)
     }
 
-    func testRerecordKeepsExistingTakesAndStartsNewRecording() async throws {
+    func testSelectedTakeRecordOverwritesSameTake() async throws {
         let fixture = try await makeFixtureWithCommittedTake()
         let existing = try XCTUnwrap(fixture.viewModel.activeTake)
         let commandCountBefore = await fixture.audio.commands.count
 
-        fixture.viewModel.rerecord()
+        fixture.viewModel.startRecording()
         let temporaryURL = await waitForBeginRecording(
             audio: fixture.audio,
             afterCommandCount: commandCountBefore
         )
 
+        XCTAssertTrue(temporaryURL.lastPathComponent.hasPrefix(existing.id.uuidString))
+        try Data([2, 2, 2, 2]).write(to: temporaryURL)
+        await fixture.audio.emit(.recordingStarted)
+        await fixture.audio.emit(
+            .recordingFinished(
+                url: temporaryURL,
+                duration: 2.0,
+                reason: .manual
+            )
+        )
+        await waitUntil {
+            fixture.viewModel.takes.count == 1
+                && fixture.viewModel.activeTake?.duration == 2.0
+        }
+
         XCTAssertEqual(fixture.viewModel.takes.map(\.id), [existing.id])
-        XCTAssertFalse(temporaryURL.lastPathComponent.hasPrefix(existing.id.uuidString))
-        let commands = await fixture.audio.commands
-        XCTAssertTrue(commands.suffix(from: commandCountBefore).contains { command in
-            if case .beginRecording = command {
-                return true
-            }
-            return false
-        })
+        XCTAssertEqual(fixture.viewModel.activeTake?.id, existing.id)
+        XCTAssertEqual(fixture.viewModel.activeTake?.sequence, existing.sequence)
     }
 
-    func testPlayCommandsFollowComparisonMode() async throws {
+    func testUnselectedRecordAppendsNewTake() async throws {
+        let fixture = try await makeFixtureWithCommittedTake()
+        let existing = try XCTUnwrap(fixture.viewModel.activeTake)
+        fixture.viewModel.clearTakeSelection()
+        let commandCountBefore = await fixture.audio.commands.count
+
+        fixture.viewModel.startRecording()
+        let temporaryURL = await waitForBeginRecording(
+            audio: fixture.audio,
+            afterCommandCount: commandCountBefore
+        )
+        XCTAssertFalse(temporaryURL.lastPathComponent.hasPrefix(existing.id.uuidString))
+        try Data([3, 3, 3, 3]).write(to: temporaryURL)
+        await fixture.audio.emit(.recordingStarted)
+        await fixture.audio.emit(
+            .recordingFinished(
+                url: temporaryURL,
+                duration: 1.5,
+                reason: .manual
+            )
+        )
+        await waitUntil {
+            fixture.viewModel.takes.count == 2
+        }
+
+        XCTAssertEqual(Set(fixture.viewModel.takes.map(\.id)).count, 2)
+        XCTAssertTrue(fixture.viewModel.takes.contains(where: { $0.id == existing.id }))
+    }
+
+    func testTakePlayButtonStartsFromTakeBeginning() async throws {
         let fixture = try await makeFixtureWithCommittedTake()
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        fixture.viewModel.setLoopEnabled(false)
+        fixture.viewModel.seekTimeline(take.region.start + 0.5)
 
-        fixture.viewModel.toggleComparisonPlayback()
+        fixture.viewModel.toggleTakePlayback(take)
         await waitForCommand(
-            .playTake(takeID: take.id, from: 0),
+            .playTake(takeID: take.id, from: 0, loop: nil),
             audio: fixture.audio
         )
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start)
+        XCTAssertEqual(fixture.viewModel.playingTakeID, take.id)
+    }
 
-        fixture.viewModel.setComparisonMode(.original)
-        await waitUntil {
-            fixture.viewModel.comparisonMode == .original
-                && fixture.viewModel.isPlaying == false
-        }
-        fixture.viewModel.toggleComparisonPlayback()
+    func testOriginalTransportStillPlaysOriginalWithTakesPresent() async throws {
+        let fixture = try await makeFixtureWithCommittedTake()
+        fixture.viewModel.seekTimeline(25)
+        fixture.viewModel.togglePlayback()
         await waitForCommand(
-            .playOriginal(region: take.region, from: take.region.start, rate: 1),
+            .playOriginal(region: nil, from: 25, rate: 1),
             audio: fixture.audio
         )
+        XCTAssertNil(fixture.viewModel.playingTakeID)
     }
 
     func testChangingPracticeRegionDoesNotMutateTakeSnapshot() async throws {
@@ -137,8 +175,8 @@ final class M6ViewModelTests: XCTestCase {
         fixture.viewModel.selectRegion(newRegion)
 
         let stored = try await fixture.takes.take(id: take.id)
-        XCTAssertEqual(stored?.region, fixture.region)
-        XCTAssertEqual(fixture.viewModel.activeTake?.region, fixture.region)
+        XCTAssertEqual(stored?.region, take.region)
+        XCTAssertEqual(fixture.viewModel.activeTake?.region, take.region)
     }
 
     private func makeFixtureWithCommittedTake() async throws -> M6Fixture {
@@ -156,6 +194,7 @@ final class M6ViewModelTests: XCTestCase {
         )
         await waitUntil {
             fixture.viewModel.isComparing
+                && fixture.viewModel.recordingPresentation == .idle
         }
         return fixture
     }

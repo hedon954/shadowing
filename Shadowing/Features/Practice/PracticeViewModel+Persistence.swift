@@ -35,16 +35,18 @@ extension PracticeViewModel {
             leaveAfterFinalize = leave
             stopRecording()
         case .countingDown, .checkingPermission:
+            let preparing = recordingTask
             recordingTask?.cancel()
-            recordingTask = nil
-            discardPendingRecording()
-            Task {
-                await close()
+            recordingTask = Task { [weak self] in
+                _ = await preparing?.result
+                await self?.discardPendingRecordingAbortingEngine()
+                await self?.close()
                 leave?()
+                self?.recordingTask = nil
             }
         case .finalizing:
             leaveAfterFinalize = leave
-        case .idle, .comparisonReady:
+        case .idle:
             Task {
                 await close()
                 leave?()
@@ -63,12 +65,12 @@ extension PracticeViewModel {
         playheadPersistTask = nil
         recordingTask?.cancel()
         finalizationTask?.cancel()
-        cancelABPlayback()
+        playingTakeID = nil
         var closeError: Error?
         if case .countingDown = recordingPresentation {
-            discardPendingRecording()
+            await discardPendingRecordingAbortingEngine()
         } else if case .checkingPermission = recordingPresentation {
-            discardPendingRecording()
+            await discardPendingRecordingAbortingEngine()
         } else if case .recording = recordingPresentation {
             do {
                 try await audioClient.execute(.stopRecording)
@@ -77,7 +79,9 @@ extension PracticeViewModel {
             } catch {
                 closeError = error
             }
-            discardPendingRecording()
+            await discardPendingRecordingAbortingEngine()
+        } else {
+            await abortEngineRecordingIfNeeded()
         }
         eventTask?.cancel()
         await commandTask?.value
@@ -101,9 +105,7 @@ extension PracticeViewModel {
     }
 
     func syncProjectSnapshot() {
-        if !isComparing {
-            project.playhead = min(max(playhead, 0), project.duration)
-        }
+        project.playhead = min(max(playhead, 0), project.duration)
         project.playbackRate = rate
     }
 
@@ -142,8 +144,17 @@ extension PracticeViewModel {
             return
         }
         await refreshTakes()
+        await preloadTakeWaveforms()
         if let take = restoredSelectedTake() {
-            await enterComparison(with: take, takePeaks: [])
+            activeTake = take
+            project.selectedTakeID = take.id
+            playhead = take.region.start
+            project.playhead = take.region.start
+            timelineViewport = .fitting(
+                take.region,
+                sourceDuration: project.duration
+            )
+            updateRegionNoticeForHydratedTake(take)
             return
         }
 
@@ -157,6 +168,16 @@ extension PracticeViewModel {
                 try await audioClient.execute(.setLoop(region))
             }
             try await audioClient.execute(.seek(position))
+        }
+    }
+
+    private func updateRegionNoticeForHydratedTake(_ take: Take) {
+        if let currentRegion = project.currentRegion, take.region != currentRegion {
+            recordingNotice = """
+            This take keeps its recorded region \
+            (\(Self.formatTime(take.region.start))–\(Self.formatTime(take.region.end))). \
+            Changing the practice region does not change past takes.
+            """
         }
     }
 

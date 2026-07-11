@@ -18,6 +18,7 @@ ADR 记录具有长期影响的技术决策。状态使用 `Proposed`、`Accepte
 - [ADR-0005：波形生成、缓存与渲染](0005-waveform-processing.md)
 
 完成条件：通过技术 Spike 验证 MP3 播放、选区循环、同步录音和双轨波形。
+ADR-0004/0005 在硬件 Spike 矩阵完成前保持 Proposed；Decision 描述当前实现结论。
 
 ## Phase 2：本地数据闭环
 

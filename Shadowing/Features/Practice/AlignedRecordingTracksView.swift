@@ -5,24 +5,10 @@ struct RecordingWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if viewModel.isComparing {
-                CompareWorkspaceView(viewModel: viewModel)
-            } else {
-                recordingContent
-            }
-        }
-    }
+            MultiTrackPracticeView(viewModel: viewModel)
 
-    private var recordingContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            AlignedRecordingTracksView(
-                originalPeaks: viewModel.originalRecordingRegionPeaks,
-                recordingPeaks: viewModel.liveRecordingPeaks,
-                recordingProgress: viewModel.recordingProgressFraction
-            )
-
-            if let notice = viewModel.recordingNotice {
-                Label(notice, systemImage: "headphones")
+            if let notice = viewModel.comparisonRegionNotice ?? viewModel.recordingNotice {
+                Label(notice, systemImage: "info.circle")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -30,6 +16,13 @@ struct RecordingWorkspaceView: View {
             HStack(spacing: 12) {
                 recordingIndicator
                 Spacer()
+                if viewModel.activeTake != nil, !viewModel.controlsLocked {
+                    Button("Delete Take", role: .destructive) {
+                        viewModel.requestDeleteTake()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Delete current take")
+                }
                 if viewModel.recordingPresentation.locksPracticeControls {
                     stopButton
                 }
@@ -41,7 +34,13 @@ struct RecordingWorkspaceView: View {
     private var recordingIndicator: some View {
         switch viewModel.recordingPresentation {
         case .idle:
-            EmptyView()
+            if let take = viewModel.activeTake {
+                Label(
+                    "Take \(take.sequence) selected",
+                    systemImage: "checkmark.circle.fill"
+                )
+                .foregroundStyle(.secondary)
+            }
         case .checkingPermission:
             Label("Checking microphone…", systemImage: "mic")
         case let .countingDown(remainingSeconds):
@@ -64,8 +63,6 @@ struct RecordingWorkspaceView: View {
             )
         case .finalizing:
             Label("Saving recording…", systemImage: "waveform.badge.magnifyingglass")
-        case .comparisonReady:
-            EmptyView()
         }
     }
 
@@ -89,120 +86,302 @@ struct RecordingWorkspaceView: View {
     }
 }
 
+struct MultiTrackPracticeView: View {
+    @ObservedObject var viewModel: PracticeViewModel
+
+    var body: some View {
+        AlignedRecordingTracksView(
+            originalWaveform: viewModel.waveform,
+            takes: viewModel.takes,
+            takeWaveforms: viewModel.takeWaveforms,
+            takeLoopSelections: viewModel.takeLoopSelections,
+            liveTakeID: liveTakeID,
+            liveTakePoints: viewModel.liveRecordingTimelineEnvelope,
+            liveRegion: viewModel.recordingDisplayRegion,
+            sourceDuration: viewModel.project.duration,
+            selectionRegion: viewModel.region,
+            viewport: viewModel.timelineViewport,
+            playhead: viewModel.timelinePlayhead,
+            selectedTakeID: viewModel.activeTake?.id,
+            playingTakeID: viewModel.playingTakeID,
+            isPlaying: viewModel.isPlaying,
+            isInteractive: !viewModel.controlsLocked,
+            onSeek: viewModel.seekTimeline,
+            onClearTakeSelection: viewModel.clearTakeSelection,
+            onRegionChanged: viewModel.selectRegion,
+            onRegionCleared: viewModel.clearRegion,
+            onViewportChanged: viewModel.setTimelineViewport,
+            onGestureActiveChanged: viewModel.setTimelineGestureActive,
+            onShowFull: viewModel.showFullTimeline,
+            onFitRegion: viewModel.fitTimelineToRegion,
+            onSelectTake: viewModel.selectTake,
+            onToggleTakePlayback: viewModel.toggleTakePlayback,
+            onTakeLoopRegionChanged: viewModel.selectTakeLoopRegion,
+            onTakeLoopRegionCleared: viewModel.clearTakeLoopRegion
+        )
+    }
+
+    private var liveTakeID: UUID? {
+        switch viewModel.recordingPresentation {
+        case .checkingPermission, .countingDown, .recording, .finalizing:
+            viewModel.recordingContext?.id ?? viewModel.activeTake?.id
+        case .idle:
+            nil
+        }
+    }
+}
+
 struct AlignedRecordingTracksView: View {
-    let originalPeaks: [Float]
-    let recordingPeaks: [Float]
-    let recordingProgress: Double
-    var originalEmphasis: Bool = true
-    var takeEmphasis: Bool = true
-    var playheadFraction: Double?
+    let originalWaveform: WaveformPresentation
+    let takes: [Take]
+    let takeWaveforms: [UUID: WaveformPresentation]
+    let takeLoopSelections: [UUID: PracticeRegion]
+    let liveTakeID: UUID?
+    let liveTakePoints: [TimedWaveformEnvelopePoint]
+    let liveRegion: PracticeRegion?
+    let sourceDuration: TimeInterval
+    let selectionRegion: PracticeRegion?
+    let viewport: TimelineViewport
+    let playhead: TimeInterval?
+    let selectedTakeID: UUID?
+    let playingTakeID: UUID?
+    let isPlaying: Bool
+    var isInteractive = true
+    let onSeek: (TimeInterval) -> Void
+    let onClearTakeSelection: () -> Void
+    let onRegionChanged: (PracticeRegion) -> Void
+    let onRegionCleared: () -> Void
+    let onViewportChanged: (TimelineViewport) -> Void
+    var onGestureActiveChanged: ((Bool) -> Void)?
+    let onShowFull: () -> Void
+    let onFitRegion: () -> Void
+    let onSelectTake: (Take) -> Void
+    let onToggleTakePlayback: (Take) -> Void
+    let onTakeLoopRegionChanged: (Take, PracticeRegion) -> Void
+    let onTakeLoopRegionCleared: (Take) -> Void
+
+    @State private var magnifyOrigin: TimelineViewport?
+
+    private var takeThumbnails: [WaveformTimelineOverview.TakeThumbnail] {
+        takes.compactMap { take in
+            guard let waveform = takeWaveforms[take.id] else {
+                return nil
+            }
+            return WaveformTimelineOverview.TakeThumbnail(
+                id: take.id,
+                waveform: waveform,
+                timelineStart: take.region.start,
+                isSelected: take.id == selectedTakeID
+            )
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            track(
-                TrackPresentation(
-                    title: "Original",
-                    peaks: originalPeaks,
-                    color: .accentColor,
-                    fillFraction: 1,
-                    emphasized: originalEmphasis
-                )
+            WaveformTimelineOverview(
+                waveform: originalWaveform,
+                takeThumbnails: takeThumbnails,
+                sourceDuration: sourceDuration,
+                viewport: viewport,
+                region: selectionRegion ?? liveRegion,
+                playhead: playhead ?? viewport.start,
+                isInteractive: isInteractive,
+                onViewportChanged: onViewportChanged,
+                onBackgroundTap: onClearTakeSelection
             )
-            track(
-                TrackPresentation(
-                    title: "My Take",
-                    peaks: recordingPeaks,
+
+            trackHeader(title: "Original", emphasized: selectedTakeID == nil) {
+                EmptyView()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard isInteractive else {
+                    return
+                }
+                onClearTakeSelection()
+            }
+            WaveformSelectableTrack(
+                waveform: originalWaveform,
+                viewport: viewport,
+                sourceDuration: sourceDuration,
+                region: selectionRegion,
+                playhead: playhead,
+                isEnabled: isInteractive,
+                onSeek: { time in
+                    onClearTakeSelection()
+                    onSeek(time)
+                },
+                onRegionChanged: { region in
+                    onClearTakeSelection()
+                    onRegionChanged(region)
+                },
+                onRegionCleared: onRegionCleared,
+                onViewportChanged: onViewportChanged,
+                onGestureActiveChanged: onGestureActiveChanged
+            )
+            .frame(height: 120)
+
+            ForEach(takes) { take in
+                AlignedTakeTrackView(
+                    take: take,
+                    waveform: takeWaveforms[take.id],
+                    liveTakePoints: liveTakePoints,
+                    liveRegion: liveRegion,
+                    loopSelection: takeLoopSelections[take.id],
+                    viewport: viewport,
+                    sourceDuration: sourceDuration,
+                    playhead: playhead,
+                    isSelected: selectedTakeID == take.id,
+                    isLive: liveTakeID == take.id,
+                    isPlaying: playingTakeID == take.id && isPlaying,
+                    isInteractive: isInteractive,
+                    onSelectTake: { onSelectTake(take) },
+                    onTogglePlayback: { onToggleTakePlayback(take) },
+                    onSeek: onSeek,
+                    onLoopRegionChanged: { region in
+                        onTakeLoopRegionChanged(take, region)
+                    },
+                    onLoopRegionCleared: {
+                        onTakeLoopRegionCleared(take)
+                    },
+                    onViewportChanged: onViewportChanged,
+                    onGestureActiveChanged: onGestureActiveChanged
+                )
+            }
+
+            if showsAppendLiveRow {
+                trackHeader(title: "Recording…", emphasized: true) {
+                    EmptyView()
+                }
+                WaveformTimelineTrack(
+                    waveform: nil,
+                    timedPoints: liveTakePoints,
+                    assetTimelineStart: liveRegion?.start ?? viewport.start,
+                    viewport: viewport,
                     color: .orange,
-                    fillFraction: recordingProgress,
-                    emphasized: takeEmphasis
+                    playhead: playhead,
+                    selection: liveRegion,
+                    emphasized: true
                 )
-            )
+                .frame(height: 100)
+                .overlay {
+                    seekOverlay(clearsTakeSelection: false)
+                }
+            }
+
+            HStack {
+                Text(format(viewport.start))
+                Spacer()
+                WaveformTimelineControls(
+                    canFitRegion: selectionRegion != nil || liveRegion != nil,
+                    isEnabled: isInteractive,
+                    onZoom: zoomFromCenter,
+                    onPan: panByFraction,
+                    onShowFull: onShowFull,
+                    onFitRegion: onFitRegion
+                )
+                Spacer()
+                Text(format(viewport.end))
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
         }
+        .simultaneousGesture(magnificationGesture)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Aligned original and recording waveforms")
     }
 
-    private func track(_ presentation: TrackPresentation) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(presentation.title)
+    private var showsAppendLiveRow: Bool {
+        guard liveTakeID != nil, !liveTakePoints.isEmpty || liveRegion != nil else {
+            return false
+        }
+        return !takes.contains(where: { $0.id == liveTakeID })
+    }
+
+    private func trackHeader(
+        title: String,
+        emphasized: Bool,
+        @ViewBuilder trailing: () -> some View
+    ) -> some View {
+        HStack {
+            Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(presentation.emphasized ? .secondary : .tertiary)
-            PeakTrack(
-                peaks: presentation.peaks,
-                color: presentation.color.opacity(presentation.emphasized ? 1 : 0.35),
-                fillFraction: presentation.fillFraction,
-                playheadFraction: playheadFraction
-            )
-            .frame(height: 82)
-            .opacity(presentation.emphasized ? 1 : 0.55)
+                .foregroundStyle(emphasized ? .secondary : .tertiary)
+            Spacer()
+            trailing()
         }
     }
-}
 
-private struct TrackPresentation {
-    let title: String
-    let peaks: [Float]
-    let color: Color
-    let fillFraction: Double
-    let emphasized: Bool
-}
+    private func seekOverlay(clearsTakeSelection: Bool) -> some View {
+        GeometryReader { geometry in
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            guard isInteractive, geometry.size.width > 0 else {
+                                return
+                            }
+                            if clearsTakeSelection {
+                                onClearTakeSelection()
+                            }
+                            let fraction = min(
+                                max(value.location.x / geometry.size.width, 0),
+                                1
+                            )
+                            onSeek(
+                                viewport.start +
+                                    viewport.duration * Double(fraction)
+                            )
+                        }
+                )
+        }
+        .accessibilityHidden(true)
+    }
 
-private struct PeakTrack: View {
-    let peaks: [Float]
-    let color: Color
-    let fillFraction: Double
-    var playheadFraction: Double?
-
-    var body: some View {
-        Canvas { context, size in
-            let barCount = min(max(Int(size.width / 3), 1), max(peaks.count, 1))
-            let visibleWidth = size.width * min(max(fillFraction, 0), 1)
-            let spacing = size.width / CGFloat(barCount)
-            let centerY = size.height / 2
-
-            for index in 0 ..< barCount {
-                let xPosition = (CGFloat(index) + 0.5) * spacing
-                guard xPosition <= visibleWidth, !peaks.isEmpty else {
-                    continue
+    private var magnificationGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                guard isInteractive else {
+                    return
                 }
-                let peakIndex = min(index * peaks.count / barCount, peaks.count - 1)
-                let amplitude = CGFloat(min(max(peaks[peakIndex], 0), 1))
-                let halfHeight = max(amplitude * size.height * 0.42, 1)
-                var path = Path()
-                path.move(to: CGPoint(x: xPosition, y: centerY - halfHeight))
-                path.addLine(to: CGPoint(x: xPosition, y: centerY + halfHeight))
-                context.stroke(
-                    path,
-                    with: .color(color),
-                    style: StrokeStyle(
-                        lineWidth: max(spacing * 0.55, 1),
-                        lineCap: .round
+                let origin = magnifyOrigin ?? viewport
+                magnifyOrigin = origin
+                let anchor = origin.start + Double(value.startAnchor.x) * origin.duration
+                onViewportChanged(
+                    origin.zoomed(
+                        by: Double(value.magnification),
+                        anchor: anchor,
+                        sourceDuration: sourceDuration
                     )
                 )
             }
-
-            if let playheadFraction {
-                let xPosition = size.width * min(max(playheadFraction, 0), 1)
-                var cursor = Path()
-                cursor.move(to: CGPoint(x: xPosition, y: 0))
-                cursor.addLine(to: CGPoint(x: xPosition, y: size.height))
-                context.stroke(
-                    cursor,
-                    with: .color(.primary.opacity(0.55)),
-                    lineWidth: 1
-                )
+            .onEnded { _ in
+                magnifyOrigin = nil
             }
-        }
-        .padding(.horizontal, 8)
-        .background(
-            Color(nsColor: .controlBackgroundColor),
-            in: RoundedRectangle(cornerRadius: 10)
+    }
+
+    private func zoomFromCenter(_ factor: Double) {
+        onViewportChanged(
+            viewport.zoomed(
+                by: factor,
+                anchor: viewport.start + viewport.duration / 2,
+                sourceDuration: sourceDuration
+            )
         )
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(color.opacity(0.18))
-                .frame(width: 1)
-        }
-        .accessibilityHidden(true)
+    }
+
+    private func panByFraction(_ fraction: Double) {
+        onViewportChanged(
+            viewport.panned(
+                by: viewport.duration * fraction,
+                sourceDuration: sourceDuration
+            )
+        )
+    }
+
+    private func format(_ time: TimeInterval) -> String {
+        let seconds = max(Int(time.rounded()), 0)
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }

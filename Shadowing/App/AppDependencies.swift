@@ -48,6 +48,14 @@ final class AppDependencies {
         )
         let recordingFiles = LocalRecordingFileStore(rootDirectory: recordingsStorageURL)
         Self.cleanupOrphanedTemporaryTakes(using: recordingFiles)
+        let waveformService = CachedWaveformService(
+            cache: WaveformFileCache(
+                directory: applicationSupport.appendingPathComponent(
+                    "Waveforms",
+                    isDirectory: true
+                )
+            )
+        )
         let audioClient = PracticeAudioEngine { takeID in
             guard let take = try await takes.take(id: takeID) else {
                 throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
@@ -55,10 +63,10 @@ final class AppDependencies {
             return try recordingFiles.audioURL(relativePath: take.relativeAudioPath)
         }
         let sessionPreparer = Self.makeSessionPreparer(
-            applicationSupport: applicationSupport,
             projects: projects,
             settings: settings,
-            audioClient: audioClient
+            audioClient: audioClient,
+            waveformService: waveformService
         )
         return AppDependencies(
             fileChooser: SystemAudioFileChooser(),
@@ -70,7 +78,8 @@ final class AppDependencies {
             recording: Self.makeRecordingDependencies(
                 recordingFiles: recordingFiles,
                 takes: takes,
-                settings: settings
+                settings: settings,
+                waveformService: waveformService
             ),
             inputDevices: SystemAudioInputDeviceService(),
             recordingsStorageURL: recordingsStorageURL
@@ -93,20 +102,17 @@ final class AppDependencies {
     }
 
     private static func makeSessionPreparer(
-        applicationSupport: URL,
         projects: GRDBProjectRepository,
         settings: GRDBSettingsStore,
-        audioClient: PracticeAudioEngine
+        audioClient: PracticeAudioEngine,
+        waveformService: CachedWaveformService
     ) -> AudioProjectSessionLoader {
-        let waveformCache = WaveformFileCache(
-            directory: applicationSupport.appendingPathComponent("Waveforms", isDirectory: true)
-        )
-        return AudioProjectSessionLoader(
+        AudioProjectSessionLoader(
             projects: projects,
             bookmarks: SecurityScopedBookmarkStore(),
             validator: MP3FileValidator(),
             metadataLoader: AVAssetMetadataLoader(),
-            waveformService: CachedWaveformService(cache: waveformCache),
+            waveformService: waveformService,
             audioClient: audioClient,
             settings: settings
         )
@@ -115,7 +121,8 @@ final class AppDependencies {
     private static func makeRecordingDependencies(
         recordingFiles: LocalRecordingFileStore,
         takes: GRDBTakeRepository,
-        settings: GRDBSettingsStore
+        settings: GRDBSettingsStore,
+        waveformService: CachedWaveformService
     ) -> RecordingDependencies {
         RecordingDependencies(
             permissions: SystemMicrophonePermissionService(),
@@ -127,7 +134,8 @@ final class AppDependencies {
                 takeRepository: takes,
                 validator: AVAudioRecordingFileValidator()
             ),
-            settings: settings
+            settings: settings,
+            waveforms: waveformService
         )
     }
 

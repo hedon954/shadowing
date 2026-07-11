@@ -20,6 +20,7 @@ enum PracticeIntent: Equatable, Sendable {
     case seek(TimeInterval)
     case jump(TimeInterval)
     case selectRegion(PracticeRegion)
+    case clearRegion
     case setLoop(Bool)
     case setRate(Double)
     case setVolume(Double)
@@ -33,6 +34,7 @@ enum PracticeIntent: Equatable, Sendable {
              .seek,
              .jump,
              .selectRegion,
+             .clearRegion,
              .setLoop,
              .setRate:
             true
@@ -49,6 +51,7 @@ enum PracticeInteractionPhase: Equatable, Sendable {
 final class PracticeViewModel: ObservableObject {
     static let supportedRates: [Double] = [0.5, 0.75, 1, 1.25, 1.5]
     static let maximumLivePeakCount = 360
+    static let maximumLiveEnvelopePointCount = 12000
 
     @Published var project: AudioProject
     @Published private(set) var waveform: WaveformPresentation
@@ -60,17 +63,22 @@ final class PracticeViewModel: ObservableObject {
     @Published var interactionPhase = PracticeInteractionPhase.practicing
     @Published var recordingPresentation = RecordingPresentation.idle
     @Published var liveRecordingPeaks: [Float] = []
+    @Published var liveRecordingEnvelope: [TimedWaveformEnvelopePoint] = []
     @Published var activeTake: Take?
     @Published var takes: [Take] = []
-    @Published var comparisonMode = ComparisonMode.selectedTake
     @Published var selectedTakePeaks: [Float] = []
-    @Published var takePendingDeletion: Take?
+    @Published var takeWaveforms: [UUID: WaveformPresentation] = [:]
+    /// Per-Take loop selections on the source timeline (independent of Original practice region).
+    @Published var takeLoopSelections: [UUID: PracticeRegion] = [:]
+    @Published var playingTakeID: UUID?
+    @Published var timelineViewport: TimelineViewport
+    /// When true, playhead follow must not pan the viewport (e.g. mid selection drag).
+    var suspendPlayheadFollow = false
     @Published var lastRecordingStopReason: RecordingStopReason?
     @Published var microphonePermissionPrompt: MicrophonePermissionState?
     @Published var recordingNotice: String?
     @Published var failure: PracticeFailure?
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
-    @Published var abPlaybackPhase = ABPlaybackPhase.idle
 
     let audioClient: any PracticeAudioClient
     let projects: any ProjectRepository
@@ -81,8 +89,10 @@ final class PracticeViewModel: ObservableObject {
     var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
     var finalizationTask: Task<Void, Never>?
-    var abPlaybackTask: Task<Void, Never>?
     var recordingContext: PendingRecordingContext?
+    /// Independent of practice loop selection; spans playhead → source end while recording.
+    @Published var recordingWindow: PracticeRegion?
+    var recordingTimelineRate: Double = 1
     private var hasStarted = false
     var hasClosed = false
     var playheadPersistTask: Task<Void, Never>?
@@ -95,16 +105,15 @@ final class PracticeViewModel: ObservableObject {
     }
 
     var isComparing: Bool {
-        if case .comparisonReady = recordingPresentation {
-            true
-        } else {
-            false
-        }
+        !takes.isEmpty
+    }
+
+    var showsMultiTrackWorkspace: Bool {
+        !takes.isEmpty || recordingPresentation != .idle
     }
 
     var comparisonRegionNotice: String? {
-        guard isComparing,
-              let take = activeTake,
+        guard let take = activeTake,
               let currentRegion = project.currentRegion,
               take.region != currentRegion
         else {
@@ -126,7 +135,7 @@ final class PracticeViewModel: ObservableObject {
     }
 
     var canToggleLoop: Bool {
-        region != nil && !controlsLocked && !isComparing
+        region != nil && !controlsLocked
     }
 
     static func formatTime(_ time: TimeInterval) -> String {
@@ -147,6 +156,7 @@ final class PracticeViewModel: ObservableObject {
         project = prepared.project
         waveform = prepared.waveform
         playhead = prepared.project.playhead
+        timelineViewport = .full(sourceDuration: prepared.project.duration)
         rate = Self.normalizedRate(prepared.project.playbackRate)
         self.audioClient = audioClient
         self.projects = projects
@@ -160,7 +170,6 @@ final class PracticeViewModel: ObservableObject {
         commandTask?.cancel()
         recordingTask?.cancel()
         finalizationTask?.cancel()
-        abPlaybackTask?.cancel()
         playheadPersistTask?.cancel()
     }
 
@@ -203,6 +212,8 @@ final class PracticeViewModel: ObservableObject {
             seekCommand(to: playhead + offset)
         case let .selectRegion(region):
             selectRegionCommand(region)
+        case .clearRegion:
+            clearRegionCommand()
         case let .setLoop(enabled):
             setLoopCommand(enabled)
         case let .setRate(newRate):
@@ -232,6 +243,10 @@ final class PracticeViewModel: ObservableObject {
         send(.selectRegion(region))
     }
 
+    func clearRegion() {
+        send(.clearRegion)
+    }
+
     func setLoopEnabled(_ enabled: Bool) {
         send(.setLoop(enabled))
     }
@@ -251,10 +266,7 @@ final class PracticeViewModel: ObservableObject {
 
 extension PracticeViewModel {
     private func togglePlaybackCommand() {
-        if isComparing {
-            toggleComparisonPlayback()
-            return
-        }
+        pauseTakePlaybackIfNeeded()
         performCommand { [audioClient, isPlaying, loopEnabled, playhead, project, rate] in
             if isPlaying {
                 try await audioClient.execute(.pause)
@@ -278,9 +290,10 @@ extension PracticeViewModel {
     }
 
     private func pauseCommand() {
-        guard isPlaying else {
+        guard isPlaying || playingTakeID != nil else {
             return
         }
+        playingTakeID = nil
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.pause)
         } completion: { [weak self] in
@@ -290,9 +303,17 @@ extension PracticeViewModel {
     }
 
     private func seekCommand(to position: TimeInterval) {
-        let clamped = effectiveSeekPosition(position)
+        let clamped = min(max(position, 0), project.duration)
+        let disablesLoop = loopEnabled &&
+            region.map { !($0.start ..< $0.end ~= clamped) } == true
+        if disablesLoop {
+            loopEnabled = false
+        }
         playhead = clamped
         performVoidCommand { [audioClient] in
+            if disablesLoop {
+                try await audioClient.execute(.setLoop(nil))
+            }
             try await audioClient.execute(.seek(clamped))
         } completion: { [weak self] in
             self?.persistProjectImmediately()
@@ -305,12 +326,30 @@ extension PracticeViewModel {
             return
         }
         project.currentRegion = region
-        project.playhead = region.start
-        playhead = region.start
         loopEnabled = true
+        let resumeInsideLoop = isPlaying
+            && playingTakeID == nil
+            && playhead >= region.start
+            && playhead < region.end
+        let nextPlayhead = resumeInsideLoop ? playhead : region.start
+        playhead = nextPlayhead
+        project.playhead = nextPlayhead
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.setLoop(region))
-            try await audioClient.execute(.seek(region.start))
+            try await audioClient.execute(.seek(nextPlayhead))
+        } completion: { [weak self] in
+            self?.persistProjectImmediately()
+        }
+    }
+
+    private func clearRegionCommand() {
+        guard region != nil else {
+            return
+        }
+        project.currentRegion = nil
+        loopEnabled = false
+        performVoidCommand { [audioClient] in
+            try await audioClient.execute(.setLoop(nil))
         } completion: { [weak self] in
             self?.persistProjectImmediately()
         }
@@ -349,14 +388,6 @@ extension PracticeViewModel {
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.setVolume(Float(clamped)))
         }
-    }
-
-    private func effectiveSeekPosition(_ requested: TimeInterval) -> TimeInterval {
-        let clamped = min(max(requested, 0), project.duration)
-        guard loopEnabled, let region else {
-            return clamped
-        }
-        return region.start ..< region.end ~= clamped ? clamped : region.start
     }
 
     func dismissFailure() {

@@ -36,6 +36,73 @@ final class M4ViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testUpdatingRegionWhileLoopingKeepsPlayheadWhenStillInside() async throws {
+        let audio = PracticeAudioClientSpy()
+        let viewModel = makeViewModel(audio: audio)
+        let initial = try PracticeRegion(start: 12, end: 20, sourceDuration: 120)
+        let updated = try PracticeRegion(start: 12, end: 18, sourceDuration: 120)
+        viewModel.selectRegion(initial)
+        await waitForCommandCount(2, audio: audio)
+        viewModel.togglePlayback()
+        await waitForCommandCount(3, audio: audio)
+        for _ in 0 ..< 20 where !viewModel.isPlaying {
+            await Task.yield()
+        }
+        viewModel.playhead = 15
+        viewModel.project.playhead = 15
+
+        viewModel.selectRegion(updated)
+        await waitForCommandCount(5, audio: audio)
+
+        XCTAssertEqual(viewModel.region, updated)
+        XCTAssertEqual(viewModel.playhead, 15, accuracy: 0.001)
+        let commands = await audio.commands
+        XCTAssertEqual(Array(commands.suffix(2)), [.setLoop(updated), .seek(15)])
+    }
+
+    @MainActor
+    func testUpdatingRegionWhileLoopingSeeksToStartWhenOutside() async throws {
+        let audio = PracticeAudioClientSpy()
+        let viewModel = makeViewModel(audio: audio)
+        let initial = try PracticeRegion(start: 12, end: 20, sourceDuration: 120)
+        let updated = try PracticeRegion(start: 12, end: 14, sourceDuration: 120)
+        viewModel.selectRegion(initial)
+        await waitForCommandCount(2, audio: audio)
+        viewModel.togglePlayback()
+        await waitForCommandCount(3, audio: audio)
+        for _ in 0 ..< 20 where !viewModel.isPlaying {
+            await Task.yield()
+        }
+        viewModel.playhead = 16
+        viewModel.project.playhead = 16
+
+        viewModel.selectRegion(updated)
+        await waitForCommandCount(5, audio: audio)
+
+        XCTAssertEqual(viewModel.region, updated)
+        XCTAssertEqual(viewModel.playhead, 12, accuracy: 0.001)
+        let commands = await audio.commands
+        XCTAssertEqual(Array(commands.suffix(2)), [.setLoop(updated), .seek(12)])
+    }
+
+    @MainActor
+    func testClearingRegionDisablesLoopAndRemovesSelection() async throws {
+        let audio = PracticeAudioClientSpy()
+        let viewModel = makeViewModel(audio: audio)
+        let region = try PracticeRegion(start: 12, end: 20, sourceDuration: 120)
+        viewModel.selectRegion(region)
+        await waitForCommandCount(2, audio: audio)
+
+        viewModel.clearRegion()
+        await waitForCommandCount(3, audio: audio)
+
+        XCTAssertNil(viewModel.region)
+        XCTAssertFalse(viewModel.loopEnabled)
+        let lastCommand = await audio.commands.last
+        XCTAssertEqual(lastCommand, .setLoop(nil))
+    }
+
+    @MainActor
     func testPlaybackUsesRegionOnlyWhileLoopIsEnabled() async throws {
         let audio = PracticeAudioClientSpy()
         let viewModel = makeViewModel(audio: audio)
@@ -69,7 +136,7 @@ final class M4ViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testSeekOutsideActiveLoopReturnsToRegionStart() async throws {
+    func testSeekOutsideActiveLoopDisablesLoopAndUsesClickedPosition() async throws {
         let audio = PracticeAudioClientSpy()
         let viewModel = makeViewModel(audio: audio)
         let region = try PracticeRegion(start: 12, end: 20, sourceDuration: 120)
@@ -77,11 +144,12 @@ final class M4ViewModelTests: XCTestCase {
         await waitForCommandCount(2, audio: audio)
 
         viewModel.seek(to: 80)
-        await waitForCommandCount(3, audio: audio)
+        await waitForCommandCount(4, audio: audio)
 
-        XCTAssertEqual(viewModel.playhead, 12)
-        let lastCommand = await audio.commands.last
-        XCTAssertEqual(lastCommand, .seek(12))
+        XCTAssertEqual(viewModel.playhead, 80)
+        XCTAssertFalse(viewModel.loopEnabled)
+        let commands = await audio.commands
+        XCTAssertEqual(Array(commands.suffix(2)), [.setLoop(nil), .seek(80)])
     }
 
     @MainActor

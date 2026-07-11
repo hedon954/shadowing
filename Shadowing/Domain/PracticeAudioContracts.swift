@@ -5,7 +5,7 @@ enum PracticeAudioCommand: Equatable, Sendable {
     case playOriginal(region: PracticeRegion?, from: TimeInterval, rate: Double)
     /// Plays the region once without looping; used by A/B comparison.
     case playOriginalSegment(region: PracticeRegion, from: TimeInterval, rate: Double)
-    case playTake(takeID: UUID, from: TimeInterval)
+    case playTake(takeID: UUID, from: TimeInterval, loop: PracticeRegion?)
     case playTogether(region: PracticeRegion, takeID: UUID, rate: Double)
     case pause
     case seek(TimeInterval)
@@ -14,6 +14,8 @@ enum PracticeAudioCommand: Equatable, Sendable {
     case setLoop(PracticeRegion?)
     case beginRecording(region: PracticeRegion, destinationURL: URL, playOriginal: Bool)
     case stopRecording
+    /// Tears down an armed/active recording without committing a Take.
+    case abortRecording
 }
 
 enum PracticeAudioOperation: Equatable, Sendable {
@@ -43,6 +45,11 @@ struct LoadedAudioSource: Equatable, Sendable {
     let frameCount: Int64
 }
 
+struct TimedWaveformEnvelopePoint: Equatable, Sendable {
+    let time: TimeInterval
+    let envelope: WaveformEnvelopePoint
+}
+
 enum RecordingStopReason: Equatable, Sendable {
     case manual
     case regionEnd
@@ -57,7 +64,7 @@ enum PracticeAudioEvent: Equatable, Sendable {
     case playbackFinished
     case recordingStarted
     case recordingProgress(TimeInterval)
-    case recordingPeaks([Float])
+    case recordingEnvelope([TimedWaveformEnvelopePoint])
     case recordingFinished(url: URL, duration: TimeInterval, reason: RecordingStopReason)
     case interrupted(PracticeAudioInterruption)
     case failed(PracticeAudioFailure)

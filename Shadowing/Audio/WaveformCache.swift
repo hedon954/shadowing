@@ -32,16 +32,30 @@ struct SourceFingerprint: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-struct WaveformPeakLevel: Codable, Equatable, Sendable {
-    let framesPerPeak: Int
-    let peaks: [Float]
-}
+typealias WaveformPeakLevel = WaveformEnvelopeLevel
 
 struct WaveformData: Codable, Equatable, Sendable {
+    static let currentCacheVersion = 2
+
+    let cacheVersion: Int
     let fingerprint: SourceFingerprint
     let duration: TimeInterval
     let sampleRate: Double
-    let levels: [WaveformPeakLevel]
+    let levels: [WaveformEnvelopeLevel]
+
+    init(
+        fingerprint: SourceFingerprint,
+        duration: TimeInterval,
+        sampleRate: Double,
+        levels: [WaveformEnvelopeLevel],
+        cacheVersion: Int = Self.currentCacheVersion
+    ) {
+        self.cacheVersion = cacheVersion
+        self.fingerprint = fingerprint
+        self.duration = duration
+        self.sampleRate = sampleRate
+        self.levels = levels
+    }
 }
 
 enum WaveformCacheError: Error, Equatable, LocalizedError, Sendable {
@@ -78,7 +92,9 @@ actor WaveformFileCache {
         do {
             let data = try Data(contentsOf: url)
             let waveform = try PropertyListDecoder().decode(WaveformData.self, from: data)
-            guard waveform.fingerprint == fingerprint else {
+            guard waveform.cacheVersion == WaveformData.currentCacheVersion,
+                  waveform.fingerprint == fingerprint
+            else {
                 return nil
             }
             return waveform
@@ -124,6 +140,9 @@ actor WaveformFileCache {
     }
 
     private func cacheURL(for fingerprint: SourceFingerprint) -> URL {
-        directory.appendingPathComponent("\(fingerprint.cacheKey).waveform", isDirectory: false)
+        directory.appendingPathComponent(
+            "v\(WaveformData.currentCacheVersion)-\(fingerprint.cacheKey).waveform",
+            isDirectory: false
+        )
     }
 }

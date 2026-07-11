@@ -10,9 +10,8 @@ final class M7ViewModelTests: XCTestCase {
         fixture.viewModel.start()
         await fixture.viewModel.hydrateRestoredSession()
 
-        guard case .comparisonReady = fixture.viewModel.recordingPresentation else {
-            return XCTFail("Expected comparisonReady after hydrate")
-        }
+        XCTAssertEqual(fixture.viewModel.recordingPresentation, .idle)
+        XCTAssertTrue(fixture.viewModel.showsMultiTrackWorkspace)
 
         XCTAssertEqual(fixture.viewModel.rate, 0.75)
         XCTAssertEqual(fixture.viewModel.activeTake?.id, fixture.take.id)

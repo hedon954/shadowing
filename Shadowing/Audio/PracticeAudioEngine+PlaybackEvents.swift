@@ -31,6 +31,13 @@ extension PracticeAudioEngine {
                 eventContinuation.yield(.playheadChanged(takeInfo.duration))
             }
             eventContinuation.yield(.playbackFinished)
+            // Return to the original timeline so later seeks use source time,
+            // not take-local time (and so paused seekTake does not re-fire completion).
+            takeScheduleGeneration &+= 1
+            takePlayer.stop()
+            takeLoopRegion = nil
+            takeFirstScheduledFrameCount = 0
+            playbackTarget = .original
         case .original:
             return
         }

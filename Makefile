@@ -1,12 +1,13 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup env generate build test format format-check lint check clean
+.PHONY: help setup env generate build upgrade test format format-check lint check clean
 
 help:
 	@echo "Shadowing development commands:"
 	@echo "  make setup         Install tools, hooks, and generate the project"
 	@echo "  make generate      Generate the Xcode project"
 	@echo "  make build         Build the macOS app without signing"
+	@echo "  make upgrade       Rebuild, restart, and open the macOS app"
 	@echo "  make test          Run macOS unit tests"
 	@echo "  make format        Format Swift sources"
 	@echo "  make lint          Run SwiftLint, actionlint, and architecture checks"
@@ -28,6 +29,9 @@ generate:
 
 build: generate
 	./scripts/xcodebuild.sh build
+
+upgrade: build
+	./scripts/upgrade.sh
 
 test: generate
 	./scripts/xcodebuild.sh test

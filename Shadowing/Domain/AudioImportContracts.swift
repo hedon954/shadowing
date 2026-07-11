@@ -5,11 +5,92 @@ struct AudioAssetMetadata: Equatable, Sendable {
     let duration: TimeInterval
 }
 
+struct WaveformEnvelopePoint: Codable, Equatable, Sendable {
+    let minimum: Float
+    let maximum: Float
+
+    init(minimum: Float, maximum: Float) {
+        self.minimum = min(max(minimum, -1), 1)
+        self.maximum = min(max(maximum, -1), 1)
+    }
+
+    init(amplitude: Float) {
+        let normalized = min(max(abs(amplitude), 0), 1)
+        self.init(minimum: -normalized, maximum: normalized)
+    }
+
+    var amplitude: Float {
+        max(abs(minimum), abs(maximum))
+    }
+}
+
+struct WaveformEnvelopeLevel: Codable, Equatable, Sendable {
+    let framesPerPoint: Int
+    let points: [WaveformEnvelopePoint]
+
+    init(framesPerPoint: Int, points: [WaveformEnvelopePoint]) {
+        self.framesPerPoint = framesPerPoint
+        self.points = points
+    }
+
+    init(framesPerPeak: Int, peaks: [Float]) {
+        self.init(
+            framesPerPoint: framesPerPeak,
+            points: peaks.map(WaveformEnvelopePoint.init(amplitude:))
+        )
+    }
+
+    var framesPerPeak: Int {
+        framesPerPoint
+    }
+
+    var peaks: [Float] {
+        points.map(\.amplitude)
+    }
+}
+
 struct WaveformPresentation: Equatable, Sendable {
-    let peaks: [Float]
+    let duration: TimeInterval
+    let sampleRate: Double
+    let levels: [WaveformEnvelopeLevel]
     let warning: String?
 
-    static let unavailable = WaveformPresentation(peaks: [], warning: nil)
+    init(
+        duration: TimeInterval,
+        sampleRate: Double,
+        levels: [WaveformEnvelopeLevel],
+        warning: String?
+    ) {
+        self.duration = duration
+        self.sampleRate = sampleRate
+        self.levels = levels.sorted { $0.framesPerPoint < $1.framesPerPoint }
+        self.warning = warning
+    }
+
+    init(peaks: [Float], warning: String?) {
+        self.init(
+            duration: 0,
+            sampleRate: 1,
+            levels: [
+                WaveformEnvelopeLevel(
+                    framesPerPeak: 1,
+                    peaks: peaks
+                )
+            ],
+            warning: warning
+        )
+    }
+
+    var peaks: [Float] {
+        levels.last?.peaks ?? []
+    }
+
+    static let unavailable = WaveformPresentation(
+        duration: 0,
+        sampleRate: 1,
+        levels: [],
+        warning: nil
+    )
 }
 
 struct PreparedPractice: Equatable, Sendable {

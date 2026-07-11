@@ -21,6 +21,8 @@ final class WaveformProcessingTests: XCTestCase {
         for level in waveform.levels {
             XCTAssertTrue(level.peaks.allSatisfy { 0 ... 1 ~= $0 })
             XCTAssertEqual(level.peaks.max() ?? 0, 0.8, accuracy: 0.01)
+            XCTAssertEqual(level.points.map(\.minimum).min() ?? 0, -0.8, accuracy: 0.01)
+            XCTAssertEqual(level.points.map(\.maximum).max() ?? 0, 0.8, accuracy: 0.01)
         }
     }
 
@@ -38,6 +40,7 @@ final class WaveformProcessingTests: XCTestCase {
         try await cache.store(waveform)
         let cachedWaveform = try await cache.load(for: waveform.fingerprint)
         XCTAssertEqual(cachedWaveform, waveform)
+        XCTAssertEqual(cachedWaveform?.cacheVersion, WaveformData.currentCacheVersion)
 
         let changedDate = Date(timeIntervalSince1970: 2_000_000_000)
         try FileManager.default.setAttributes(

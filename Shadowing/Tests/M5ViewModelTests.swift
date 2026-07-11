@@ -25,8 +25,9 @@ final class M5ViewModelTests: XCTestCase {
         guard case let .beginRecording(region, _, playOriginal) = commands.last else {
             return XCTFail("Expected beginRecording command")
         }
-        XCTAssertEqual(region, fixture.region)
-        XCTAssertTrue(playOriginal)
+        XCTAssertEqual(region.start, fixture.region.start, accuracy: 0.001)
+        XCTAssertEqual(region.end, fixture.project.duration, accuracy: 0.001)
+        XCTAssertFalse(playOriginal)
     }
 
     func testDeniedAndRestrictedPermissionShowRecoveryPrompt() async throws {
@@ -75,10 +76,8 @@ final class M5ViewModelTests: XCTestCase {
             )
         )
         await waitUntil {
-            if case .comparisonReady = fixture.viewModel.recordingPresentation {
-                return true
-            }
-            return false
+            fixture.viewModel.recordingPresentation == .idle
+                && fixture.viewModel.activeTake != nil
         }
 
         XCTAssertEqual(fixture.viewModel.lastRecordingStopReason, .manual)
@@ -86,6 +85,7 @@ final class M5ViewModelTests: XCTestCase {
         XCTAssertEqual(takes.count, 1)
         XCTAssertEqual(fixture.viewModel.activeTake, takes.first)
         XCTAssertEqual(fixture.viewModel.project.selectedTakeID, takes.first?.id)
+        XCTAssertTrue(fixture.viewModel.showsMultiTrackWorkspace)
     }
 
     func testRegionEndAndInputRemovalStopReasonsArePreserved() async throws {
@@ -106,10 +106,8 @@ final class M5ViewModelTests: XCTestCase {
                 )
             )
             await waitUntil {
-                if case .comparisonReady = fixture.viewModel.recordingPresentation {
-                    return true
-                }
-                return false
+                fixture.viewModel.recordingPresentation == .idle
+                    && fixture.viewModel.activeTake != nil
             }
 
             XCTAssertEqual(fixture.viewModel.lastRecordingStopReason, reason)
@@ -180,7 +178,16 @@ final class M5ViewModelTests: XCTestCase {
         _ = await waitForBeginRecording(audio: fixture.audio)
         await fixture.audio.emit(.recordingStarted)
         for _ in 0 ..< 50 {
-            await fixture.audio.emit(.recordingPeaks(Array(repeating: 0.8, count: 10)))
+            await fixture.audio.emit(
+                .recordingEnvelope(
+                    (0 ..< 10).map { index in
+                        TimedWaveformEnvelopePoint(
+                            time: Double(index) / 100,
+                            envelope: WaveformEnvelopePoint(amplitude: 0.8)
+                        )
+                    }
+                )
+            )
         }
         await waitUntil {
             fixture.viewModel.liveRecordingPeaks.count

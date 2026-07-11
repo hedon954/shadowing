@@ -40,7 +40,8 @@ enum M9TestSupport {
         testCase: XCTestCase,
         settings: (any SettingsStore)? = nil,
         countdownSeconds: Int = 0,
-        playOriginalWhileRecording: Bool = true,
+        playOriginalWhileRecording: Bool = false,
+        selectRegion: Bool = true,
         scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler()
     ) async throws -> M9Fixture {
         let project = makeProject(name: "Speech.mp3", openedAt: 100)
@@ -87,8 +88,10 @@ enum M9TestSupport {
             comparisonScheduler: scheduler
         )
         viewModel.start()
-        viewModel.selectRegion(region)
-        await waitForCommand(.seek(region.start), audio: audio)
+        if selectRegion {
+            viewModel.selectRegion(region)
+            await waitForCommand(.seek(region.start), audio: audio)
+        }
         return M9Fixture(
             viewModel: viewModel,
             audio: audio,
@@ -114,7 +117,10 @@ enum M9TestSupport {
         await fixture.audio.emit(
             .recordingFinished(url: temporaryURL, duration: 1.5, reason: .manual)
         )
-        await waitUntil { fixture.viewModel.isComparing }
+        await waitUntil {
+            fixture.viewModel.isComparing
+                && fixture.viewModel.recordingPresentation == .idle
+        }
         return fixture
     }
 

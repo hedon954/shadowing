@@ -15,6 +15,8 @@ extension PracticeAudioEngine {
                 )
             case .stopRecording:
                 try await stopRecording()
+            case .abortRecording:
+                await abortRecording()
             default:
                 try await executeTransport(command)
             }
@@ -58,6 +60,10 @@ extension PracticeAudioEngine {
         pausedFrame = 0
         loopRegion = nil
         playbackTarget = .original
+        // Warm the input node while loading so the first Record is less likely
+        // to race a configuration-change interrupt.
+        _ = engine.inputNode
+        engine.prepare()
         eventContinuation.yield(.sourceLoaded(info))
         eventContinuation.yield(.playheadChanged(0))
         return info
@@ -69,8 +75,8 @@ extension PracticeAudioEngine {
             try await playOriginalCommand(region: region, from: position, rate: rate)
         case let .playOriginalSegment(region, position, rate):
             try await playOriginalSegmentCommand(region: region, from: position, rate: rate)
-        case let .playTake(takeID, position):
-            try await playTakeCommand(takeID: takeID, from: position)
+        case let .playTake(takeID, position, loop):
+            try await playTakeCommand(takeID: takeID, from: position, loop: loop)
         case let .playTogether(region, takeID, rate):
             try await playTogetherCommand(region: region, takeID: takeID, rate: rate)
         case .pause:
@@ -83,7 +89,7 @@ extension PracticeAudioEngine {
             try setVolume(volume)
         case let .setLoop(region):
             try setLoop(region)
-        case .loadSource, .beginRecording, .stopRecording:
+        case .loadSource, .beginRecording, .stopRecording, .abortRecording:
             return
         }
     }
@@ -110,12 +116,16 @@ extension PracticeAudioEngine {
         try playRegionOnce(region, from: position)
     }
 
-    private func playTakeCommand(takeID: UUID, from position: TimeInterval) async throws {
+    private func playTakeCommand(
+        takeID: UUID,
+        from position: TimeInterval,
+        loop: PracticeRegion?
+    ) async throws {
         guard let takeURLResolver else {
             throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
         }
         let takeURL = try await takeURLResolver(takeID)
-        try playTake(url: takeURL, from: position)
+        try playTake(url: takeURL, from: position, loop: loop)
     }
 
     private func playTogetherCommand(
@@ -133,6 +143,8 @@ extension PracticeAudioEngine {
     private func stopTakePlaybackKeepingIdle() {
         takeScheduleGeneration &+= 1
         takePlayer.stop()
+        takeLoopRegion = nil
+        takeFirstScheduledFrameCount = 0
         if playbackTarget == .take {
             isPlaying = false
             playheadTask?.cancel()
@@ -144,7 +156,7 @@ extension PracticeAudioEngine {
         switch command {
         case .loadSource:
             .loading
-        case .beginRecording, .stopRecording:
+        case .beginRecording, .stopRecording, .abortRecording:
             .recording
         default:
             .playback

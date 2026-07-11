@@ -27,6 +27,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var playbackTarget: PracticePlaybackTarget = .original
     var playbackRate: Double = 1
     var loopRegion: PracticeRegion?
+    /// Take-local loop window while `playbackTarget == .take`.
+    var takeLoopRegion: PracticeRegion?
     var scheduledStartFrame: Int64 = 0
     var firstScheduledFrameCount: Int64 = 0
     var scheduleGeneration: UInt64 = 0
@@ -35,9 +37,12 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var pausedFrame: Int64 = 0
     var takePausedFrame: Int64 = 0
     var takeScheduledStartFrame: Int64 = 0
+    var takeFirstScheduledFrameCount: Int64 = 0
     var playheadTask: Task<Void, Never>?
     var recordingContext: RecordingContext?
     var recordingPeakTask: Task<Void, Never>?
+    /// True while startRecording is preparing the input graph / installing the tap.
+    var isArmingRecording = false
     /// NotificationCenter tokens are only mutated during initialization and deinitialization.
     private nonisolated(unsafe) var notificationTokens: [NSObjectProtocol] = []
     private nonisolated(unsafe) var workspaceNotificationTokens: [NSObjectProtocol] = []
@@ -155,10 +160,26 @@ actor PracticeAudioEngine: PracticeAudioClient {
             return takePausedFrame
         }
         let elapsedFrames = max(Int64(playerTime.sampleTime), 0)
-        return min(
-            takeScheduledStartFrame + elapsedFrames,
-            takeInfo?.frameCount ?? takeScheduledStartFrame + elapsedFrames
+        guard let takeLoopRegion, let takeInfo else {
+            return min(
+                takeScheduledStartFrame + elapsedFrames,
+                takeInfo?.frameCount ?? takeScheduledStartFrame + elapsedFrames
+            )
+        }
+        let loopStart = Int64(
+            (takeLoopRegion.start * takeInfo.sampleRate).rounded(.toNearestOrAwayFromZero)
         )
+        let loopEnd = Int64(
+            (takeLoopRegion.end * takeInfo.sampleRate).rounded(.toNearestOrAwayFromZero)
+        )
+        if elapsedFrames < takeFirstScheduledFrameCount {
+            return min(takeScheduledStartFrame + elapsedFrames, loopEnd - 1)
+        }
+        let loopFrameCount = loopEnd - loopStart
+        guard loopFrameCount > 0 else {
+            return loopStart
+        }
+        return loopStart + (elapsedFrames - takeFirstScheduledFrameCount) % loopFrameCount
     }
 
     func startPlayheadUpdates() {
@@ -211,6 +232,24 @@ actor PracticeAudioEngine: PracticeAudioClient {
     }
 
     private func handleEngineConfigurationChange() async {
+        if isArmingRecording {
+            // First-time input activation often posts this while Record is arming.
+            // Restart quietly instead of treating it as a device removal.
+            do {
+                try ensureEngineRunning()
+            } catch {
+                eventContinuation.yield(
+                    .failed(
+                        PracticeAudioFailure(
+                            operation: .recording,
+                            message: error.localizedDescription
+                        )
+                    )
+                )
+            }
+            return
+        }
+
         engine.stop()
         if recordingContext != nil {
             eventContinuation.yield(.interrupted(.inputDeviceRemoved))
@@ -226,7 +265,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
                     )
                 )
             }
-        } else {
+        } else if isPlaying {
             pause()
             eventContinuation.yield(.interrupted(.outputDeviceChanged))
         }
@@ -272,6 +311,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
         takeInfo = nil
         takePausedFrame = 0
         takeScheduledStartFrame = 0
+        takeFirstScheduledFrameCount = 0
+        takeLoopRegion = nil
         if playbackTarget == .take {
             playbackTarget = .original
             isPlaying = false

@@ -6,13 +6,13 @@ struct AppSettings: Codable, Equatable, Sendable {
     static let supportedPlaybackRates: [Double] = [0.5, 0.75, 1, 1.25, 1.5]
     static let `default` = AppSettings()
 
-    var countdownSeconds: Int = 3
-    var playOriginalWhileRecording: Bool = true
+    var countdownSeconds: Int = 0
+    var playOriginalWhileRecording: Bool = false
     var defaultPlaybackRate: Double = 1
     var preferredInputDeviceUID: String?
 
     var normalizedCountdownSeconds: Int {
-        Self.supportedCountdownSeconds.contains(countdownSeconds) ? countdownSeconds : 3
+        Self.supportedCountdownSeconds.contains(countdownSeconds) ? countdownSeconds : 0
     }
 
     var normalizedPlaybackRate: Double {

@@ -154,4 +154,36 @@ final class PracticeRegionTests: XCTestCase {
             )
         )
     }
+
+    func testTakeAlignmentAllowsSpansLongerThanPracticeMaximum() throws {
+        let alignment = try PracticeRegion.takeAlignment(
+            start: 10,
+            end: 100,
+            sourceDuration: 120
+        )
+        XCTAssertEqual(alignment.duration, 90)
+
+        XCTAssertThrowsError(
+            try PracticeRegion(start: 10, end: 100, sourceDuration: 120)
+        )
+        XCTAssertThrowsError(
+            try PracticeRegion.takeAlignment(
+                start: 10,
+                end: 10.2,
+                sourceDuration: 120
+            )
+        )
+    }
+
+    func testPersistedTakeRegionAllowsExtendedDuration() throws {
+        let region = try PracticeRegion(
+            id: UUID(),
+            persistedTakeStart: 2,
+            end: 95
+        )
+        XCTAssertEqual(region.duration, 93)
+        XCTAssertThrowsError(
+            try PracticeRegion(id: UUID(), persistedStart: 2, end: 95)
+        )
+    }
 }

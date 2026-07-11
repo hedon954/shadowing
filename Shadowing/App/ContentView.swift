@@ -264,10 +264,6 @@ private struct PracticeScene: View {
             viewModel.jump(by: 5)
         case .openAudio:
             navigation.openAudioChooser()
-        case let .comparisonMode(mode):
-            setComparisonMode(mode, viewModel: viewModel)
-        case .rerecord:
-            viewModel.rerecord()
         case .deleteTake:
             viewModel.requestDeleteTake()
         }
@@ -278,9 +274,6 @@ private struct PracticeScene: View {
             viewModel.stopRecording()
             return
         }
-        guard !viewModel.isComparing else {
-            return
-        }
         viewModel.startRecording()
     }
 
@@ -289,15 +282,5 @@ private struct PracticeScene: View {
             return
         }
         viewModel.setLoopEnabled(!viewModel.loopEnabled)
-    }
-
-    private func setComparisonMode(
-        _ mode: ComparisonMode,
-        viewModel: PracticeViewModel
-    ) {
-        guard viewModel.isComparing else {
-            return
-        }
-        viewModel.setComparisonMode(mode)
     }
 }

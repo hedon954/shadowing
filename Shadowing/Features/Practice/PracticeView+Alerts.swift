@@ -7,7 +7,6 @@ struct PracticeAlertsModifier: ViewModifier {
         content
             .modifier(PracticeFailureAlertsModifier(viewModel: viewModel))
             .modifier(PracticeRecordingLeaveAlertModifier(viewModel: viewModel))
-            .modifier(PracticeTakeDeletionAlertModifier(viewModel: viewModel))
             .modifier(PracticeMicrophoneAlertModifier(viewModel: viewModel))
     }
 }
@@ -51,35 +50,6 @@ private struct PracticeRecordingLeaveAlertModifier: ViewModifier {
             }
         } message: {
             Text("Recording is in progress.\n\nStop recording and close, or continue recording?")
-        }
-    }
-}
-
-private struct PracticeTakeDeletionAlertModifier: ViewModifier {
-    @ObservedObject var viewModel: PracticeViewModel
-
-    func body(content: Content) -> some View {
-        content.alert(
-            "Delete Take?",
-            isPresented: Binding(
-                get: { viewModel.takePendingDeletion != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.cancelDeleteTake()
-                    }
-                }
-            ),
-            presenting: viewModel.takePendingDeletion
-        ) { take in
-            Button("Delete", role: .destructive) {
-                viewModel.confirmDeleteTake()
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.cancelDeleteTake()
-            }
-            .accessibilityLabel("Cancel delete take \(take.sequence)")
-        } message: { take in
-            Text("Delete Take \(take.sequence)? This cannot be undone.")
         }
     }
 }

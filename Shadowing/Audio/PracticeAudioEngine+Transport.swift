@@ -41,17 +41,16 @@ extension PracticeAudioEngine {
             file: sourceFile,
             startFrame: plan.initial.startFrame,
             frameCount: plan.initial.frameCount,
-            options: .interrupts,
             generation: plan.repeated == nil ? generation : nil
         )
 
         if let repeated = plan.repeated {
-            try scheduleSegment(
+            try enqueueLoopingSegment(
+                on: player,
                 file: sourceFile,
-                startFrame: repeated.startFrame,
-                frameCount: repeated.frameCount,
-                options: .loops,
-                generation: nil
+                segment: repeated,
+                loopGeneration: generation,
+                isTake: false
             )
         }
         pausedFrame = plan.initial.startFrame
@@ -61,7 +60,6 @@ extension PracticeAudioEngine {
         file: AVAudioFile,
         startFrame: Int64,
         frameCount: Int64,
-        options: AVAudioPlayerNodeBufferOptions,
         generation: UInt64?
     ) throws {
         guard frameCount > 0, frameCount <= Int64(UInt32.max) else {
@@ -79,6 +77,94 @@ extension PracticeAudioEngine {
                 }
                 Task {
                     await self?.handlePlaybackFinished(generation: generation)
+                }
+            }
+        )
+    }
+
+    /// File-based looping avoids `scheduleBuffer`, which crashes when the Take/source
+    /// processing format does not match the player node's output format.
+    private func enqueueLoopingSegment(
+        on node: AVAudioPlayerNode,
+        file: AVAudioFile,
+        segment: AudioSegment,
+        loopGeneration: UInt64,
+        isTake: Bool
+    ) throws {
+        guard segment.frameCount > 0, segment.frameCount <= Int64(UInt32.max) else {
+            throw PracticeAudioEngineError.frameCountTooLarge
+        }
+        node.scheduleSegment(
+            file,
+            startingFrame: segment.startFrame,
+            frameCount: AVAudioFrameCount(segment.frameCount),
+            at: nil,
+            completionCallbackType: .dataPlayedBack,
+            completionHandler: { [weak self] _ in
+                Task {
+                    await self?.requeueLoopingSegment(
+                        file: file,
+                        segment: segment,
+                        loopGeneration: loopGeneration,
+                        isTake: isTake
+                    )
+                }
+            }
+        )
+    }
+
+    private func requeueLoopingSegment(
+        file: AVAudioFile,
+        segment: AudioSegment,
+        loopGeneration: UInt64,
+        isTake: Bool
+    ) {
+        if isTake {
+            guard loopGeneration == takeScheduleGeneration,
+                  isPlaying,
+                  playbackTarget == .take
+            else {
+                return
+            }
+            takePlayer.scheduleSegment(
+                file,
+                startingFrame: segment.startFrame,
+                frameCount: AVAudioFrameCount(segment.frameCount),
+                at: nil,
+                completionCallbackType: .dataPlayedBack,
+                completionHandler: { [weak self] _ in
+                    Task {
+                        await self?.requeueLoopingSegment(
+                            file: file,
+                            segment: segment,
+                            loopGeneration: loopGeneration,
+                            isTake: true
+                        )
+                    }
+                }
+            )
+            return
+        }
+        guard loopGeneration == scheduleGeneration,
+              isPlaying,
+              playbackTarget == .original
+        else {
+            return
+        }
+        player.scheduleSegment(
+            file,
+            startingFrame: segment.startFrame,
+            frameCount: AVAudioFrameCount(segment.frameCount),
+            at: nil,
+            completionCallbackType: .dataPlayedBack,
+            completionHandler: { [weak self] _ in
+                Task {
+                    await self?.requeueLoopingSegment(
+                        file: file,
+                        segment: segment,
+                        loopGeneration: loopGeneration,
+                        isTake: false
+                    )
                 }
             }
         )
@@ -117,7 +203,7 @@ extension PracticeAudioEngine {
         startPlayheadUpdates()
     }
 
-    func playTake(url: URL, from position: TimeInterval) throws {
+    func playTake(url: URL, from position: TimeInterval, loop: PracticeRegion?) throws {
         guard sourceFile != nil else {
             throw PracticeAudioEngineError.sourceNotLoaded
         }
@@ -141,9 +227,20 @@ extension PracticeAudioEngine {
         )
         takeFile = file
         takeInfo = info
+        takeLoopRegion = loop
         playbackTarget = .take
 
         let converter = try AudioFrameTimeConverter(sampleRate: sampleRate)
+        if let loop {
+            _ = try RegionLoopScheduler(
+                region: loop,
+                converter: converter,
+                playbackRate: playbackRate
+            )
+            guard loop.end <= info.duration + 0.001 else {
+                throw PracticeAudioEngineError.invalidSeekTime(loop.end)
+            }
+        }
         let requestedFrame = try converter.frame(at: max(position, 0))
         let frame = min(max(requestedFrame, 0), max(frameCount - 1, 0))
         try scheduleTakePlayback(from: frame)
@@ -172,6 +269,7 @@ extension PracticeAudioEngine {
             sampleRate: sampleRate,
             frameCount: frameCount
         )
+        takeLoopRegion = nil
 
         try setLoop(nil)
         try setRate(rate)
@@ -197,19 +295,69 @@ extension PracticeAudioEngine {
         let generation = takeScheduleGeneration
         takePlayer.stop()
 
-        let frameCount = takeInfo.frameCount - sourceFrame
+        let plan: PlaybackSegmentPlan
+        if let takeLoopRegion {
+            let converter = try AudioFrameTimeConverter(sampleRate: takeInfo.sampleRate)
+            let scheduler = try RegionLoopScheduler(
+                region: takeLoopRegion,
+                converter: converter,
+                playbackRate: playbackRate
+            )
+            guard scheduler.regionEndFrame <= takeInfo.frameCount else {
+                throw AudioTimingError.invalidFrameRange
+            }
+            plan = try PlaybackSegmentPlanner.plan(
+                from: sourceFrame,
+                sourceFrameCount: takeInfo.frameCount,
+                loopScheduler: scheduler
+            )
+        } else {
+            plan = try PlaybackSegmentPlanner.plan(
+                from: sourceFrame,
+                sourceFrameCount: takeInfo.frameCount,
+                loopScheduler: nil
+            )
+        }
+
+        takeScheduledStartFrame = plan.initial.startFrame
+        takeFirstScheduledFrameCount = plan.initial.frameCount
+        takePausedFrame = plan.initial.startFrame
+        try scheduleTakeSegment(
+            file: takeFile,
+            startFrame: plan.initial.startFrame,
+            frameCount: plan.initial.frameCount,
+            generation: plan.repeated == nil ? generation : nil
+        )
+        if let repeated = plan.repeated {
+            try enqueueLoopingSegment(
+                on: takePlayer,
+                file: takeFile,
+                segment: repeated,
+                loopGeneration: generation,
+                isTake: true
+            )
+        }
+    }
+
+    private func scheduleTakeSegment(
+        file: AVAudioFile,
+        startFrame: Int64,
+        frameCount: Int64,
+        generation: UInt64?
+    ) throws {
         guard frameCount > 0, frameCount <= Int64(UInt32.max) else {
             throw PracticeAudioEngineError.frameCountTooLarge
         }
-        takeScheduledStartFrame = sourceFrame
-        takePausedFrame = sourceFrame
         takePlayer.scheduleSegment(
-            takeFile,
-            startingFrame: sourceFrame,
+            file,
+            startingFrame: startFrame,
             frameCount: AVAudioFrameCount(frameCount),
             at: nil,
             completionCallbackType: .dataPlayedBack,
             completionHandler: { [weak self] _ in
+                guard let generation else {
+                    return
+                }
                 Task {
                     await self?.handleTakePlaybackFinished(generation: generation)
                 }
@@ -224,7 +372,16 @@ extension PracticeAudioEngine {
         switch playbackTarget {
         case .take:
             takePausedFrame = currentTakeFrame()
-            takePlayer.pause()
+            takeScheduleGeneration &+= 1
+            takePlayer.stop()
+            takeLoopRegion = nil
+            takeFirstScheduledFrameCount = 0
+            playbackTarget = .original
+            isPlaying = false
+            playheadTask?.cancel()
+            // Keep the ViewModel's already-mapped source playhead; do not publish
+            // take-local time after playingTakeID may already be cleared.
+            return
         case .together:
             takePausedFrame = currentTakeFrame()
             pausedFrame = currentSourceFrame()
@@ -244,8 +401,13 @@ extension PracticeAudioEngine {
             throw PracticeAudioEngineError.invalidSeekTime(position)
         }
         if playbackTarget == .take {
-            try seekTake(to: position)
-            return
+            takeScheduleGeneration &+= 1
+            takePlayer.stop()
+            isPlaying = false
+            playheadTask?.cancel()
+            takeLoopRegion = nil
+            takeFirstScheduledFrameCount = 0
+            playbackTarget = .original
         }
         if playbackTarget == .together {
             pause()
@@ -264,27 +426,6 @@ extension PracticeAudioEngine {
         if shouldResume {
             try ensureEngineRunning()
             player.play()
-            isPlaying = true
-            startPlayheadUpdates()
-        }
-        publishPlayhead()
-    }
-
-    private func seekTake(to position: TimeInterval) throws {
-        guard let takeInfo else {
-            throw PracticeAudioEngineError.sourceNotLoaded
-        }
-        let converter = try AudioFrameTimeConverter(sampleRate: takeInfo.sampleRate)
-        let requestedFrame = try converter.frame(at: position)
-        let frame = min(max(requestedFrame, 0), max(takeInfo.frameCount - 1, 0))
-        let shouldResume = isPlaying
-        takePlayer.stop()
-        isPlaying = false
-        takePausedFrame = frame
-        try scheduleTakePlayback(from: frame)
-        if shouldResume {
-            try ensureEngineRunning()
-            takePlayer.play()
             isPlaying = true
             startPlayheadUpdates()
         }

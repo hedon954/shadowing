@@ -29,12 +29,32 @@ protocol SettingsStore: Sendable {
 protocol RecordingFileStore: Sendable {
     func temporaryTakeURL(id: UUID) throws -> URL
     func discardTemporaryTake(at temporaryURL: URL) throws
-    func commitTemporaryTake(at temporaryURL: URL, projectID: UUID, takeID: UUID) throws -> String
+    func commitTemporaryTake(
+        at temporaryURL: URL,
+        projectID: UUID,
+        takeID: UUID,
+        replaceExisting: Bool
+    ) throws -> String
     func audioURL(relativePath: String) throws -> URL
     func deleteAudio(relativePath: String) throws
     /// Removes leftover files under the managed temporary directory.
     /// Returns the number of removed items.
     func removeOrphanedTemporaryTakes() throws -> Int
+}
+
+extension RecordingFileStore {
+    func commitTemporaryTake(
+        at temporaryURL: URL,
+        projectID: UUID,
+        takeID: UUID
+    ) throws -> String {
+        try commitTemporaryTake(
+            at: temporaryURL,
+            projectID: projectID,
+            takeID: takeID,
+            replaceExisting: false
+        )
+    }
 }
 
 protocol BookmarkStore: Sendable {
@@ -118,5 +138,15 @@ struct TakeDraft: Equatable, Sendable {
 }
 
 protocol TakeCommitting: Sendable {
-    func commit(_ draft: TakeDraft, temporaryFile: URL) async throws -> Take
+    func commit(
+        _ draft: TakeDraft,
+        temporaryFile: URL,
+        replaceExisting: Bool
+    ) async throws -> Take
+}
+
+extension TakeCommitting {
+    func commit(_ draft: TakeDraft, temporaryFile: URL) async throws -> Take {
+        try await commit(draft, temporaryFile: temporaryFile, replaceExisting: false)
+    }
 }

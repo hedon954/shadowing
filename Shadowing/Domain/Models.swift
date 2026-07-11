@@ -31,19 +31,32 @@ struct PracticeRegion: Codable, Equatable, Identifiable, Sendable {
         end: TimeInterval,
         sourceDuration: TimeInterval
     ) throws {
-        guard start.isFinite, end.isFinite, sourceDuration.isFinite else {
-            throw DomainError.invalidTimeRange
-        }
-        guard start >= 0, end <= sourceDuration, end > start else {
-            throw DomainError.invalidTimeRange
-        }
-        guard Self.minimumDuration ... Self.maximumDuration ~= end - start else {
-            throw DomainError.regionDurationOutOfBounds
-        }
-
+        try Self.validateRange(
+            start: start,
+            end: end,
+            sourceDuration: sourceDuration,
+            maximumDuration: Self.maximumDuration
+        )
         self.id = id
         self.start = start
         self.end = end
+    }
+
+    /// Alignment span for a recorded Take on the source timeline.
+    /// Unlike practice loop selection, this is not capped at 60 seconds.
+    static func takeAlignment(
+        id: UUID = UUID(),
+        start: TimeInterval,
+        end: TimeInterval,
+        sourceDuration: TimeInterval
+    ) throws -> PracticeRegion {
+        try validateRange(
+            start: start,
+            end: end,
+            sourceDuration: sourceDuration,
+            maximumDuration: nil
+        )
+        return PracticeRegion(id: id, start: start, end: end)
     }
 
     static func fromDrag(
@@ -153,6 +166,51 @@ struct PracticeRegion: Codable, Equatable, Identifiable, Sendable {
         self.id = id
         self.start = start
         self.end = end
+    }
+
+    /// Restores a Take alignment span from persistence without the 60s loop limit.
+    init(
+        id: UUID,
+        persistedTakeStart start: TimeInterval,
+        end: TimeInterval
+    ) throws {
+        guard start.isFinite, end.isFinite, start >= 0, end > start else {
+            throw DomainError.invalidTimeRange
+        }
+        guard end - start >= Self.minimumDuration else {
+            throw DomainError.regionDurationOutOfBounds
+        }
+
+        self.id = id
+        self.start = start
+        self.end = end
+    }
+
+    private init(id: UUID, start: TimeInterval, end: TimeInterval) {
+        self.id = id
+        self.start = start
+        self.end = end
+    }
+
+    private static func validateRange(
+        start: TimeInterval,
+        end: TimeInterval,
+        sourceDuration: TimeInterval,
+        maximumDuration: TimeInterval?
+    ) throws {
+        guard start.isFinite, end.isFinite, sourceDuration.isFinite else {
+            throw DomainError.invalidTimeRange
+        }
+        guard start >= 0, end <= sourceDuration, end > start else {
+            throw DomainError.invalidTimeRange
+        }
+        let duration = end - start
+        guard duration >= Self.minimumDuration else {
+            throw DomainError.regionDurationOutOfBounds
+        }
+        if let maximumDuration, duration > maximumDuration {
+            throw DomainError.regionDurationOutOfBounds
+        }
     }
 
     private static func validateDragInput(

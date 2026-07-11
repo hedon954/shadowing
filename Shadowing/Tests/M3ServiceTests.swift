@@ -130,12 +130,7 @@ final class M3ServiceTests: XCTestCase {
             )
         }
 
-        for _ in 0 ..< 100 {
-            if await harness.access.beginCount > 0 {
-                break
-            }
-            await Task.yield()
-        }
+        await harness.access.waitUntilBegan()
         let beginCount = await harness.access.beginCount
         XCTAssertEqual(beginCount, 1)
         task.cancel()
@@ -215,6 +210,7 @@ private actor StubBookmarkAccess: BookmarkAccess {
     nonisolated let resolvedBookmark: ResolvedBookmark
     private(set) var beginCount = 0
     private(set) var stopCount = 0
+    private var beginWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(resolvedBookmark: ResolvedBookmark) {
         self.resolvedBookmark = resolvedBookmark
@@ -222,6 +218,20 @@ private actor StubBookmarkAccess: BookmarkAccess {
 
     func markBegan() {
         beginCount += 1
+        let waiters = beginWaiters
+        beginWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
+    func waitUntilBegan() async {
+        guard beginCount == 0 else {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            beginWaiters.append(continuation)
+        }
     }
 
     func stop() {

@@ -230,6 +230,7 @@ GitHub Release 文案面向用户，不是 commit 列表或开发日志：
 make setup       # 安装工具、hooks 并生成工程
 make generate    # 从 project.yml 生成 Xcode 工程
 make build       # 无签名 Debug build
+make upgrade     # 重新构建并重启 Debug app
 make test        # 运行 macOS 测试
 make format      # 格式化 Swift
 make lint        # 静态与架构校验

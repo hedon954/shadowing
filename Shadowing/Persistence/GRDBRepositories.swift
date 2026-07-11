@@ -322,7 +322,7 @@ actor GRDBTakeRepository: TakeRepository {
         do {
             let region = try PracticeRegion(
                 id: regionID,
-                persistedStart: row["region_start"],
+                persistedTakeStart: row["region_start"],
                 end: row["region_end"]
             )
             return try Take(

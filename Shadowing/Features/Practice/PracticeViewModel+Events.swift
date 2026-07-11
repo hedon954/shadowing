@@ -5,7 +5,7 @@ extension PracticeViewModel {
         switch event {
         case .recordingStarted,
              .recordingProgress,
-             .recordingPeaks,
+             .recordingEnvelope,
              .recordingFinished:
             receiveRecordingEvent(event)
         default:
@@ -20,8 +20,8 @@ extension PracticeViewModel {
         case let .playheadChanged(position):
             updatePlayhead(from: position)
         case .playbackFinished:
-            if isComparing {
-                handleComparisonPlaybackFinished()
+            if playingTakeID != nil {
+                handleTakePlaybackFinished()
             } else {
                 handlePlaybackFinished()
             }
@@ -31,7 +31,7 @@ extension PracticeViewModel {
             handleAudioFailure(audioFailure)
         case .recordingStarted,
              .recordingProgress,
-             .recordingPeaks,
+             .recordingEnvelope,
              .recordingFinished:
             break
         }
@@ -40,22 +40,16 @@ extension PracticeViewModel {
     func receiveRecordingEvent(_ event: PracticeAudioEvent) {
         switch event {
         case .recordingStarted:
-            recordingPresentation = .recording(elapsed: 0)
-            playhead = recordingContext?.region.start ?? playhead
+            handleRecordingStartedEvent()
         case let .recordingProgress(elapsed):
-            recordingPresentation = .recording(elapsed: elapsed)
-            if let region = recordingContext?.region {
-                playhead = min(region.start + elapsed * rate, region.end)
+            handleRecordingProgressEvent(elapsed)
+        case let .recordingEnvelope(points):
+            guard case .recording = recordingPresentation else {
+                return
             }
-        case let .recordingPeaks(peaks):
-            appendLivePeaks(peaks)
+            appendLiveEnvelope(points)
         case let .recordingFinished(url, duration, reason):
-            recordingPresentation = .finalizing
-            finalizationTask?.cancel()
-            finalizationTask = Task { [weak self] in
-                await self?.finishRecording(url: url, duration: duration, reason: reason)
-                self?.finalizationTask = nil
-            }
+            handleRecordingFinishedEvent(url: url, duration: duration, reason: reason)
         case .sourceLoaded,
              .playheadChanged,
              .playbackFinished,
@@ -65,8 +59,80 @@ extension PracticeViewModel {
         }
     }
 
+    private func handleRecordingStartedEvent() {
+        switch recordingPresentation {
+        case .checkingPermission, .countingDown, .recording:
+            recordingPresentation = .recording(elapsed: 0)
+            playhead = recordingContext?.region.start ?? playhead
+        case .idle, .finalizing:
+            Task { [weak self] in
+                await self?.abortEngineRecordingIfNeeded()
+            }
+        }
+    }
+
+    private func handleRecordingProgressEvent(_ elapsed: TimeInterval) {
+        guard case .recording = recordingPresentation else {
+            return
+        }
+        recordingPresentation = .recording(elapsed: elapsed)
+        if let region = recordingContext?.region {
+            playhead = min(
+                region.start + elapsed * recordingTimelineRate,
+                region.end
+            )
+            revealRecordingProgress(at: playhead)
+        }
+    }
+
+    private func handleRecordingFinishedEvent(
+        url: URL,
+        duration: TimeInterval,
+        reason: RecordingStopReason
+    ) {
+        guard recordingContext != nil else {
+            return
+        }
+        recordingPresentation = .finalizing
+        finalizationTask?.cancel()
+        finalizationTask = Task { [weak self] in
+            await self?.finishRecording(url: url, duration: duration, reason: reason)
+            self?.finalizationTask = nil
+        }
+    }
+
     func persistPosition() {
         persistProjectImmediately()
+    }
+
+    func discardPendingRecording() {
+        if let context = recordingContext, let recordingDependencies {
+            do {
+                try recordingDependencies.fileStore.discardTemporaryTake(
+                    at: context.temporaryURL
+                )
+            } catch {
+                show(error)
+            }
+        }
+        recordingContext = nil
+        recordingWindow = nil
+        recordingTimelineRate = 1
+        recordingPresentation = .idle
+        interactionPhase = .practicing
+    }
+
+    func discardPendingRecordingAbortingEngine() async {
+        discardPendingRecording()
+        await abortEngineRecordingIfNeeded()
+    }
+
+    func abortEngineRecordingIfNeeded() async {
+        do {
+            try await audioClient.execute(.abortRecording)
+        } catch {
+            _ = error
+        }
     }
 
     func performVoidCommand(
@@ -114,31 +180,30 @@ extension PracticeViewModel {
     }
 
     private func updatePlayhead(from position: TimeInterval) {
-        if isComparing {
-            switch comparisonMode {
-            case .selectedTake:
-                playhead = min(max(position, 0), activeTake?.duration ?? position)
-            case .ab where abPlaybackPhase == .playingTake:
-                playhead = min(max(position, 0), activeTake?.duration ?? position)
-            case .original, .ab, .together:
-                playhead = min(max(position, 0), project.duration)
-            }
+        if let take = currentlyPlayingTake() {
+            playhead = take.region.start + min(
+                max(position, 0),
+                take.duration
+            )
+            followPlayheadInTimeline(at: playhead)
             return
         }
         playhead = min(max(position, 0), project.duration)
         if isPlaying {
             schedulePlayheadPersist()
+            followPlayheadInTimeline(at: playhead)
         }
     }
 
     private func handlePlaybackFinished() {
         isPlaying = false
+        playingTakeID = nil
         playhead = project.duration
         persistProjectImmediately()
     }
 
     private func handleInterruption(_ interruption: PracticeAudioInterruption) {
-        cancelABPlayback()
+        playingTakeID = nil
         isPlaying = false
         if recordingPresentation.locksPracticeControls {
             recordingPresentation = .finalizing

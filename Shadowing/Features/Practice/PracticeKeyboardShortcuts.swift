@@ -8,8 +8,6 @@ enum PracticeShortcutAction: Equatable, Sendable {
     case jumpBackward
     case jumpForward
     case openAudio
-    case comparisonMode(ComparisonMode)
-    case rerecord
     case deleteTake
 }
 
@@ -154,21 +152,12 @@ private struct PracticeKeyMonitor: NSViewRepresentable {
         }
 
         private static func commandAction(for keystroke: ShortcutKeystroke) -> PracticeShortcutAction? {
-            if keystroke.shift, keystroke.characters == "r" {
-                return .rerecord
-            }
             guard !keystroke.shift else {
                 return nil
             }
             switch keystroke.characters {
             case "o":
                 return .openAudio
-            case "1":
-                return .comparisonMode(.original)
-            case "2":
-                return .comparisonMode(.selectedTake)
-            case "3":
-                return .comparisonMode(.ab)
             default:
                 return nil
             }

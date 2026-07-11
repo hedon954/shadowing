@@ -3,16 +3,13 @@ import Foundation
 struct CachedWaveformService: WaveformPreparing {
     private let generator: WaveformPeakGenerator
     private let cache: WaveformFileCache
-    private let maximumPresentationPeaks: Int
 
     init(
         generator: WaveformPeakGenerator = WaveformPeakGenerator(),
-        cache: WaveformFileCache,
-        maximumPresentationPeaks: Int = 4096
+        cache: WaveformFileCache
     ) {
         self.generator = generator
         self.cache = cache
-        self.maximumPresentationPeaks = maximumPresentationPeaks
     }
 
     func prepareWaveform(from url: URL) async throws -> WaveformPresentation {
@@ -46,14 +43,10 @@ struct CachedWaveformService: WaveformPreparing {
         from waveform: WaveformData,
         warning: String?
     ) -> WaveformPresentation {
-        let peaks = waveform.levels.max { first, second in
-            first.framesPerPeak < second.framesPerPeak
-        }?.peaks ?? []
-        return WaveformPresentation(
-            peaks: WaveformDownsampler.downsample(
-                peaks,
-                maximumCount: maximumPresentationPeaks
-            ),
+        WaveformPresentation(
+            duration: waveform.duration,
+            sampleRate: waveform.sampleRate,
+            levels: waveform.levels,
             warning: warning
         )
     }

@@ -8,16 +8,15 @@ struct PracticeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
-                if viewModel.recordingWorkflowVisible {
+                if viewModel.showsMultiTrackWorkspace {
                     RecordingWorkspaceView(viewModel: viewModel)
                 } else {
                     waveform
                 }
                 controls
             }
-            .frame(maxWidth: 900)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(32)
-            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Practice")
         .onAppear {
@@ -58,17 +57,23 @@ struct PracticeView: View {
     private var waveform: some View {
         VStack(spacing: 8) {
             WaveformView(
-                peaks: viewModel.waveform.peaks,
+                waveform: viewModel.waveform,
                 playhead: viewModel.playhead,
                 duration: viewModel.project.duration,
                 region: viewModel.region,
+                viewport: viewModel.timelineViewport,
                 isEnabled: !viewModel.controlsLocked,
                 onSeek: { position in
                     viewModel.seek(to: position)
                 },
                 onRegionChanged: { region in
                     viewModel.selectRegion(region)
-                }
+                },
+                onRegionCleared: viewModel.clearRegion,
+                onViewportChanged: viewModel.setTimelineViewport,
+                onGestureActiveChanged: viewModel.setTimelineGestureActive,
+                onShowFull: viewModel.showFullTimeline,
+                onFitRegion: viewModel.fitTimelineToRegion
             )
 
             HStack {
@@ -120,7 +125,7 @@ struct PracticeView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(viewModel.controlsLocked || viewModel.isComparing)
+            .disabled(viewModel.controlsLocked)
             .accessibilityLabel("Back 5 seconds")
 
             Button {
@@ -142,7 +147,7 @@ struct PracticeView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(viewModel.controlsLocked || viewModel.isComparing)
+            .disabled(viewModel.controlsLocked)
             .accessibilityLabel("Forward 5 seconds")
 
             Button {
@@ -209,15 +214,12 @@ struct PracticeView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-            .disabled(
-                viewModel.controlsLocked
-                    || viewModel.region == nil
-                    || viewModel.isComparing
-            )
+            .disabled(viewModel.controlsLocked)
             .accessibilityHint(
-                viewModel.region == nil
-                    ? "Select a practice region before recording."
-                    : "Starts a countdown before recording."
+                """
+                Starts recording from the current Original playhead until the audio ends, \
+                or until you stop. With a take selected, recording replaces that take.
+                """
             )
         }
         .padding(18)

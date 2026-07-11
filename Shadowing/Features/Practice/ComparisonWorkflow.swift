@@ -1,12 +1,5 @@
 import Foundation
 
-enum ABPlaybackPhase: Equatable, Sendable {
-    case idle
-    case playingOriginal
-    case waitingForGap
-    case playingTake
-}
-
 extension PracticeViewModel {
     var comparisonOriginalPeaks: [Float] {
         guard let take = activeTake else {
@@ -15,41 +8,11 @@ extension PracticeViewModel {
         return peaks(for: take.region)
     }
 
-    var comparisonProgressFraction: Double {
-        guard let take = activeTake else {
-            return 0
+    var selectedTakeWaveform: WaveformPresentation {
+        guard let id = activeTake?.id else {
+            return .unavailable
         }
-        switch comparisonMode {
-        case .original, .together:
-            guard take.region.duration > 0 else {
-                return 0
-            }
-            return min(
-                max((playhead - take.region.start) / take.region.duration, 0),
-                1
-            )
-        case .selectedTake:
-            guard take.duration > 0 else {
-                return 0
-            }
-            return min(max(playhead / take.duration, 0), 1)
-        case .ab:
-            switch abPlaybackPhase {
-            case .playingTake:
-                guard take.duration > 0 else {
-                    return 0
-                }
-                return min(max(playhead / take.duration, 0), 1)
-            case .idle, .playingOriginal, .waitingForGap:
-                guard take.region.duration > 0 else {
-                    return 0
-                }
-                return min(
-                    max((playhead - take.region.start) / take.region.duration, 0),
-                    1
-                )
-            }
-        }
+        return takeWaveforms[id] ?? .unavailable
     }
 
     var isCurrentTakeKept: Bool {
@@ -59,18 +22,21 @@ extension PracticeViewModel {
         return project.keptTakeID == take.id
     }
 
-    func enterComparison(with take: Take, takePeaks: [Float] = []) async {
-        cancelABPlayback()
+    /// Select a take for overwrite / delete without changing page layout.
+    func focusTake(_ take: Take, preferExistingViewport: Bool = false) async {
+        pauseTakePlaybackIfNeeded()
         activeTake = take
-        selectedTakePeaks = takePeaks
-        comparisonMode = .selectedTake
         project.selectedTakeID = take.id
-        project.currentRegion = take.region
-        project.playhead = take.region.start
-        playhead = 0
-        recordingPresentation = .comparisonReady(take)
-        interactionPhase = .practicing
+        if !preferExistingViewport {
+            playhead = take.region.start
+            project.playhead = take.region.start
+            timelineViewport = .fitting(
+                take.region,
+                sourceDuration: project.duration
+            )
+        }
         await refreshTakes()
+        updateRegionSnapshotNotice(for: take)
         do {
             try await projects.save(project)
         } catch {
@@ -79,139 +45,195 @@ extension PracticeViewModel {
     }
 
     func selectTake(_ take: Take) {
-        guard isComparing, take.projectID == project.id else {
+        guard take.projectID == project.id else {
             return
         }
-        pauseComparisonPlaybackIfNeeded()
-        let previousID = activeTake?.id
-        activeTake = take
-        if take.id != previousID {
-            selectedTakePeaks = []
+        if activeTake?.id == take.id {
+            return
         }
+        pauseTakePlaybackIfNeeded()
+        activeTake = take
         project.selectedTakeID = take.id
-        recordingPresentation = .comparisonReady(take)
-        playhead = comparisonMode.usesOriginalTimeline ? take.region.start : 0
+        selectedTakePeaks = takeWaveforms[take.id]?.peaks ?? []
+        Task { [weak self] in
+            await self?.loadTakeWaveform(for: take)
+        }
+        playhead = take.region.start
+        project.playhead = take.region.start
         updateRegionSnapshotNotice(for: take)
-        persistSelectedTake()
+        persistProjectImmediately()
     }
 
-    func setComparisonMode(_ mode: ComparisonMode) {
-        guard isComparing, comparisonMode != mode else {
+    func clearTakeSelection() {
+        guard activeTake != nil else {
             return
         }
-        pauseComparisonPlaybackIfNeeded()
-        comparisonMode = mode
-        if let take = activeTake {
-            playhead = mode.usesOriginalTimeline ? take.region.start : 0
-        }
+        pauseTakePlaybackIfNeeded()
+        activeTake = nil
+        project.selectedTakeID = nil
+        selectedTakePeaks = []
+        recordingNotice = nil
+        persistProjectImmediately()
     }
 
     func keepThisTake() {
-        guard isComparing, let take = activeTake else {
+        guard let take = activeTake else {
             return
         }
         project.keptTakeID = take.id
         persistProjectImmediately()
     }
 
-    func toggleComparisonPlayback() {
-        guard isComparing, let take = activeTake else {
+    func toggleTakePlayback(_ take: Take) {
+        if playingTakeID == take.id, isPlaying {
+            pauseTakePlaybackIfNeeded()
             return
         }
-        if isPlaying || abPlaybackPhase != .idle {
-            pauseComparisonPlaybackIfNeeded()
-            return
-        }
-
-        switch comparisonMode {
-        case .original:
-            let from = take.region.start ..< take.region.end ~= playhead
-                ? playhead
-                : take.region.start
-            performCommand { [audioClient, rate] in
-                try await audioClient.execute(
-                    .playOriginal(
-                        region: take.region,
-                        from: from,
-                        rate: rate
-                    )
-                )
-                return true
-            } completion: { [weak self] playing in
-                self?.isPlaying = playing
+        pauseTakePlaybackIfNeeded()
+        if isPlaying {
+            performVoidCommand { [audioClient] in
+                try await audioClient.execute(.pause)
+            } completion: { [weak self] in
+                self?.isPlaying = false
             }
-        case .selectedTake:
-            let from = playhead >= take.duration ? 0 : max(playhead, 0)
+        }
+        if activeTake?.id != take.id {
+            activeTake = take
+            project.selectedTakeID = take.id
+            selectedTakePeaks = takeWaveforms[take.id]?.peaks ?? []
+            Task { [weak self] in
+                await self?.loadTakeWaveform(for: take)
+            }
+            persistProjectImmediately()
+        }
+        playhead = take.region.start
+        project.playhead = take.region.start
+        playingTakeID = take.id
+        let localLoop = takeLoopSelections[take.id].flatMap { selection in
+            TakePlaybackTiming.localLoopRegion(
+                selection: selection,
+                takeRegion: take.region
+            )
+        }
+        let from = localLoop?.start ?? 0
+        if let localLoop {
+            playhead = take.region.start + localLoop.start
+            project.playhead = playhead
+        }
+        focusTimelineForTakePlayback(take)
+        performCommand { [audioClient] in
+            try await audioClient.execute(
+                .playTake(takeID: take.id, from: from, loop: localLoop)
+            )
+            return true
+        } completion: { [weak self] playing in
+            self?.isPlaying = playing
+            if !playing {
+                self?.playingTakeID = nil
+            }
+        }
+    }
+
+    func selectTakeLoopRegion(_ take: Take, _ region: PracticeRegion) {
+        guard take.projectID == project.id else {
+            return
+        }
+        guard let clamped = TakePlaybackTiming.clampedSelection(
+            region,
+            takeRegion: take.region,
+            sourceDuration: project.duration
+        ) else {
+            return
+        }
+        if activeTake?.id != take.id {
+            activeTake = take
+            project.selectedTakeID = take.id
+            selectedTakePeaks = takeWaveforms[take.id]?.peaks ?? []
+            Task { [weak self] in
+                await self?.loadTakeWaveform(for: take)
+            }
+        }
+        takeLoopSelections[take.id] = clamped
+        let localLoop = TakePlaybackTiming.localLoopRegion(
+            selection: clamped,
+            takeRegion: take.region
+        )
+        let localFrom = takeLocalPlaybackPosition(take: take, localLoop: localLoop)
+        playhead = take.region.start + localFrom
+        project.playhead = playhead
+        if playingTakeID == take.id, isPlaying, let localLoop {
+            playingTakeID = take.id
             performCommand { [audioClient] in
                 try await audioClient.execute(
-                    .playTake(takeID: take.id, from: from)
+                    .playTake(takeID: take.id, from: localFrom, loop: localLoop)
                 )
                 return true
             } completion: { [weak self] playing in
                 self?.isPlaying = playing
-            }
-        case .ab:
-            startABPlayback(take: take)
-        case .together:
-            performCommand { [audioClient, rate] in
-                try await audioClient.execute(
-                    .playTogether(region: take.region, takeID: take.id, rate: rate)
-                )
-                return true
-            } completion: { [weak self] playing in
-                self?.isPlaying = playing
-                if playing {
-                    self?.playhead = take.region.start
+                if !playing {
+                    self?.playingTakeID = nil
                 }
             }
+        } else {
+            persistProjectImmediately()
         }
     }
 
-    func handleComparisonPlaybackFinished() {
-        switch comparisonMode {
-        case .ab:
-            handleABPlaybackFinished()
-        case .original, .selectedTake, .together:
-            isPlaying = false
-            if comparisonMode == .selectedTake {
-                playhead = activeTake?.duration ?? playhead
-            } else if let take = activeTake {
-                playhead = take.region.end
+    func clearTakeLoopRegion(_ take: Take) {
+        takeLoopSelections[take.id] = nil
+        guard playingTakeID == take.id, isPlaying else {
+            return
+        }
+        let localFrom = takeLocalPlaybackPosition(take: take, localLoop: nil)
+        playhead = take.region.start + localFrom
+        project.playhead = playhead
+        performCommand { [audioClient] in
+            try await audioClient.execute(
+                .playTake(takeID: take.id, from: localFrom, loop: nil)
+            )
+            return true
+        } completion: { [weak self] playing in
+            self?.isPlaying = playing
+            if !playing {
+                self?.playingTakeID = nil
             }
         }
     }
 
-    func rerecord() {
-        guard isComparing else {
-            return
+    private func takeLocalPlaybackPosition(
+        take: Take,
+        localLoop: PracticeRegion?
+    ) -> TimeInterval {
+        let local = min(
+            max(playhead - take.region.start, 0),
+            max(take.duration, 0)
+        )
+        guard let localLoop else {
+            return local
         }
-        pauseComparisonPlaybackIfNeeded()
-        if let take = activeTake {
-            project.currentRegion = take.region
+        if local >= localLoop.start, local < localLoop.end {
+            return local
         }
-        takePendingDeletion = nil
-        startRecording()
+        return localLoop.start
+    }
+
+    func handleTakePlaybackFinished() {
+        isPlaying = false
+        if let take = currentlyPlayingTake() {
+            playhead = take.region.end
+            project.playhead = playhead
+        }
+        playingTakeID = nil
+        persistProjectImmediately()
     }
 
     func requestDeleteTake(_ take: Take? = nil) {
-        guard isComparing else {
+        guard let target = take ?? activeTake else {
             return
         }
-        takePendingDeletion = take ?? activeTake
-    }
-
-    func cancelDeleteTake() {
-        takePendingDeletion = nil
-    }
-
-    func confirmDeleteTake() {
-        guard let take = takePendingDeletion else {
-            return
-        }
-        takePendingDeletion = nil
-        pauseComparisonPlaybackIfNeeded()
+        pauseTakePlaybackIfNeeded()
         Task { [weak self] in
-            await self?.deleteTake(take)
+            await self?.deleteTake(target)
         }
     }
 
@@ -223,81 +245,21 @@ extension PracticeViewModel {
         do {
             takes = try await recordingDependencies.takes.takes(projectID: project.id)
                 .sorted { $0.sequence < $1.sequence }
+            let ids = Set(takes.map(\.id))
+            takeWaveforms = takeWaveforms.filter { ids.contains($0.key) }
+            takeLoopSelections = takeLoopSelections.filter { ids.contains($0.key) }
         } catch {
             show(error)
         }
     }
 
-    private func startABPlayback(take: Take) {
-        cancelABPlayback()
-        abPlaybackPhase = .playingOriginal
-        playhead = take.region.start
-        isPlaying = true
-        abPlaybackTask = Task { [weak self] in
-            guard let self else {
-                return
-            }
-            do {
-                try await audioClient.execute(
-                    .playOriginalSegment(
-                        region: take.region,
-                        from: take.region.start,
-                        rate: rate
-                    )
-                )
-            } catch is CancellationError {
-                return
-            } catch {
-                abPlaybackPhase = .idle
-                isPlaying = false
-                show(error)
-            }
+    func preloadTakeWaveforms() async {
+        for take in takes where takeWaveforms[take.id] == nil {
+            await loadTakeWaveform(for: take)
         }
     }
 
-    private func handleABPlaybackFinished() {
-        guard let take = activeTake else {
-            cancelABPlayback()
-            return
-        }
-        switch abPlaybackPhase {
-        case .playingOriginal:
-            abPlaybackPhase = .waitingForGap
-            isPlaying = true
-            abPlaybackTask = Task { [weak self] in
-                guard let self else {
-                    return
-                }
-                do {
-                    try await comparisonScheduler.waitForABGap()
-                    try Task.checkCancellation()
-                    abPlaybackPhase = .playingTake
-                    playhead = 0
-                    try await audioClient.execute(.playTake(takeID: take.id, from: 0))
-                } catch is CancellationError {
-                    return
-                } catch {
-                    cancelABPlayback()
-                    show(error)
-                }
-            }
-        case .playingTake:
-            cancelABPlayback()
-            isPlaying = false
-            playhead = 0
-        case .idle, .waitingForGap:
-            cancelABPlayback()
-            isPlaying = false
-        }
-    }
-
-    func cancelABPlayback() {
-        abPlaybackTask?.cancel()
-        abPlaybackTask = nil
-        abPlaybackPhase = .idle
-    }
-
-    private func deleteTake(_ take: Take) async {
+    func deleteTake(_ take: Take) async {
         guard let recordingDependencies else {
             show(PracticeRecordingError.unavailable)
             return
@@ -311,20 +273,33 @@ extension PracticeViewModel {
             } catch {
                 show(error)
             }
+            takeWaveforms[take.id] = nil
+            takeLoopSelections[take.id] = nil
             if project.keptTakeID == take.id {
                 project.keptTakeID = nil
             }
+            if playingTakeID == take.id {
+                playingTakeID = nil
+                isPlaying = false
+            }
             await refreshTakes()
             if let next = takes.max(by: { $0.createdAt < $1.createdAt }) {
-                selectedTakePeaks = []
-                await enterComparison(with: next, takePeaks: [])
+                await focusTake(next, preferExistingViewport: true)
+                await loadTakeWaveform(for: next)
             } else {
                 activeTake = nil
                 selectedTakePeaks = []
                 project.selectedTakeID = nil
-                recordingPresentation = .idle
-                interactionPhase = .practicing
                 recordingNotice = nil
+                playhead = min(max(project.playhead, 0), project.duration)
+                if let region {
+                    timelineViewport = .fitting(
+                        region,
+                        sourceDuration: project.duration
+                    )
+                } else {
+                    timelineViewport = .full(sourceDuration: project.duration)
+                }
                 do {
                     try await projects.save(project)
                 } catch {
@@ -336,9 +311,13 @@ extension PracticeViewModel {
         }
     }
 
-    func pauseComparisonPlaybackIfNeeded() {
-        cancelABPlayback()
-        guard isPlaying else {
+    func pauseTakePlaybackIfNeeded() {
+        guard playingTakeID != nil || isPlaying else {
+            return
+        }
+        let wasTake = playingTakeID != nil
+        playingTakeID = nil
+        guard isPlaying || wasTake else {
             return
         }
         performVoidCommand { [audioClient] in
@@ -350,14 +329,14 @@ extension PracticeViewModel {
 
     private func updateRegionSnapshotNotice(for take: Take) {
         if let currentRegion = project.currentRegion, take.region != currentRegion {
-            recordingNotice = comparisonRegionNotice
+            recordingNotice = """
+            This take keeps its recorded region \
+            (\(Self.formatTime(take.region.start))–\(Self.formatTime(take.region.end))). \
+            Changing the practice region does not change past takes.
+            """
         } else if recordingNotice?.contains("recorded region") == true {
             recordingNotice = nil
         }
-    }
-
-    private func persistSelectedTake() {
-        persistProjectImmediately()
     }
 
     private func peaks(for region: PracticeRegion) -> [Float] {
@@ -376,5 +355,12 @@ extension PracticeViewModel {
             waveform.peaks.count
         )
         return Array(waveform.peaks[startIndex ..< endIndex])
+    }
+
+    func currentlyPlayingTake() -> Take? {
+        guard let takeID = playingTakeID else {
+            return nil
+        }
+        return takes.first(where: { $0.id == takeID }) ?? activeTake
     }
 }

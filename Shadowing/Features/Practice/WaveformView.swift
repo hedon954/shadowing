@@ -1,154 +1,141 @@
+@preconcurrency import AppKit
 import SwiftUI
 
 struct WaveformView: View {
-    private enum Handle {
+    fileprivate enum Handle {
         case start
         case end
     }
 
-    private static let dragThreshold: CGFloat = 4
+    fileprivate enum DragKind {
+        case pan
+        case select
+        case resize(Handle)
+    }
 
-    let peaks: [Float]
+    private static let dragThreshold: CGFloat = 4
+    private static let handleHitRadius: CGFloat = 14
+
+    let waveform: WaveformPresentation
     let playhead: TimeInterval
     let duration: TimeInterval
     let region: PracticeRegion?
+    let viewport: TimelineViewport
     let isEnabled: Bool
     let onSeek: (TimeInterval) -> Void
     let onRegionChanged: (PracticeRegion) -> Void
+    let onRegionCleared: () -> Void
+    let onViewportChanged: (TimelineViewport) -> Void
+    var onGestureActiveChanged: ((Bool) -> Void)?
+    let onShowFull: () -> Void
+    let onFitRegion: () -> Void
 
     @State private var draftRegion: PracticeRegion?
+    @State private var dragKind: DragKind?
+    @State private var dragBaseRegion: PracticeRegion?
+    @State private var panOrigin: TimelineViewport?
+    @State private var magnifyOrigin: TimelineViewport?
+    @State private var isGestureActive = false
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+        VStack(spacing: 10) {
+            WaveformTimelineOverview(
+                waveform: waveform,
+                sourceDuration: duration,
+                viewport: viewport,
+                region: region,
+                playhead: playhead,
+                isInteractive: isEnabled,
+                onViewportChanged: onViewportChanged
+            )
 
-                if peaks.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "waveform")
-                            .font(.title)
-                        Text("Waveform unavailable")
-                            .font(.callout)
-                    }
-                    .foregroundStyle(.secondary)
-                }
-
-                Canvas { context, size in
-                    drawSelection(context: context, size: size)
-                    drawWaveform(context: context, size: size)
-                    drawPlayhead(context: context, size: size)
-                }
-                .padding(.vertical, 12)
-                .accessibilityHidden(true)
-
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(selectionGesture(size: geometry.size))
-                    .accessibilityElement()
-                    .accessibilityLabel("Audio waveform")
-                    .accessibilityValue(accessibilityValue)
-                    .accessibilityHint(
-                        "Click to seek, or drag to select a practice region."
+            GeometryReader { geometry in
+                ZStack {
+                    WaveformTimelineTrack(
+                        waveform: waveform,
+                        viewport: viewport,
+                        color: .accentColor,
+                        playhead: playhead,
+                        selection: displayedRegion
                     )
-                    .accessibilityAdjustableAction { direction in
-                        adjustPlayhead(direction)
-                    }
 
-                if let displayedRegion {
-                    regionHandle(.start, region: displayedRegion, size: geometry.size)
-                    regionHandle(.end, region: displayedRegion, size: geometry.size)
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(interactionGesture(size: geometry.size))
+                        .simultaneousGesture(magnificationGesture)
+                        .accessibilityElement()
+                        .accessibilityLabel("Audio waveform timeline")
+                        .accessibilityValue(accessibilityValue)
+                        .accessibilityHint(
+                            "Click to seek, drag to select, Option-drag to pan, or pinch to zoom."
+                        )
+                        .accessibilityAdjustableAction(adjustPlayhead)
+
+                    if let displayedRegion {
+                        regionHandle(.start, region: displayedRegion, size: geometry.size)
+                        regionHandle(.end, region: displayedRegion, size: geometry.size)
+                        WaveformSelectionClearButton(
+                            region: displayedRegion,
+                            viewport: viewport,
+                            containerSize: geometry.size,
+                            isEnabled: isEnabled,
+                            onClear: onRegionCleared
+                        )
+                    }
                 }
+                .coordinateSpace(name: "practiceWaveform")
             }
-            .coordinateSpace(name: "practiceWaveform")
+            .frame(minHeight: 240)
+
+            HStack {
+                Text(format(viewport.start))
+                Spacer()
+                WaveformTimelineControls(
+                    canFitRegion: region != nil,
+                    isEnabled: isEnabled,
+                    onZoom: zoomFromCenter,
+                    onPan: panByFraction,
+                    onShowFull: onShowFull,
+                    onFitRegion: onFitRegion
+                )
+                Spacer()
+                Text(format(viewport.end))
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
         }
-        .frame(minHeight: 170)
         .accessibilityElement(children: .contain)
     }
 
-    private func drawWaveform(context: GraphicsContext, size: CGSize) {
-        guard !peaks.isEmpty else {
-            return
-        }
-        let barCount = min(max(Int(size.width / 3), 1), peaks.count)
-        let centerY = size.height / 2
-        let spacing = size.width / CGFloat(barCount)
-
-        for index in 0 ..< barCount {
-            let peakIndex = min(index * peaks.count / barCount, peaks.count - 1)
-            let amplitude = CGFloat(min(max(peaks[peakIndex], 0), 1))
-            let halfHeight = max(amplitude * size.height * 0.42, 1)
-            var path = Path()
-            let xPosition = (CGFloat(index) + 0.5) * spacing
-            path.move(to: CGPoint(x: xPosition, y: centerY - halfHeight))
-            path.addLine(to: CGPoint(x: xPosition, y: centerY + halfHeight))
-            let color = isSelected(xPosition, width: size.width)
-                ? Color.accentColor
-                : Color.secondary.opacity(0.55)
-            context.stroke(
-                path,
-                with: .color(color),
-                style: StrokeStyle(lineWidth: max(spacing * 0.55, 1), lineCap: .round)
-            )
-        }
-    }
-
-    private func drawSelection(context: GraphicsContext, size: CGSize) {
-        guard let region = displayedRegion, duration > 0 else {
-            return
-        }
-        let start = xPosition(for: region.start, width: size.width)
-        let end = xPosition(for: region.end, width: size.width)
-        let rectangle = CGRect(x: start, y: 0, width: end - start, height: size.height)
-        context.fill(
-            Path(roundedRect: rectangle, cornerRadius: 5),
-            with: .color(.accentColor.opacity(0.13))
-        )
-    }
-
-    private func drawPlayhead(context: GraphicsContext, size: CGSize) {
-        guard duration > 0 else {
-            return
-        }
-        let xPosition = xPosition(for: playhead, width: size.width)
-        var path = Path()
-        path.move(to: CGPoint(x: xPosition, y: 0))
-        path.addLine(to: CGPoint(x: xPosition, y: size.height))
-        context.stroke(path, with: .color(.accentColor), lineWidth: 2)
-
-        let marker = CGRect(x: xPosition - 4, y: -1, width: 8, height: 8)
-        context.fill(Path(ellipseIn: marker), with: .color(.accentColor))
-    }
-
-    private func selectionGesture(size: CGSize) -> some Gesture {
+    private func interactionGesture(size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named("practiceWaveform"))
             .onChanged { value in
-                guard isEnabled,
-                      dragDistance(value) >= Self.dragThreshold
-                else {
-                    draftRegion = nil
-                    return
-                }
-                draftRegion = makeRegion(
-                    anchor: time(at: value.startLocation.x, width: size.width),
-                    current: time(at: value.location.x, width: size.width)
-                )
+                handleInteractionChanged(value, size: size)
             }
             .onEnded { value in
-                defer {
-                    draftRegion = nil
-                }
+                handleInteractionEnded(value, size: size)
+            }
+    }
+
+    private var magnificationGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
                 guard isEnabled else {
                     return
                 }
-                if dragDistance(value) < Self.dragThreshold {
-                    onSeek(time(at: value.location.x, width: size.width))
-                } else if let selectedRegion = makeRegion(
-                    anchor: time(at: value.startLocation.x, width: size.width),
-                    current: time(at: value.location.x, width: size.width)
-                ) {
-                    onRegionChanged(selectedRegion)
-                }
+                let origin = magnifyOrigin ?? viewport
+                magnifyOrigin = origin
+                let anchor = origin.start + Double(value.startAnchor.x) * origin.duration
+                onViewportChanged(
+                    origin.zoomed(
+                        by: value.magnification,
+                        anchor: anchor,
+                        sourceDuration: duration
+                    )
+                )
+            }
+            .onEnded { _ in
+                magnifyOrigin = nil
             }
     }
 
@@ -157,7 +144,7 @@ struct WaveformView: View {
         region: PracticeRegion,
         size: CGSize
     ) -> some View {
-        let time = handle == .start ? region.start : region.end
+        let value = handle == .start ? region.start : region.end
         return ZStack(alignment: .bottom) {
             Rectangle()
                 .fill(Color.accentColor)
@@ -172,105 +159,173 @@ struct WaveformView: View {
                 .padding(.bottom, 7)
         }
         .frame(width: 28, height: size.height)
-        .contentShape(Rectangle())
-        .position(
-            x: xPosition(for: time, width: size.width),
-            y: size.height / 2
-        )
-        .highPriorityGesture(handleGesture(handle, region: region, width: size.width))
+        .position(x: xPosition(for: value, width: size.width), y: size.height / 2)
+        .allowsHitTesting(false)
         .accessibilityElement()
         .accessibilityLabel(handle == .start ? "Selection start" : "Selection end")
-        .accessibilityValue(format(time))
-        .accessibilityHint("Drag to adjust, or use accessibility increment and decrement.")
-        .accessibilityAdjustableAction { direction in
-            adjustHandle(handle, region: region, direction: direction)
+        .accessibilityValue(format(value))
+    }
+}
+
+private extension WaveformView {
+    func handleInteractionChanged(_ value: DragGesture.Value, size: CGSize) {
+        guard isEnabled else {
+            return
+        }
+        if NSEvent.modifierFlags.contains(.option) {
+            updatePan(value, size: size)
+            return
+        }
+        resolveDragKindIfNeeded(value, width: size.width)
+        updateActiveDrag(value, width: size.width)
+    }
+
+    func handleInteractionEnded(_ value: DragGesture.Value, size: CGSize) {
+        defer {
+            draftRegion = nil
+            dragKind = nil
+            dragBaseRegion = nil
+            panOrigin = nil
+            markGestureActive(false)
+        }
+        guard isEnabled else {
+            return
+        }
+        switch dragKind {
+        case .pan:
+            return
+        case let .resize(handle):
+            commitResize(handle, at: value.location.x, width: size.width)
+        case .select:
+            commitSelection(value, width: size.width)
+        case .none:
+            if dragDistance(value) < Self.dragThreshold {
+                onSeek(time(at: value.location.x, width: size.width))
+            }
         }
     }
 
-    private func handleGesture(
-        _ handle: Handle,
+    func updatePan(_ value: DragGesture.Value, size: CGSize) {
+        beginDrag(.pan)
+        let origin = panOrigin ?? viewport
+        panOrigin = origin
+        let offset = -Double(value.translation.width / max(size.width, 1)) * origin.duration
+        onViewportChanged(origin.panned(by: offset, sourceDuration: duration))
+        draftRegion = nil
+    }
+
+    func resolveDragKindIfNeeded(_ value: DragGesture.Value, width: CGFloat) {
+        guard dragKind == nil else {
+            return
+        }
+        if let currentRegion = region {
+            if let handle = hitHandle(
+                at: value.startLocation,
+                region: currentRegion,
+                width: width
+            ) {
+                dragBaseRegion = currentRegion
+                beginDrag(.resize(handle))
+                return
+            }
+        }
+        if dragDistance(value) >= Self.dragThreshold {
+            beginDrag(.select)
+        }
+    }
+
+    func updateActiveDrag(_ value: DragGesture.Value, width: CGFloat) {
+        switch dragKind {
+        case let .resize(handle):
+            guard let base = dragBaseRegion else {
+                return
+            }
+            draftRegion = adjusted(
+                handle,
+                region: base,
+                to: time(at: value.location.x, width: width)
+            )
+        case .select:
+            draftRegion = makeRegion(
+                anchor: time(at: value.startLocation.x, width: width),
+                current: time(at: value.location.x, width: width)
+            )
+        case .pan, .none:
+            break
+        }
+    }
+
+    func commitResize(_ handle: Handle, at locationX: CGFloat, width: CGFloat) {
+        guard let base = dragBaseRegion,
+              let next = adjusted(
+                  handle,
+                  region: base,
+                  to: time(at: locationX, width: width)
+              ),
+              next != base
+        else {
+            return
+        }
+        onRegionChanged(next)
+    }
+
+    func commitSelection(_ value: DragGesture.Value, width: CGFloat) {
+        guard let selected = makeRegion(
+            anchor: time(at: value.startLocation.x, width: width),
+            current: time(at: value.location.x, width: width)
+        ) else {
+            return
+        }
+        onRegionChanged(selected)
+    }
+
+    func beginDrag(_ kind: DragKind) {
+        if dragKind == nil {
+            dragKind = kind
+            markGestureActive(true)
+        }
+    }
+
+    func hitHandle(
+        at point: CGPoint,
         region: PracticeRegion,
         width: CGFloat
-    ) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named("practiceWaveform"))
-            .onChanged { value in
-                guard isEnabled else {
-                    return
-                }
-                draftRegion = adjusted(
-                    handle,
-                    region: region,
-                    to: time(at: value.location.x, width: width)
-                )
-            }
-            .onEnded { value in
-                defer {
-                    draftRegion = nil
-                }
-                guard isEnabled,
-                      let adjustedRegion = adjusted(
-                          handle,
-                          region: region,
-                          to: time(at: value.location.x, width: width)
-                      )
-                else {
-                    return
-                }
-                onRegionChanged(adjustedRegion)
-            }
+    ) -> Handle? {
+        let startX = xPosition(for: region.start, width: width)
+        let endX = xPosition(for: region.end, width: width)
+        let startDistance = abs(point.x - startX)
+        let endDistance = abs(point.x - endX)
+        if startDistance <= Self.handleHitRadius, startDistance <= endDistance {
+            return .start
+        }
+        if endDistance <= Self.handleHitRadius {
+            return .end
+        }
+        return nil
     }
 
-    private func adjustHandle(
+    func markGestureActive(_ active: Bool) {
+        guard isGestureActive != active else {
+            return
+        }
+        isGestureActive = active
+        onGestureActiveChanged?(active)
+    }
+
+    func adjusted(
         _ handle: Handle,
         region: PracticeRegion,
-        direction: AccessibilityAdjustmentDirection
-    ) {
-        guard isEnabled else {
-            return
-        }
-        let delta: TimeInterval
-        switch direction {
-        case .increment:
-            delta = PracticeRegion.minimumDuration
-        case .decrement:
-            delta = -PracticeRegion.minimumDuration
-        @unknown default:
-            return
-        }
-        let current = handle == .start ? region.start : region.end
-        if let adjusted = adjusted(handle, region: region, to: current + delta) {
-            onRegionChanged(adjusted)
-        }
-    }
-
-    private func adjustPlayhead(_ direction: AccessibilityAdjustmentDirection) {
-        guard isEnabled else {
-            return
-        }
-        switch direction {
-        case .increment:
-            onSeek(min(playhead + 5, duration))
-        case .decrement:
-            onSeek(max(playhead - 5, 0))
-        @unknown default:
-            return
-        }
-    }
-
-    private func adjusted(
-        _ handle: Handle,
-        region: PracticeRegion,
-        to time: TimeInterval
+        to value: TimeInterval
     ) -> PracticeRegion? {
         switch handle {
         case .start:
-            try? region.adjustingStart(to: time, sourceDuration: duration)
+            try? region.adjustingStart(to: value, sourceDuration: duration)
         case .end:
-            try? region.adjustingEnd(to: time, sourceDuration: duration)
+            try? region.adjustingEnd(to: value, sourceDuration: duration)
         }
     }
 
-    private func makeRegion(
+    func makeRegion(
         anchor: TimeInterval,
         current: TimeInterval
     ) -> PracticeRegion? {
@@ -281,47 +336,69 @@ struct WaveformView: View {
         )
     }
 
-    private var displayedRegion: PracticeRegion? {
+    func zoomFromCenter(_ factor: Double) {
+        onViewportChanged(
+            viewport.zoomed(
+                by: factor,
+                anchor: viewport.start + viewport.duration / 2,
+                sourceDuration: duration
+            )
+        )
+    }
+
+    func panByFraction(_ fraction: Double) {
+        onViewportChanged(
+            viewport.panned(
+                by: viewport.duration * fraction,
+                sourceDuration: duration
+            )
+        )
+    }
+
+    func adjustPlayhead(_ direction: AccessibilityAdjustmentDirection) {
+        guard isEnabled else {
+            return
+        }
+        let delta = max(viewport.duration / 20, 0.1)
+        switch direction {
+        case .increment:
+            onSeek(min(playhead + delta, duration))
+        case .decrement:
+            onSeek(max(playhead - delta, 0))
+        @unknown default:
+            return
+        }
+    }
+
+    var displayedRegion: PracticeRegion? {
         draftRegion ?? region
     }
 
-    private var accessibilityValue: String {
-        let playheadValue = "\(format(playhead)) of \(format(duration))"
-        guard let region else {
-            return "\(playheadValue), no selection"
-        }
-        return "\(playheadValue), selected \(format(region.start)) to \(format(region.end))"
+    var accessibilityValue: String {
+        "Visible \(format(viewport.start)) to \(format(viewport.end)), " +
+            "playhead \(format(playhead))"
     }
 
-    private func isSelected(_ xPosition: CGFloat, width: CGFloat) -> Bool {
-        guard let region = displayedRegion else {
-            return false
-        }
-        let start = self.xPosition(for: region.start, width: width)
-        let end = self.xPosition(for: region.end, width: width)
-        return start ... end ~= xPosition
-    }
-
-    private func dragDistance(_ value: DragGesture.Value) -> CGFloat {
+    func dragDistance(_ value: DragGesture.Value) -> CGFloat {
         hypot(value.translation.width, value.translation.height)
     }
 
-    private func time(at xPosition: CGFloat, width: CGFloat) -> TimeInterval {
-        guard duration > 0, width > 0 else {
-            return 0
+    func time(at xPosition: CGFloat, width: CGFloat) -> TimeInterval {
+        guard width > 0 else {
+            return viewport.start
         }
         let fraction = min(max(xPosition / width, 0), 1)
-        return duration * fraction
+        return viewport.start + viewport.duration * Double(fraction)
     }
 
-    private func xPosition(for time: TimeInterval, width: CGFloat) -> CGFloat {
-        guard duration > 0 else {
+    func xPosition(for time: TimeInterval, width: CGFloat) -> CGFloat {
+        guard viewport.duration > 0 else {
             return 0
         }
-        return width * min(max(time / duration, 0), 1)
+        return width * CGFloat((time - viewport.start) / viewport.duration)
     }
 
-    private func format(_ time: TimeInterval) -> String {
+    func format(_ time: TimeInterval) -> String {
         let seconds = max(Int(time.rounded()), 0)
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }

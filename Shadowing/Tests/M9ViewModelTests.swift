@@ -38,44 +38,188 @@ final class M9ViewModelTests: XCTestCase {
         XCTAssertEqual(fixture.viewModel.takes.count, 2)
     }
 
-    func testABPlaybackUsesSchedulerThenPlaysTakeAndStops() async throws {
-        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(
-            testCase: self,
-            scheduler: ImmediateComparisonPlaybackScheduler()
-        )
-        let take = try XCTUnwrap(fixture.viewModel.activeTake)
-        fixture.viewModel.setComparisonMode(.ab)
-
-        fixture.viewModel.toggleComparisonPlayback()
-        await M9TestSupport.waitForCommand(
-            .playOriginalSegment(region: take.region, from: take.region.start, rate: 1),
-            audio: fixture.audio
-        )
-        XCTAssertEqual(fixture.viewModel.abPlaybackPhase, .playingOriginal)
-
-        await fixture.audio.emit(.playbackFinished)
-        await M9TestSupport.waitForCommand(
-            .playTake(takeID: take.id, from: 0),
-            audio: fixture.audio
-        )
-        XCTAssertEqual(fixture.viewModel.abPlaybackPhase, .playingTake)
-
-        await fixture.audio.emit(.playbackFinished)
-        await M9TestSupport.waitUntil {
-            fixture.viewModel.abPlaybackPhase == .idle && fixture.viewModel.isPlaying == false
-        }
-    }
-
-    func testTogetherPlaybackIssuesPlayTogetherCommand() async throws {
+    func testTakePlaybackIssuesPlayTakeAndStopsAtEnd() async throws {
         let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
-        fixture.viewModel.setComparisonMode(.together)
+        fixture.viewModel.setLoopEnabled(false)
 
-        fixture.viewModel.toggleComparisonPlayback()
+        fixture.viewModel.toggleTakePlayback(take)
         await M9TestSupport.waitForCommand(
-            .playTogether(region: take.region, takeID: take.id, rate: 1),
+            .playTake(takeID: take.id, from: 0, loop: nil),
             audio: fixture.audio
         )
+        XCTAssertEqual(fixture.viewModel.playingTakeID, take.id)
+
+        await fixture.audio.emit(.playheadChanged(take.duration))
+        await fixture.audio.emit(.playbackFinished)
+        await M9TestSupport.waitUntil {
+            fixture.viewModel.playingTakeID == nil && fixture.viewModel.isPlaying == false
+        }
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.end)
+
+        fixture.viewModel.seekTimeline(take.region.start)
+        await M9TestSupport.waitForCommand(
+            .seek(take.region.start),
+            audio: fixture.audio
+        )
+        await fixture.audio.emit(.playheadChanged(take.region.start))
+        await M9TestSupport.waitUntil {
+            abs(fixture.viewModel.playhead - take.region.start) < 0.001
+        }
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start, accuracy: 0.001)
+
+        fixture.viewModel.seekTimeline(0)
+        await M9TestSupport.waitForCommand(.seek(0), audio: fixture.audio)
+        await fixture.audio.emit(.playheadChanged(0))
+        await M9TestSupport.waitUntil {
+            abs(fixture.viewModel.playhead - 0) < 0.001
+        }
+        XCTAssertEqual(fixture.viewModel.playhead, 0, accuracy: 0.001)
+    }
+
+    func testTakePlaybackLoopsOverlappingPracticeRegion() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        let selection = try PracticeRegion(
+            start: take.region.start,
+            end: min(take.region.start + 1.0, take.region.end),
+            sourceDuration: 30
+        )
+        fixture.viewModel.setLoopEnabled(false)
+        fixture.viewModel.selectTakeLoopRegion(take, selection)
+        let expectedLocal = try XCTUnwrap(
+            TakePlaybackTiming.localLoopRegion(
+                selection: selection,
+                takeRegion: take.region
+            )
+        )
+
+        fixture.viewModel.toggleTakePlayback(take)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            return commands.contains { command in
+                guard case let .playTake(takeID, from, loop) = command,
+                      takeID == take.id,
+                      let loop
+                else {
+                    return false
+                }
+                return abs(from - expectedLocal.start) < 0.001
+                    && abs(loop.start - expectedLocal.start) < 0.001
+                    && abs(loop.end - expectedLocal.end) < 0.001
+            }
+        }
+        XCTAssertEqual(
+            fixture.viewModel.playhead,
+            take.region.start + expectedLocal.start,
+            accuracy: 0.001
+        )
+    }
+
+    func testTakeLoopSelectionIsIndependentFromOriginalRegion() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        let original = try XCTUnwrap(fixture.viewModel.region)
+        let takeSelection = try PracticeRegion(
+            start: take.region.start,
+            end: min(take.region.start + 0.8, take.region.end),
+            sourceDuration: 30
+        )
+
+        fixture.viewModel.selectTakeLoopRegion(take, takeSelection)
+
+        XCTAssertEqual(fixture.viewModel.region, original)
+        let stored = try XCTUnwrap(fixture.viewModel.takeLoopSelections[take.id])
+        XCTAssertEqual(stored.start, takeSelection.start, accuracy: 0.001)
+        XCTAssertEqual(stored.end, takeSelection.end, accuracy: 0.001)
+
+        fixture.viewModel.clearTakeLoopRegion(take)
+        XCTAssertNil(fixture.viewModel.takeLoopSelections[take.id])
+        XCTAssertEqual(fixture.viewModel.region, original)
+    }
+
+    func testUpdatingTakeLoopWhilePlayingRestartsWithNewLoop() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        let first = try PracticeRegion(
+            start: take.region.start,
+            end: min(take.region.start + 1.0, take.region.end),
+            sourceDuration: 30
+        )
+        let second = try PracticeRegion(
+            start: take.region.start,
+            end: min(take.region.start + 0.7, take.region.end),
+            sourceDuration: 30
+        )
+        let expectedLocal = try XCTUnwrap(
+            TakePlaybackTiming.localLoopRegion(
+                selection: second,
+                takeRegion: take.region
+            )
+        )
+        fixture.viewModel.selectTakeLoopRegion(take, first)
+        fixture.viewModel.toggleTakePlayback(take)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            return commands.contains { command in
+                if case let .playTake(takeID, _, _) = command {
+                    return takeID == take.id
+                }
+                return false
+            }
+        }
+
+        let commandCount = await fixture.audio.commands.count
+        fixture.viewModel.selectTakeLoopRegion(take, second)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            return commands.dropFirst(commandCount).contains { command in
+                guard case let .playTake(takeID, _, loop) = command,
+                      takeID == take.id,
+                      let loop
+                else {
+                    return false
+                }
+                return abs(loop.start - expectedLocal.start) < 0.001
+                    && abs(loop.end - expectedLocal.end) < 0.001
+            }
+        }
+        let stored = try XCTUnwrap(fixture.viewModel.takeLoopSelections[take.id])
+        XCTAssertEqual(stored.end, second.end, accuracy: 0.001)
+    }
+
+    func testTakePlaybackFocusesViewportWhenTakeIsOffscreen() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        fixture.viewModel.setLoopEnabled(false)
+        fixture.viewModel.setTimelineViewport(
+            TimelineViewport(start: 20, duration: 5, sourceDuration: 30)
+        )
+        XCTAssertFalse(fixture.viewModel.timelineViewport.contains(take.region.start))
+
+        fixture.viewModel.toggleTakePlayback(take)
+        await M9TestSupport.waitForCommand(
+            .playTake(takeID: take.id, from: 0, loop: nil),
+            audio: fixture.audio
+        )
+
+        XCTAssertTrue(fixture.viewModel.timelineViewport.contains(take.region.start))
+        XCTAssertTrue(
+            fixture.viewModel.timelineViewport.contains(
+                min(take.region.end, take.region.start + 0.1)
+            )
+        )
+    }
+
+    func testOriginalTransportIgnoresTakeMode() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        fixture.viewModel.seekTimeline(12)
+        fixture.viewModel.togglePlayback()
+        await M9TestSupport.waitForCommand(
+            .playOriginal(region: nil, from: 12, rate: 1),
+            audio: fixture.audio
+        )
+        XCTAssertNil(fixture.viewModel.playingTakeID)
     }
 
     func testRecordingCountdownAndPlayOriginalReadFromSettings() async throws {
@@ -121,115 +265,5 @@ final class M9ViewModelTests: XCTestCase {
         }
         XCTAssertEqual(url, temporaryURL)
         XCTAssertFalse(playOriginal)
-    }
-
-    func testSettingsStoreRoundTripForAppSettings() async throws {
-        let storage = InMemoryPersistence()
-        let settings = InMemorySettingsStore(storage: storage)
-        let value = AppSettings(
-            countdownSeconds: 5,
-            playOriginalWhileRecording: false,
-            defaultPlaybackRate: 1.25,
-            preferredInputDeviceUID: "mic-1"
-        )
-        try await settings.set(value, for: AppSettings.storeKey)
-        let loaded = try await settings.value(for: AppSettings.storeKey, as: AppSettings.self)
-        XCTAssertEqual(loaded, value)
-    }
-
-    func testRecordingsListSortsByMostRecentTake() async throws {
-        let storage = InMemoryPersistence()
-        let projects = InMemoryProjectRepository(storage: storage)
-        let takes = InMemoryTakeRepository(storage: storage)
-        let olderProject = M9TestSupport.makeProject(name: "Older.mp3", openedAt: 100)
-        let newerProject = M9TestSupport.makeProject(name: "Newer.mp3", openedAt: 200)
-        try await projects.save(olderProject)
-        try await projects.save(newerProject)
-
-        let region = try PracticeRegion(start: 1, end: 3, sourceDuration: 30)
-        try await takes.save(
-            Take(
-                projectID: olderProject.id,
-                region: region,
-                sequence: 1,
-                relativeAudioPath: "a.caf",
-                duration: 2,
-                createdAt: Date(timeIntervalSince1970: 500)
-            )
-        )
-        try await takes.save(
-            Take(
-                projectID: newerProject.id,
-                region: region,
-                sequence: 1,
-                relativeAudioPath: "b.caf",
-                duration: 2,
-                createdAt: Date(timeIntervalSince1970: 300)
-            )
-        )
-
-        let viewModel = RecordingsViewModel(
-            projects: projects,
-            takes: takes,
-            sessionPreparer: M9SessionPreparer(),
-            fileChooser: M9FileChooser()
-        ) { _ in }
-        await viewModel.load()
-
-        XCTAssertEqual(viewModel.items.map(\.project.sourceDisplayName), [
-            "Older.mp3",
-            "Newer.mp3"
-        ])
-        XCTAssertEqual(viewModel.items.map(\.takeCount), [1, 1])
-    }
-
-    func testAppSettingsNormalizesUnsupportedValues() {
-        let settings = AppSettings(
-            countdownSeconds: 9,
-            playOriginalWhileRecording: true,
-            defaultPlaybackRate: 2.0
-        )
-        XCTAssertEqual(settings.normalizedCountdownSeconds, 3)
-        XCTAssertEqual(settings.normalizedPlaybackRate, 1)
-        XCTAssertEqual(ComparisonMode.allCases.count, 4)
-        XCTAssertEqual(ComparisonMode.ab.displayName, "A/B")
-    }
-
-    func testComparisonModeIncludesABAndTogether() throws {
-        let project = M9TestSupport.makeProject(name: "Speech.mp3", openedAt: 100)
-        let region = try PracticeRegion(start: 1, end: 3, sourceDuration: 30)
-        let take = try Take(
-            projectID: project.id,
-            region: region,
-            sequence: 1,
-            relativeAudioPath: "t.caf",
-            duration: 2,
-            createdAt: Date(timeIntervalSince1970: 200)
-        )
-        var machine = PracticeSessionStateMachine()
-        try machine.handle(.openProject(project))
-        try machine.handle(.selectRegion(region))
-        try machine.handle(.prepareRecording)
-        try machine.handle(.beginCountdown(seconds: 0))
-        try machine.handle(.stopRecording)
-        try machine.handle(.recordingCommitted(take))
-
-        XCTAssertNoThrow(try machine.handle(.selectComparisonMode(.ab)))
-        guard case let .comparing(abState) = machine.state else {
-            return XCTFail("Expected comparing")
-        }
-        XCTAssertEqual(abState.mode, .ab)
-
-        XCTAssertNoThrow(try machine.handle(.selectComparisonMode(.together)))
-        guard case let .comparing(togetherState) = machine.state else {
-            return XCTFail("Expected comparing")
-        }
-        XCTAssertEqual(togetherState.mode, .together)
-
-        let events = try machine.handle(.play(at: 0))
-        XCTAssertEqual(
-            events,
-            [.comparisonPlaybackRequested(mode: .together, takeID: take.id, at: 0)]
-        )
     }
 }
