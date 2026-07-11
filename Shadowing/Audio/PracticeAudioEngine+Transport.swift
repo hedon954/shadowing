@@ -82,8 +82,8 @@ extension PracticeAudioEngine {
         )
     }
 
-    /// File-based looping avoids `scheduleBuffer`, which crashes when the Take/source
-    /// processing format does not match the player node's output format.
+    /// File-based looping avoids `scheduleBuffer` format mismatches.
+    /// Completion handlers are `@Sendable` — requeue from actor file state, don't capture `AVAudioFile`.
     private func enqueueLoopingSegment(
         on node: AVAudioPlayerNode,
         file: AVAudioFile,
@@ -103,7 +103,6 @@ extension PracticeAudioEngine {
             completionHandler: { [weak self] _ in
                 Task {
                     await self?.requeueLoopingSegment(
-                        file: file,
                         segment: segment,
                         loopGeneration: loopGeneration,
                         isTake: isTake
@@ -114,20 +113,20 @@ extension PracticeAudioEngine {
     }
 
     private func requeueLoopingSegment(
-        file: AVAudioFile,
         segment: AudioSegment,
         loopGeneration: UInt64,
         isTake: Bool
     ) {
         if isTake {
-            guard loopGeneration == takeScheduleGeneration,
+            guard let takeFile,
+                  loopGeneration == takeScheduleGeneration,
                   isPlaying,
                   playbackTarget == .take
             else {
                 return
             }
             takePlayer.scheduleSegment(
-                file,
+                takeFile,
                 startingFrame: segment.startFrame,
                 frameCount: AVAudioFrameCount(segment.frameCount),
                 at: nil,
@@ -135,7 +134,6 @@ extension PracticeAudioEngine {
                 completionHandler: { [weak self] _ in
                     Task {
                         await self?.requeueLoopingSegment(
-                            file: file,
                             segment: segment,
                             loopGeneration: loopGeneration,
                             isTake: true
@@ -145,14 +143,15 @@ extension PracticeAudioEngine {
             )
             return
         }
-        guard loopGeneration == scheduleGeneration,
+        guard let sourceFile,
+              loopGeneration == scheduleGeneration,
               isPlaying,
               playbackTarget == .original
         else {
             return
         }
         player.scheduleSegment(
-            file,
+            sourceFile,
             startingFrame: segment.startFrame,
             frameCount: AVAudioFrameCount(segment.frameCount),
             at: nil,
@@ -160,7 +159,6 @@ extension PracticeAudioEngine {
             completionHandler: { [weak self] _ in
                 Task {
                     await self?.requeueLoopingSegment(
-                        file: file,
                         segment: segment,
                         loopGeneration: loopGeneration,
                         isTake: false
