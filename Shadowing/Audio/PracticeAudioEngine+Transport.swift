@@ -75,15 +75,12 @@ extension PracticeAudioEngine {
                 guard let generation else {
                     return
                 }
-                Task {
-                    await self?.handlePlaybackFinished(generation: generation)
-                }
+                Self.hop(self) { await $0.handlePlaybackFinished(generation: generation) }
             }
         )
     }
 
-    /// File-based looping avoids `scheduleBuffer` format mismatches.
-    /// Completion handlers are `@Sendable` — requeue from actor file state, don't capture `AVAudioFile`.
+    /// File-based looping; requeue via actor state (no `AVAudioFile` in `@Sendable` handlers).
     private func enqueueLoopingSegment(
         on node: AVAudioPlayerNode,
         file: AVAudioFile,
@@ -101,8 +98,8 @@ extension PracticeAudioEngine {
             at: nil,
             completionCallbackType: .dataPlayedBack,
             completionHandler: { [weak self] _ in
-                Task {
-                    await self?.requeueLoopingSegment(
+                Self.hop(self) {
+                    await $0.requeueLoopingSegment(
                         segment: segment,
                         loopGeneration: loopGeneration,
                         isTake: isTake
@@ -132,8 +129,8 @@ extension PracticeAudioEngine {
                 at: nil,
                 completionCallbackType: .dataPlayedBack,
                 completionHandler: { [weak self] _ in
-                    Task {
-                        await self?.requeueLoopingSegment(
+                    Self.hop(self) {
+                        await $0.requeueLoopingSegment(
                             segment: segment,
                             loopGeneration: loopGeneration,
                             isTake: true
@@ -157,8 +154,8 @@ extension PracticeAudioEngine {
             at: nil,
             completionCallbackType: .dataPlayedBack,
             completionHandler: { [weak self] _ in
-                Task {
-                    await self?.requeueLoopingSegment(
+                Self.hop(self) {
+                    await $0.requeueLoopingSegment(
                         segment: segment,
                         loopGeneration: loopGeneration,
                         isTake: false
@@ -356,9 +353,7 @@ extension PracticeAudioEngine {
                 guard let generation else {
                     return
                 }
-                Task {
-                    await self?.handleTakePlaybackFinished(generation: generation)
-                }
+                Self.hop(self) { await $0.handleTakePlaybackFinished(generation: generation) }
             }
         )
     }

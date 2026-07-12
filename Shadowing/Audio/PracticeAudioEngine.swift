@@ -67,9 +67,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
             object: engine,
             queue: nil
         ) { [weak self] _ in
-            Task {
-                await self?.handleEngineConfigurationChange()
-            }
+            Self.hop(self) { await $0.handleEngineConfigurationChange() }
         }
         notificationTokens.append(token)
 
@@ -79,11 +77,22 @@ actor PracticeAudioEngine: PracticeAudioClient {
             object: nil,
             queue: nil
         ) { [weak self] _ in
-            Task {
-                await self?.handleSystemInterruption()
-            }
+            Self.hop(self) { await $0.handleSystemInterruption() }
         }
         workspaceNotificationTokens.append(sleepToken)
+    }
+
+    /// Hop from a `@Sendable` callback onto the actor without capturing mutable `self`.
+    nonisolated static func hop(
+        _ engine: PracticeAudioEngine?,
+        _ operation: @escaping @Sendable (PracticeAudioEngine) async -> Void
+    ) {
+        guard let engine else {
+            return
+        }
+        Task {
+            await operation(engine)
+        }
     }
 
     deinit {
