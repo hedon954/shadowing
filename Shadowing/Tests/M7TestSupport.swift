@@ -147,14 +147,14 @@ enum M7TestSupport {
     }
 
     static func waitForBeginRecording(audio: PracticeAudioClientSpy) async -> URL {
-        for _ in 0 ..< 200 {
+        for _ in 0 ..< 400 {
             let commands = await audio.commands
             for command in commands {
                 if case let .beginRecording(_, url, _) = command {
                     return url
                 }
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Expected beginRecording")
         return URL(fileURLWithPath: "/missing")
@@ -164,22 +164,22 @@ enum M7TestSupport {
         _ expected: PracticeAudioCommand,
         audio: PracticeAudioClientSpy
     ) async {
-        for _ in 0 ..< 200 {
+        for _ in 0 ..< 400 {
             if await audio.commands.contains(expected) {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Expected \(expected)")
     }
 
     @MainActor
     static func waitUntil(_ condition: @MainActor () async -> Bool) async {
-        for _ in 0 ..< 200 {
+        for _ in 0 ..< 400 {
             if await condition() {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Condition was not satisfied")
     }

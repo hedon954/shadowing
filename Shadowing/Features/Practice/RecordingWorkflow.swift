@@ -393,8 +393,12 @@ extension PracticeViewModel {
             liveRecordingEnvelope = []
             liveRecordingPeaks = []
             await focusTake(take, preferExistingViewport: true)
-            await loadTakeWaveform(for: take)
-            completePendingLeaveIfNeeded()
+            // Leave must not wait on waveform generation (invalid/temp files can be slow).
+            if leaveAfterFinalize != nil {
+                completePendingLeaveIfNeeded()
+            } else {
+                await loadTakeWaveform(for: take)
+            }
         } catch {
             handleRecordingFailure(error, reason: reason)
         }
