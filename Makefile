@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup env generate build upgrade test format format-check lint check clean
+.PHONY: help setup env generate build upgrade test format format-check lint check dmg clean
 
 help:
 	@echo "Shadowing development commands:"
@@ -12,6 +12,7 @@ help:
 	@echo "  make format        Format Swift sources"
 	@echo "  make lint          Run SwiftLint, actionlint, and architecture checks"
 	@echo "  make check         Run the complete local/CI quality gate"
+	@echo "  make dmg           Build an unsigned Release DMG under build/"
 	@echo "  make clean         Remove generated build artifacts"
 
 setup:
@@ -53,6 +54,9 @@ check:
 	@$(MAKE) lint
 	@$(MAKE) build
 	@$(MAKE) test
+
+dmg:
+	./scripts/package-dmg.sh
 
 clean:
 	rm -rf Shadowing/Shadowing.xcodeproj build

@@ -14,7 +14,10 @@ Xcode 工程也容易和 XcodeGen 配置发生漂移。
 - Makefile 封装 XcodeGen 与 xcodebuild，本地和 CI 使用相同脚本。
 - CI 使用无签名 Debug build 和 tests。
 - 发布阶段再增加 Developer ID 签名、公证、universal archive 与 DMG 脚本。
-- GitHub Release 仅由 `v*` annotated tag 触发，版本号与 changelog 必须先更新。
+- GitHub Release 仅由 `v*` annotated tag 触发（`.github/workflows/release.yml`），
+  读取 `CHANGELOG.md` 对应版本段落作为 Release 正文；版本号与 changelog 必须先更新。
+- 当前 Release 产物为无签名 DMG，便于 CI 验证打包链路；正式外部分发前必须补齐
+  Developer ID 与公证。
 
 ## Consequences
 

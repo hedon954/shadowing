@@ -110,6 +110,7 @@ make build     # Debug 构建（无签名）
 make upgrade   # 重新构建并启动 Debug app
 make test      # 单元测试
 make check     # format + lint + build + test
+make dmg       # Release 无签名 DMG（build/Shadowing-<version>.dmg）
 ```
 
 `make setup` 会按 `Brewfile` 安装依赖、安装 pre-commit hooks，并生成
@@ -134,6 +135,7 @@ Shadowing/
 
 - [MVP PRD](docs/prd/prd-v0.0.1-2026-07-11.md)
 - [ADR 索引](docs/adr/README.md)
+- [CHANGELOG](CHANGELOG.md)
 - [工程规范](CLAUDE.md)
 - [P0 验收清单](docs/testing/p0-acceptance-checklist.md)
 - [音频 Spike 报告](docs/testing/audio-spike-report.md)

@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Release DMG
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Install development tools
+        run: brew bundle --file Brewfile
+
+      - name: Build DMG
+        run: VERSION=${GITHUB_REF_NAME#v} make dmg
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          version = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          changelog_path = "CHANGELOG.md"
+          text = open(changelog_path, encoding="utf-8").read()
+
+          heading = re.compile(rf"^## \[{re.escape(version)}\].*$", re.MULTILINE)
+          match = heading.search(text)
+          if not match:
+              print(f"CHANGELOG.md does not contain a section for {version}", file=sys.stderr)
+              sys.exit(1)
+
+          rest = text[match.start():]
+          next_section = re.search(r"\n---\s*\n## \[", rest)
+          section = rest[: next_section.start()].strip() if next_section else rest.strip()
+          if not section:
+              print(f"CHANGELOG.md section for {version} is empty", file=sys.stderr)
+              sys.exit(1)
+
+          with open("RELEASE_NOTES.md", "w", encoding="utf-8") as output:
+              output.write(section + "\n")
+          PY
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Shadowing ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: build/Shadowing-*.dmg
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
