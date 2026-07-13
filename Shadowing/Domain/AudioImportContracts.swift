@@ -146,6 +146,11 @@ protocol AudioFileChoosing: Sendable {
     func chooseMP3() async -> URL?
 }
 
+protocol TextFileChoosing: Sendable {
+    @MainActor
+    func choosePlainText() async -> URL?
+}
+
 protocol AudioFileValidating: Sendable {
     func validate(_ url: URL) throws
 }

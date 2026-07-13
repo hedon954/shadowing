@@ -21,10 +21,12 @@ struct ProjectRepositoryContract {
         project.playhead = 2
         project.currentRegion = region
         project.sourceDisplayName = "renamed.mp3"
+        project.scriptDisplayName = "lines.txt"
         try await repository.save(project)
 
         let updated = try await repository.project(id: project.id)
         XCTAssertEqual(updated, project)
+        XCTAssertEqual(updated?.scriptDisplayName, "lines.txt")
     }
 
     func assertRecentOrderingAndLimit() async throws {

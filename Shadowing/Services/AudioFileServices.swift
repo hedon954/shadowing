@@ -17,6 +17,20 @@ struct SystemAudioFileChooser: AudioFileChoosing {
     }
 }
 
+struct SystemTextFileChooser: TextFileChoosing {
+    @MainActor
+    func choosePlainText() async -> URL? {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a Text File"
+        panel.prompt = "Attach"
+        panel.allowedContentTypes = [.plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+}
+
 struct MP3FileValidator: AudioFileValidating {
     func validate(_ url: URL) throws {
         guard url.isFileURL,

@@ -42,6 +42,11 @@ protocol RecordingFileStore: Sendable {
     /// Removes leftover files under the managed temporary directory.
     /// Returns the number of removed items.
     func removeOrphanedTemporaryTakes() throws -> Int
+    /// Copies a UTF-8 plain-text script into the project directory, replacing any existing script.
+    func commitScript(from sourceURL: URL, projectID: UUID) throws
+    /// Loads the attached script body, or `nil` when no file is present.
+    func loadScriptText(projectID: UUID) throws -> String?
+    func deleteScript(projectID: UUID) throws
 }
 
 extension RecordingFileStore {

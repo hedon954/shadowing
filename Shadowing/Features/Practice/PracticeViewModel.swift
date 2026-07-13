@@ -79,11 +79,13 @@ final class PracticeViewModel: ObservableObject {
     @Published var recordingNotice: String?
     @Published var failure: PracticeFailure?
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
+    @Published var scriptText: String?
 
     let audioClient: any PracticeAudioClient
     let projects: any ProjectRepository
     let sessionPreparer: any PracticeSessionPreparing
     let recordingDependencies: RecordingDependencies?
+    let textFileChooser: (any TextFileChoosing)?
     let comparisonScheduler: any ComparisonPlaybackScheduler
     var eventTask: Task<Void, Never>?
     var commandTask: Task<Void, Never>?
@@ -151,6 +153,7 @@ final class PracticeViewModel: ObservableObject {
         projects: any ProjectRepository,
         sessionPreparer: any PracticeSessionPreparing,
         recordingDependencies: RecordingDependencies? = nil,
+        textFileChooser: (any TextFileChoosing)? = nil,
         comparisonScheduler: any ComparisonPlaybackScheduler = ContinuousComparisonPlaybackScheduler()
     ) {
         project = prepared.project
@@ -162,6 +165,7 @@ final class PracticeViewModel: ObservableObject {
         self.projects = projects
         self.sessionPreparer = sessionPreparer
         self.recordingDependencies = recordingDependencies
+        self.textFileChooser = textFileChooser
         self.comparisonScheduler = comparisonScheduler
     }
 

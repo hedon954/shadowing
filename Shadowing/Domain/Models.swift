@@ -11,6 +11,8 @@ struct AudioProject: Codable, Equatable, Identifiable, Sendable {
     var keptTakeID: UUID?
     var lastOpenedAt: Date
     var playbackRate: Double = 1
+    /// Original filename of an attached plain-text script, if any.
+    var scriptDisplayName: String?
 }
 
 struct PracticeRegion: Codable, Equatable, Identifiable, Sendable {

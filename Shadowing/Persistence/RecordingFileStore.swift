@@ -7,6 +7,8 @@ enum RecordingFileStoreError: Error, Equatable, LocalizedError, Sendable {
     case temporaryFileEmpty(String)
     case destinationAlreadyExists(String)
     case fileOperationFailed(path: String, reason: String)
+    case invalidScriptEncoding(String)
+    case scriptSourceMissing(String)
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +24,10 @@ enum RecordingFileStoreError: Error, Equatable, LocalizedError, Sendable {
             "A committed recording already exists: \(path)."
         case let .fileOperationFailed(path, reason):
             "The recording file operation failed at \(path): \(reason)"
+        case let .invalidScriptEncoding(path):
+            "The script file is not valid UTF-8 text: \(path)."
+        case let .scriptSourceMissing(path):
+            "The script file does not exist: \(path)."
         }
     }
 }
@@ -187,6 +193,74 @@ struct LocalRecordingFileStore: RecordingFileStore {
             }
         }
         return removed
+    }
+
+    func commitScript(from sourceURL: URL, projectID: UUID) throws {
+        let sourceURL = sourceURL.standardizedFileURL
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            throw RecordingFileStoreError.scriptSourceMissing(sourceURL.path)
+        }
+
+        let text: String
+        do {
+            text = try String(contentsOf: sourceURL, encoding: .utf8)
+        } catch {
+            throw RecordingFileStoreError.invalidScriptEncoding(sourceURL.path)
+        }
+
+        let destinationURL = try scriptURL(projectID: projectID)
+        try createDirectory(destinationURL.deletingLastPathComponent())
+
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            do {
+                try FileManager.default.removeItem(at: destinationURL)
+            } catch {
+                throw RecordingFileStoreError.fileOperationFailed(
+                    path: destinationURL.path,
+                    reason: error.localizedDescription
+                )
+            }
+        }
+
+        do {
+            try text.write(to: destinationURL, atomically: true, encoding: .utf8)
+        } catch {
+            throw RecordingFileStoreError.fileOperationFailed(
+                path: destinationURL.path,
+                reason: error.localizedDescription
+            )
+        }
+    }
+
+    func loadScriptText(projectID: UUID) throws -> String? {
+        let url = try scriptURL(projectID: projectID)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
+        do {
+            return try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            throw RecordingFileStoreError.invalidScriptEncoding(url.path)
+        }
+    }
+
+    func deleteScript(projectID: UUID) throws {
+        let url = try scriptURL(projectID: projectID)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return
+        }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            throw RecordingFileStoreError.fileOperationFailed(
+                path: url.path,
+                reason: error.localizedDescription
+            )
+        }
+    }
+
+    private func scriptURL(projectID: UUID) throws -> URL {
+        try audioURL(relativePath: "projects/\(projectID.uuidString)/script.txt")
     }
 
     private var temporaryDirectory: URL {

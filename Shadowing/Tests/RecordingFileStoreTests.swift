@@ -122,6 +122,40 @@ final class RecordingFileStoreTests: XCTestCase {
         }
     }
 
+    func testCommitAndLoadUTF8Script() throws {
+        let root = try makeTemporaryDirectory()
+        let fileStore = LocalRecordingFileStore(rootDirectory: root)
+        let projectID = UUID()
+        let source = root.appendingPathComponent("source.txt", isDirectory: false)
+        try "Hello shadowing.\nLine two.".write(to: source, atomically: true, encoding: .utf8)
+
+        try fileStore.commitScript(from: source, projectID: projectID)
+        let loaded = try fileStore.loadScriptText(projectID: projectID)
+        XCTAssertEqual(loaded, "Hello shadowing.\nLine two.")
+
+        let replacement = root.appendingPathComponent("replacement.txt", isDirectory: false)
+        try "Replaced.".write(to: replacement, atomically: true, encoding: .utf8)
+        try fileStore.commitScript(from: replacement, projectID: projectID)
+        XCTAssertEqual(try fileStore.loadScriptText(projectID: projectID), "Replaced.")
+
+        try fileStore.deleteScript(projectID: projectID)
+        XCTAssertNil(try fileStore.loadScriptText(projectID: projectID))
+    }
+
+    func testInvalidScriptEncodingIsRejected() throws {
+        let root = try makeTemporaryDirectory()
+        let fileStore = LocalRecordingFileStore(rootDirectory: root)
+        let source = root.appendingPathComponent("broken.txt", isDirectory: false)
+        try Data([0xFF, 0xFE, 0xFD]).write(to: source)
+
+        XCTAssertThrowsError(try fileStore.commitScript(from: source, projectID: UUID())) { error in
+            XCTAssertEqual(
+                error as? RecordingFileStoreError,
+                .invalidScriptEncoding(source.path)
+            )
+        }
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ShadowingTests-\(UUID())", isDirectory: true)

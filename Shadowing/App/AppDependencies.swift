@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class AppDependencies {
     let fileChooser: any AudioFileChoosing
+    let textFileChooser: any TextFileChoosing
     let projects: any ProjectRepository
     let takes: any TakeRepository
     let settings: any SettingsStore
@@ -14,6 +15,7 @@ final class AppDependencies {
 
     init(
         fileChooser: any AudioFileChoosing,
+        textFileChooser: any TextFileChoosing,
         projects: any ProjectRepository,
         takes: any TakeRepository,
         settings: any SettingsStore,
@@ -24,6 +26,7 @@ final class AppDependencies {
         recordingsStorageURL: URL
     ) {
         self.fileChooser = fileChooser
+        self.textFileChooser = textFileChooser
         self.projects = projects
         self.takes = takes
         self.settings = settings
@@ -70,6 +73,7 @@ final class AppDependencies {
         )
         return AppDependencies(
             fileChooser: SystemAudioFileChooser(),
+            textFileChooser: SystemTextFileChooser(),
             projects: projects,
             takes: takes,
             settings: settings,

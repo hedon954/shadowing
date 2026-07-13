@@ -3,11 +3,13 @@ import SwiftUI
 struct PracticeView: View {
     @ObservedObject var viewModel: PracticeViewModel
     let onBack: () -> Void
+    @State private var isScriptExpanded = true
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
+                scriptSection
                 if viewModel.showsMultiTrackWorkspace {
                     RecordingWorkspaceView(viewModel: viewModel)
                 } else {
@@ -225,6 +227,76 @@ struct PracticeView: View {
         }
         .padding(18)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var scriptSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isScriptExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: isScriptExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 12, alignment: .center)
+                        Text("Script")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isScriptExpanded ? "Hide script" : "Show script")
+                .accessibilityValue(isScriptExpanded ? "Expanded" : "Collapsed")
+
+                if let name = viewModel.project.scriptDisplayName {
+                    Text(name)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Button(viewModel.scriptText == nil ? "Attach .txt" : "Replace .txt") {
+                    viewModel.attachScript()
+                }
+                .disabled(viewModel.controlsLocked)
+                .accessibilityLabel(
+                    viewModel.scriptText == nil
+                        ? "Attach script text file"
+                        : "Replace script text file"
+                )
+            }
+
+            if isScriptExpanded {
+                if let scriptText = viewModel.scriptText, !scriptText.isEmpty {
+                    ScrollView {
+                        Text(scriptText)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxHeight: 180)
+                    .padding(12)
+                    .background(
+                        Color(nsColor: .textBackgroundColor),
+                        in: RoundedRectangle(cornerRadius: 10)
+                    )
+                } else {
+                    Text("Attach a plain-text script to show it above the waveform.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(18)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Practice script")
     }
 
     private var volumeImage: String {

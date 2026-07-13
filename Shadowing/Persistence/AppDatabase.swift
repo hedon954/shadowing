@@ -16,6 +16,10 @@ enum AppDatabase {
         migrator.registerMigration("v1-initial-schema", migrate: migrateV1InitialSchema)
         migrator.registerMigration("v2-project-playback-rate", migrate: migrateV2ProjectPlaybackRate)
         migrator.registerMigration("v3-take-display-order", migrate: migrateV3TakeDisplayOrder)
+        migrator.registerMigration(
+            "v4-project-script-display-name",
+            migrate: migrateV4ProjectScriptDisplayName
+        )
         return migrator
     }
 
@@ -84,5 +88,11 @@ enum AppDatabase {
             columns: ["project_id", "display_order"],
             options: .unique
         )
+    }
+
+    private static func migrateV4ProjectScriptDisplayName(_ database: Database) throws {
+        try database.alter(table: "projects") { table in
+            table.add(column: "script_display_name", .text)
+        }
     }
 }

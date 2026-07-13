@@ -88,9 +88,10 @@ actor GRDBProjectRepository: ProjectRepository {
                     selected_take_id,
                     kept_take_id,
                     last_opened_at,
-                    playback_rate
+                    playback_rate,
+                    script_display_name
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     source_display_name = excluded.source_display_name,
                     source_bookmark = excluded.source_bookmark,
@@ -102,7 +103,8 @@ actor GRDBProjectRepository: ProjectRepository {
                     selected_take_id = excluded.selected_take_id,
                     kept_take_id = excluded.kept_take_id,
                     last_opened_at = excluded.last_opened_at,
-                    playback_rate = excluded.playback_rate
+                    playback_rate = excluded.playback_rate,
+                    script_display_name = excluded.script_display_name
                 """,
                 arguments: [
                     project.id.uuidString,
@@ -116,7 +118,8 @@ actor GRDBProjectRepository: ProjectRepository {
                     project.selectedTakeID?.uuidString,
                     project.keptTakeID?.uuidString,
                     project.lastOpenedAt,
-                    project.playbackRate
+                    project.playbackRate,
+                    project.scriptDisplayName
                 ]
             )
         }
@@ -176,7 +179,8 @@ actor GRDBProjectRepository: ProjectRepository {
             selectedTakeID: selectedTakeID,
             keptTakeID: keptTakeID,
             lastOpenedAt: row["last_opened_at"],
-            playbackRate: playbackRate
+            playbackRate: playbackRate,
+            scriptDisplayName: row["script_display_name"]
         )
     }
 

@@ -143,6 +143,7 @@ extension PracticeViewModel {
         guard !hasClosed else {
             return
         }
+        await loadScript()
         await refreshTakes()
         await preloadTakeWaveforms()
         if let take = restoredSelectedTake() {
@@ -168,6 +169,53 @@ extension PracticeViewModel {
                 try await audioClient.execute(.setLoop(region))
             }
             try await audioClient.execute(.seek(position))
+        }
+    }
+
+    func attachScript() {
+        guard !hasClosed, !controlsLocked else {
+            return
+        }
+        guard let textFileChooser, let fileStore = recordingDependencies?.fileStore else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+            guard let url = await textFileChooser.choosePlainText() else {
+                return
+            }
+            do {
+                try fileStore.commitScript(from: url, projectID: project.id)
+                let text = try fileStore.loadScriptText(projectID: project.id) ?? ""
+                project.scriptDisplayName = url.lastPathComponent
+                scriptText = text
+                persistProjectImmediately()
+            } catch {
+                show(error)
+            }
+        }
+    }
+
+    func loadScript() async {
+        guard !hasClosed,
+              let fileStore = recordingDependencies?.fileStore
+        else {
+            scriptText = nil
+            return
+        }
+        do {
+            let text = try fileStore.loadScriptText(projectID: project.id)
+            scriptText = text
+            if text == nil, project.scriptDisplayName != nil {
+                project.scriptDisplayName = nil
+                persistProjectImmediately()
+            }
+        } catch {
+            scriptText = nil
+            show(error)
         }
     }
 
