@@ -43,4 +43,31 @@ final class SubtitleSegmenterTests: XCTestCase {
         XCTAssertTrue(SubtitleSegmenter.cues(from: [TranscribedWord(text: " ", start: 0, end: 1)]).isEmpty)
         XCTAssertEqual(SubtitleSegmenter.text(of: SubtitleTestSupport.words("Hi there.")), "Hi there.")
     }
+
+    func testUntimedPunctuationGluesOnButUntimedWordsKeepASpace() {
+        let runs = [
+            RecognizedRun(text: " Well", time: 1 ... 1.4),
+            RecognizedRun(text: ",", time: nil),
+            RecognizedRun(text: " you", time: 1.5 ... 1.7),
+            RecognizedRun(text: " know", time: nil),
+            RecognizedRun(text: "?", time: nil),
+            RecognizedRun(text: "  ", time: 2 ... 2.1)
+        ]
+        let words = RecognizedRun.words(from: runs)
+        XCTAssertEqual(words.map(\.text), ["Well,", "you know?"])
+        XCTAssertEqual(words[1].start, 1.5)
+        XCTAssertEqual(words[1].end, 1.7)
+    }
+
+    func testUntimedWordsBeforeTheFirstTimedWordAreKept() {
+        let runs = [
+            RecognizedRun(text: "So", time: nil),
+            RecognizedRun(text: "...", time: nil),
+            RecognizedRun(text: "today", time: 3 ... 3.5)
+        ]
+        XCTAssertEqual(
+            RecognizedRun.words(from: runs),
+            [TranscribedWord(text: "So today", start: 3, end: 3.5)]
+        )
+    }
 }

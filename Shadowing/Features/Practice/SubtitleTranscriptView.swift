@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Timed subtitles that follow the playhead. Played sentences are secondary, the current one
@@ -155,7 +156,9 @@ private struct SubtitleParagraph: View, Equatable {
         cues.enumerated().reduce(Text(verbatim: "")) { text, item in
             let index = firstIndex + item.offset
             let sentence = Text(verbatim: item.element.text)
-                .foregroundStyle(progress.isPlayed(index) ? HierarchicalShapeStyle.secondary : .primary)
+                // Explicit system label colors on each joined `Text` run, so a run never
+                // depends on how a hierarchical style resolves inside the inspector.
+                .foregroundStyle(Color(nsColor: progress.isPlayed(index) ? .secondaryLabelColor : .labelColor))
                 .customAttribute(CueRun(index: index))
             return item.offset == 0 ? sentence : text + Text(verbatim: " ") + sentence
         }

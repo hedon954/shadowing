@@ -70,6 +70,27 @@ final class SubtitleFileStoreTests: XCTestCase {
         XCTAssertEqual(loadedManifest, manifest)
     }
 
+    func testDeletingAProjectRemovesOnlyItsSubtitleFiles() async throws {
+        let store = LocalSubtitleFileStore(directory: directory)
+        let other = UUID()
+        let source = outside.appendingPathComponent("talk.vtt")
+        try "WEBVTT\n\n00:01.000 --> 00:02.000\nHi\n".write(to: source, atomically: true, encoding: .utf8)
+        for id in [projectID, other] {
+            _ = try await store.importSubtitleFile(from: source, projectID: id)
+            try await store.saveSubtitles([SubtitleCue(start: 1, end: 2, text: "Hi")], projectID: id)
+            try await store.saveManifest(SubtitleManifest(), projectID: id)
+            try await store.saveRecognizedSpeech(RecognizedSpeech(audioSHA256: "a", words: []), projectID: id)
+        }
+
+        try await store.deleteAll(projectID: projectID)
+
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+        let expected = [".json", ".source.vtt", ".srt", ".words.json"].map { other.uuidString + $0 }
+        XCTAssertEqual(remaining, expected.sorted())
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path), "The user's own file stays")
+        try await store.deleteAll(projectID: projectID)
+    }
+
     func testDamagedWordCacheCountsAsMissing() async throws {
         let store = LocalSubtitleFileStore(directory: directory)
         let speech = RecognizedSpeech(audioSHA256: "a", words: [TranscribedWord(text: "Hi", start: 0, end: 1)])

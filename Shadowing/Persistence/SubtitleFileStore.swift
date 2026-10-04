@@ -124,6 +124,22 @@ actor LocalSubtitleFileStore: SubtitleStoring {
         return String(data: data, encoding: .utf8) ?? String(data: data, encoding: .windowsCP1252)
     }
 
+    func deleteAll(projectID: UUID) throws {
+        guard FileManager.default.fileExists(atPath: directory.path) else {
+            return
+        }
+        let prefix = projectID.uuidString + "."
+        let names: [String]
+        do {
+            names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        } catch {
+            throw SubtitleStoreError.fileOperationFailed(path: directory.path, reason: error.localizedDescription)
+        }
+        for name in names where name.hasPrefix(prefix) {
+            try removeIfPresent(directory.appendingPathComponent(name, isDirectory: false))
+        }
+    }
+
     private func fileURL(_ projectID: UUID, _ suffix: String) -> URL {
         directory.appendingPathComponent(projectID.uuidString + suffix, isDirectory: false)
     }

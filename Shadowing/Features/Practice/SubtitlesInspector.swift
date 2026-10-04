@@ -211,12 +211,15 @@ private struct SubtitleWorkBox: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // Long statuses such as the model download wrap to a second line.
                 Text(title)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 Spacer(minLength: 4)
                 Text(work.fraction, format: .percent.precision(.fractionLength(0)))
                     .monospacedDigit()
+                    .layoutPriority(1)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -344,6 +347,7 @@ private struct SubtitlesEmptyState: View {
                     Text("Add Subtitles or Text…")
                         .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.bordered)
                 .disabled(!isEnabled)
                 .accessibilityLabel("Attach script text file")
             }

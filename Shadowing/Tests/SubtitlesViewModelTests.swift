@@ -24,13 +24,14 @@ final class SubtitlesViewModelTests: XCTestCase {
 
     private func makeModel(
         project: AudioProject = M9TestSupport.makeProject(name: "Harbor.mp3", openedAt: 1),
-        recognizer: (any SpeechRecognizing)?
+        recognizer: (any SpeechRecognizing)?,
+        audio: FakeSourceAudio = FakeSourceAudio()
     ) -> SubtitlesViewModel {
         SubtitlesViewModel(
             project: project,
             dependencies: SubtitleDependencies(
                 store: LocalSubtitleFileStore(directory: directory),
-                audio: FakeSourceAudio(),
+                audio: audio,
                 recognizer: recognizer,
                 fileChooser: StubSubtitleChooser()
             )
@@ -67,6 +68,34 @@ final class SubtitlesViewModelTests: XCTestCase {
         XCTAssertEqual(reopened.display, model.display)
         let callsAfterReopen = await recognizer.calls.count
         XCTAssertEqual(callsAfterReopen, 1)
+    }
+
+    func testAudioIsHashedAgainOnlyWhenItsSizeOrDateChanges() async {
+        let recognizer = FakeSpeechRecognizer(words: spoken)
+        let project = M9TestSupport.makeProject(name: "Harbor.mp3", openedAt: 1)
+        let audio = FakeSourceAudio()
+        for _ in 0 ..< 2 {
+            let model = makeModel(project: project, recognizer: recognizer, audio: audio)
+            model.load(script: script)
+            await model.loadTask?.value
+        }
+        var hashes = await audio.fingerprintCalls.count
+        XCTAssertEqual(hashes, 1)
+
+        var edited = audio
+        edited.stamp = SourceAudioStamp(byteCount: 2000, modifiedAt: Date(timeIntervalSinceReferenceDate: 2000))
+        edited.hash = "audio-2"
+        let model = makeModel(project: project, recognizer: recognizer, audio: edited)
+        model.load(script: script)
+        await model.loadTask?.value
+
+        hashes = await audio.fingerprintCalls.count
+        XCTAssertEqual(hashes, 2)
+        let recognitions = await recognizer.calls.count
+        XCTAssertEqual(recognitions, 2, "A changed MP3 is recognized again")
+        guard case .timed = model.display else {
+            return XCTFail("Expected timed subtitles, got \(model.display)")
+        }
     }
 
     func testPoorMatchShowsPlainTextAndIsNotRetried() async {

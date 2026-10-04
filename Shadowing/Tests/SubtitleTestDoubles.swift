@@ -48,9 +48,16 @@ struct FakeSpeechRecognizer: SpeechRecognizing {
 
 struct FakeSourceAudio: SourceAudioAccessing {
     var hash = "audio-1"
+    var stamp = SourceAudioStamp(byteCount: 1000, modifiedAt: Date(timeIntervalSinceReferenceDate: 1000))
+    let fingerprintCalls = CallCounter()
+
+    func stamp(bookmark _: Data) async throws -> SourceAudioStamp {
+        stamp
+    }
 
     func fingerprint(bookmark _: Data) async throws -> String {
-        hash
+        await fingerprintCalls.increment()
+        return hash
     }
 
     func withAudioFile<Value: Sendable>(

@@ -175,7 +175,11 @@ extension PracticeViewModel {
     }
 
     func attachScript() {
-        guard !hasClosed, !controlsLocked, let textFileChooser else {
+        guard !hasClosed, let textFileChooser else {
+            return
+        }
+        guard !controlsLocked else {
+            show(ScriptAttachmentError.recordingInProgress)
             return
         }
         Task { [weak self] in
@@ -188,7 +192,12 @@ extension PracticeViewModel {
 
     /// Copies the chosen .txt in and hands it to the Subtitles inspector for alignment.
     func attachScript(from url: URL) {
-        guard !hasClosed, !controlsLocked, let fileStore = recordingDependencies?.fileStore else {
+        guard !hasClosed, let fileStore = recordingDependencies?.fileStore else {
+            return
+        }
+        // A text chosen while a take is being recorded would change the subtitles mid-take.
+        guard !controlsLocked else {
+            show(ScriptAttachmentError.recordingInProgress)
             return
         }
         let projectID = project.id
@@ -267,5 +276,13 @@ extension PracticeViewModel {
             await close()
             leave()
         }
+    }
+}
+
+enum ScriptAttachmentError: Error, Equatable, LocalizedError {
+    case recordingInProgress
+
+    var errorDescription: String? {
+        String(localized: "Stop recording before adding a text file.")
     }
 }

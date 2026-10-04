@@ -95,7 +95,7 @@ extension SubtitlesViewModel {
         }
         let textHash = ContentHash.sha256(script.text)
         do {
-            let audioHash = try await dependencies.audio.fingerprint(bookmark: bookmark)
+            let audioHash = try await audioFingerprint(dependencies)
             try Task.checkCancellation()
             let provenance = SubtitleProvenance(source: .alignedText, inputSHA256: textHash, audioSHA256: audioHash)
             if manifest.current == provenance, let cues = try await dependencies.store.subtitles(projectID: projectID) {
@@ -137,6 +137,20 @@ extension SubtitlesViewModel {
             failureDetail = error.localizedDescription
             show(.plainText(script.text, notice: .alignmentFailed))
         }
+    }
+
+    /// SHA-256 of the practice MP3, reused from the manifest while its size and modification
+    /// date are unchanged.
+    func audioFingerprint(_ dependencies: SubtitleDependencies) async throws -> String {
+        let stamp = try await dependencies.audio.stamp(bookmark: bookmark)
+        if let record = manifest.sourceAudio, record.stamp == stamp {
+            return record.sha256
+        }
+        let hash = try await dependencies.audio.fingerprint(bookmark: bookmark)
+        try Task.checkCancellation()
+        manifest.sourceAudio = SourceAudioRecord(stamp: stamp, sha256: hash)
+        try await dependencies.store.saveManifest(manifest, projectID: projectID)
+        return hash
     }
 
     /// Cached words for this exact audio, otherwise a recognition pass on this Mac.

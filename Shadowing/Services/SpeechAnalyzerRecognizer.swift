@@ -103,21 +103,13 @@ struct SpeechAnalyzerRecognizer: SpeechRecognizing {
         try await request.downloadAndInstall()
     }
 
-    /// One word per timed run; punctuation without a time joins the previous word.
     static func words(in result: SpeechTranscriber.Result) -> [TranscribedWord] {
-        var words: [TranscribedWord] = []
-        for run in result.text.runs {
-            let text = String(result.text[run.range].characters)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else {
-                continue
-            }
-            if let range = run.audioTimeRange {
-                words.append(TranscribedWord(text: text, start: range.start.seconds, end: range.end.seconds))
-            } else if let last = words.popLast() {
-                words.append(TranscribedWord(text: last.text + text, start: last.start, end: last.end))
-            }
+        let runs = result.text.runs.map { run in
+            RecognizedRun(
+                text: String(result.text[run.range].characters),
+                time: run.audioTimeRange.map { $0.start.seconds ... max($0.start.seconds, $0.end.seconds) }
+            )
         }
-        return words
+        return RecognizedRun.words(from: runs)
     }
 }

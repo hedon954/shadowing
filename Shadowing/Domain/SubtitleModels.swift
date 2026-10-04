@@ -72,6 +72,18 @@ struct GeneratedSubtitlesRecord: Codable, Equatable, Sendable {
     let audioSHA256: String
 }
 
+/// Size and modification date of the practice MP3. The audio is hashed again only when
+/// one of them changes.
+struct SourceAudioStamp: Codable, Equatable, Sendable {
+    let byteCount: Int64
+    let modifiedAt: Date
+}
+
+struct SourceAudioRecord: Codable, Equatable, Sendable {
+    let stamp: SourceAudioStamp
+    let sha256: String
+}
+
 /// `<project id>.json` in the Subtitles folder. The database schema is not involved.
 struct SubtitleManifest: Codable, Equatable, Sendable {
     static let currentVersion = 1
@@ -82,6 +94,7 @@ struct SubtitleManifest: Codable, Equatable, Sendable {
     var current: SubtitleProvenance?
     var lastAlignment: TextAlignmentRecord?
     var generated: GeneratedSubtitlesRecord?
+    var sourceAudio: SourceAudioRecord?
 }
 
 /// The attached plain-text script as the subtitles feature sees it.
@@ -142,10 +155,13 @@ protocol SubtitleStoring: Sendable {
     func saveSubtitles(_ cues: [SubtitleCue], projectID: UUID) async throws
     func recognizedSpeech(projectID: UUID) async throws -> RecognizedSpeech?
     func saveRecognizedSpeech(_ speech: RecognizedSpeech, projectID: UUID) async throws
+    /// Removes every file this project has in the Subtitles folder.
+    func deleteAll(projectID: UUID) async throws
 }
 
 /// Reads the practice audio behind its security-scoped bookmark. Read-only.
 protocol SourceAudioAccessing: Sendable {
+    func stamp(bookmark: Data) async throws -> SourceAudioStamp
     func fingerprint(bookmark: Data) async throws -> String
     func withAudioFile<Value: Sendable>(
         bookmark: Data,

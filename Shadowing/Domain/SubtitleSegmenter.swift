@@ -54,3 +54,38 @@ enum SubtitleSegmenter {
         return SubtitleCue(start: start, end: end, text: text(of: words))
     }
 }
+
+/// One run of recognized text, with its time in the audio when the recognizer gave one.
+struct RecognizedRun: Equatable, Sendable {
+    let text: String
+    let time: ClosedRange<TimeInterval>?
+
+    /// One word per timed run. Untimed punctuation is glued onto the previous word; an untimed
+    /// real word joins its neighbour with a space, so words never run together.
+    static func words(from runs: [RecognizedRun]) -> [TranscribedWord] {
+        var words: [TranscribedWord] = []
+        var pending: [String] = []
+        for run in runs {
+            let text = run.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                continue
+            }
+            if let time = run.time {
+                let joined = (pending + [text]).joined(separator: " ")
+                pending = []
+                words.append(TranscribedWord(text: joined, start: time.lowerBound, end: time.upperBound))
+            } else if let last = words.popLast() {
+                let separator = isPunctuation(text) ? "" : " "
+                words.append(TranscribedWord(text: last.text + separator + text, start: last.start, end: last.end))
+            } else if !isPunctuation(text) {
+                pending.append(text)
+            }
+        }
+        return words
+    }
+
+    private static func isPunctuation(_ text: String) -> Bool {
+        let marks = CharacterSet.punctuationCharacters.union(.symbols)
+        return text.unicodeScalars.allSatisfy { marks.contains($0) }
+    }
+}

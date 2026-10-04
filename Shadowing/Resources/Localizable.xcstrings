@@ -1785,6 +1785,16 @@
         }
       }
     },
+    "Stop recording before adding a text file." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先停止录音，再添加文本文件。"
+          }
+        }
+      }
+    },
     "Storage" : {
       "localizations" : {
         "zh-Hans" : {

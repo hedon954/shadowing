@@ -4,6 +4,16 @@ import Foundation
 struct BookmarkedSourceAudio: SourceAudioAccessing {
     let bookmarks: any BookmarkStore
 
+    func stamp(bookmark: Data) async throws -> SourceAudioStamp {
+        try await bookmarks.withAccess(to: bookmark) { resolved in
+            let values = try resolved.url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+            return SourceAudioStamp(
+                byteCount: Int64(values.fileSize ?? 0),
+                modifiedAt: values.contentModificationDate ?? .distantPast
+            )
+        }
+    }
+
     func fingerprint(bookmark: Data) async throws -> String {
         try await bookmarks.withAccess(to: bookmark) { resolved in
             try Self.sha256(ofFileAt: resolved.url)

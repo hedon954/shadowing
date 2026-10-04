@@ -14,7 +14,8 @@ extension SubtitlesViewModel {
         failureDetail = nil
         show(.working(SubtitleWork(phase: .recognizing, fraction: 0), text: ""))
         do {
-            let audioHash = try await dependencies.audio.fingerprint(bookmark: bookmark)
+            manifest = try await dependencies.store.manifest(projectID: projectID)
+            let audioHash = try await audioFingerprint(dependencies)
             try Task.checkCancellation()
             let words = try await recognizedWords(
                 audioHash: audioHash,
