@@ -17,11 +17,4 @@ final class LibrarySnapshotTests: XCTestCase {
         let navigation = try SnapshotFixtures.navigation(testCase: self, library: library, openFirst: false)
         try await SnapshotSupport.render(ContentView(navigation: navigation), name: "library")
     }
-
-    func testPracticeOpen() async throws {
-        _ = try SnapshotSupport.outputDirectory()
-        let library = try await SnapshotFixtures.library()
-        let navigation = try SnapshotFixtures.navigation(testCase: self, library: library, openFirst: true)
-        try await SnapshotSupport.render(ContentView(navigation: navigation), name: "practice")
-    }
 }

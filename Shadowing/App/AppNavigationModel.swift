@@ -9,6 +9,8 @@ final class AppNavigationModel: ObservableObject {
     @Published var selectedProjectID: UUID?
 
     let dependencies: AppDependencies
+    /// The open practice screen's model, for snapshot tests and diagnostics.
+    private(set) weak var activePractice: PracticeViewModel?
     private var activePracticeCloser: (@MainActor () async -> Void)?
     private var practiceLeaveRequester: (@MainActor (@escaping @MainActor () -> Void) -> Void)?
     private var practiceShortcutHandler: ((PracticeShortcutAction) -> Void)?
@@ -43,6 +45,10 @@ final class AppNavigationModel: ObservableObject {
     /// The sidebar marks the file whose practice is recording (or about to).
     func isRecording(projectID: UUID) -> Bool {
         practiceControlsLocked && projectID == currentProjectID
+    }
+
+    func registerActivePractice(_ practice: PracticeViewModel?) {
+        activePractice = practice
     }
 
     func registerPracticeCloser(_ closer: (@MainActor () async -> Void)?) {

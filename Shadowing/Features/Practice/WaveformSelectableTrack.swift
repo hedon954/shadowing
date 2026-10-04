@@ -36,6 +36,9 @@ struct WaveformSelectableTrack: View {
     var accessibilityTitle: String = "Original waveform"
     var accessibilityHintText: String = "Drag to select a loop region, or click to seek."
     var coordinateSpaceName: String = "selectableWaveformTrack"
+    var showsChrome = true
+    var playedColor: Color?
+    var playheadStyle = WaveformPlayheadStyle.standard
 
     @State private var draftRegion: PracticeRegion?
     @State private var dragKind: DragKind?
@@ -53,7 +56,10 @@ struct WaveformSelectableTrack: View {
                     color: color,
                     playhead: playhead,
                     selection: displayedRegion,
-                    emphasized: true
+                    emphasized: true,
+                    showsChrome: showsChrome,
+                    playedColor: playedColor,
+                    playheadStyle: playheadStyle
                 )
 
                 // Stable full-width layer: gestures must not live on moving handles.
@@ -307,7 +313,9 @@ struct WaveformSelectableTrack: View {
             sourceDuration: sourceDuration
         )
     }
+}
 
+extension WaveformSelectableTrack {
     private func dragDistance(_ value: DragGesture.Value) -> CGFloat {
         hypot(value.translation.width, value.translation.height)
     }

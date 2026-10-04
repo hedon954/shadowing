@@ -101,6 +101,7 @@ private struct PracticeScene: View {
     var body: some View {
         PracticeView(viewModel: viewModel)
             .onAppear {
+                navigation.registerActivePractice(viewModel)
                 navigation.registerPracticeCloser { [weak viewModel] in
                     await viewModel?.close()
                 }
@@ -133,6 +134,7 @@ private struct PracticeScene: View {
                 }
             }
             .onDisappear {
+                navigation.registerActivePractice(nil)
                 navigation.registerPracticeCloser(nil)
                 navigation.registerPracticeLeaveRequester(nil)
                 navigation.registerPracticeShortcutHandler(nil)

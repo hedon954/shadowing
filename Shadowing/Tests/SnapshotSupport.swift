@@ -136,6 +136,18 @@ enum SnapshotFixtures {
         let takeCount: Int
     }
 
+    /// Made-up practice text for the inspector.
+    static let sampleScript = """
+    Every morning I take the same walk down to the harbor. The boats are still asleep, \
+    and the only sound is the water against the stones.
+
+    Some days I bring a notebook. I write down whatever I hear: a gull, a radio from a \
+    kitchen window, two fishermen arguing about the weather.
+
+    I started doing this to practice listening. Now I do it because the town sounds \
+    different every single day, and I don't want to miss it.
+    """
+
     static let names: [Entry] = [
         Entry(name: "TED: The power of vulnerability", duration: 1249, takeCount: 3),
         Entry(name: "BBC 6 Minute English: Why do we procrastinate?", duration: 372, takeCount: 1),

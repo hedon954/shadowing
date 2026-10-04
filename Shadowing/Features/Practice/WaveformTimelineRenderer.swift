@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Playhead line drawn over a waveform track.
+struct WaveformPlayheadStyle: Equatable {
+    var color: Color
+    var width: CGFloat
+
+    static let standard = WaveformPlayheadStyle(color: .primary.opacity(0.65), width: 1)
+}
+
 struct WaveformTimelineTrack: View {
     let waveform: WaveformPresentation?
     var timedPoints: [TimedWaveformEnvelopePoint] = []
@@ -11,6 +19,9 @@ struct WaveformTimelineTrack: View {
     var emphasized = true
     /// When false, draws only the envelope/playhead so layers can stack (overview).
     var showsChrome = true
+    /// When set, the part before the playhead uses this color and the rest uses `color`.
+    var playedColor: Color?
+    var playheadStyle = WaveformPlayheadStyle.standard
 
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
@@ -98,10 +109,18 @@ struct WaveformTimelineTrack: View {
             path.addLine(to: CGPoint(x: xPosition, y: yPosition))
         }
         path.closeSubpath()
-        context.fill(
-            path,
-            with: .color(color.opacity(emphasized ? 0.82 : 0.3))
-        )
+        guard let playedColor, let playhead else {
+            context.fill(
+                path,
+                with: .color(color.opacity(emphasized ? 0.82 : 0.3))
+            )
+            return
+        }
+        context.fill(path, with: .color(color))
+        let playedWidth = min(max(xPosition(for: playhead, width: size.width), 0), size.width)
+        var played = context
+        played.clip(to: Path(CGRect(x: 0, y: 0, width: playedWidth, height: size.height)))
+        played.fill(path, with: .color(playedColor))
     }
 
     private func drawPlayhead(context: GraphicsContext, size: CGSize) {
@@ -112,7 +131,7 @@ struct WaveformTimelineTrack: View {
         var cursor = Path()
         cursor.move(to: CGPoint(x: xPosition, y: 0))
         cursor.addLine(to: CGPoint(x: xPosition, y: size.height))
-        context.stroke(cursor, with: .color(.primary.opacity(0.65)), lineWidth: 1)
+        context.stroke(cursor, with: .color(playheadStyle.color), lineWidth: playheadStyle.width)
     }
 
     private func renderablePoints(width: CGFloat) -> [TimedWaveformEnvelopePoint] {
@@ -447,42 +466,5 @@ struct WaveformTimelineOverview: View {
     private func format(_ time: TimeInterval) -> String {
         let seconds = max(Int(time.rounded()), 0)
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-}
-
-struct WaveformTimelineControls: View {
-    let canFitRegion: Bool
-    let isEnabled: Bool
-    let onZoom: (Double) -> Void
-    let onPan: (Double) -> Void
-    let onShowFull: () -> Void
-    let onFitRegion: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button(
-                action: { onPan(-0.25) },
-                label: { Image(systemName: "chevron.left") }
-            )
-            Button(
-                action: { onZoom(0.5) },
-                label: { Image(systemName: "minus.magnifyingglass") }
-            )
-            Button(
-                action: { onZoom(2) },
-                label: { Image(systemName: "plus.magnifyingglass") }
-            )
-            Button(
-                action: { onPan(0.25) },
-                label: { Image(systemName: "chevron.right") }
-            )
-            Divider().frame(height: 16)
-            Button("Full", action: onShowFull)
-            Button("Selection", action: onFitRegion)
-                .disabled(!canFitRegion)
-        }
-        .buttonStyle(.borderless)
-        .disabled(!isEnabled)
-        .accessibilityElement(children: .contain)
     }
 }
