@@ -150,6 +150,29 @@ enum SnapshotFixtures {
     different every single day, and I don't want to miss it.
     """
 
+    /// The sample text as timed cues; paragraphs are separated by short pauses.
+    static let sampleCues: [SubtitleCue] = {
+        let paragraphs = sampleScript.components(separatedBy: "\n\n").map(ScriptSentences.split)
+        var cues: [SubtitleCue] = []
+        var time: TimeInterval = 160
+        for sentences in paragraphs {
+            for sentence in sentences {
+                let length = Double(sentence.split(separator: " ").count) * 0.45
+                cues.append(SubtitleCue(start: time, end: time + length, text: sentence))
+                time += length + 0.3
+            }
+            time += 2
+        }
+        return cues
+    }()
+
+    /// Shows `sampleCues` from an attached .srt, like the practice mockup.
+    static func showTimedSubtitles(in practice: PracticeViewModel) {
+        practice.subtitles.sources = [SubtitleSourceOption(kind: .subtitleFile, name: "vulnerability.srt")]
+        practice.subtitles.activeSource = .subtitleFile
+        practice.subtitles.display = .timed(SubtitleTranscript(cues: sampleCues))
+    }
+
     static let names: [Entry] = [
         Entry(name: "TED: The power of vulnerability", duration: 1249, takeCount: 3),
         Entry(name: "BBC 6 Minute English: Why do we procrastinate?", duration: 372, takeCount: 1),

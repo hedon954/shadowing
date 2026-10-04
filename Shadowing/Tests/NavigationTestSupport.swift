@@ -39,7 +39,13 @@ enum NavigationTestSupport {
                 waveforms: waveforms
             ),
             inputDevices: FixedInputDevices(),
-            recordingsStorageURL: root
+            recordingsStorageURL: root,
+            subtitles: SubtitleDependencies(
+                store: LocalSubtitleFileStore(directory: root.appendingPathComponent("Subtitles", isDirectory: true)),
+                audio: FakeSourceAudio(),
+                recognizer: nil,
+                fileChooser: StubSubtitleChooser()
+            )
         )
     }
 }

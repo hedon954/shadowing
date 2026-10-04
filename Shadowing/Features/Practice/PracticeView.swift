@@ -18,7 +18,7 @@ struct PracticeView: View {
             PracticeToolbar(viewModel: viewModel, isInspectorPresented: $isInspectorPresented)
         }
         .inspector(isPresented: $isInspectorPresented) {
-            SubtitlesInspector(viewModel: viewModel)
+            SubtitlesInspector(viewModel: viewModel, subtitles: viewModel.subtitles)
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
         }
         .onAppear {

@@ -4,6 +4,16 @@
     "%@\n\n%@" : {
       "shouldTranslate" : false
     },
+    "%@ is not a subtitle file. Use .srt, .vtt or .lrc." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 不是字幕文件，请使用 .srt、.vtt 或 .lrc。"
+          }
+        }
+      }
+    },
     "%@ – %@" : {
       "shouldTranslate" : false
     },
@@ -216,6 +226,16 @@
         }
       }
     },
+    "Add Subtitle File…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字幕文件…"
+          }
+        }
+      }
+    },
     "Add Subtitles or Text…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -256,6 +276,26 @@
         }
       }
     },
+    "Aligned text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文本对齐"
+          }
+        }
+      }
+    },
+    "Aligning text…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在对齐文本…"
+          }
+        }
+      }
+    },
     "Attach" : {
       "localizations" : {
         "zh-Hans" : {
@@ -276,12 +316,32 @@
         }
       }
     },
+    "Attach subtitle file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字幕文件"
+          }
+        }
+      }
+    },
     "Back 5 seconds" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "后退 5 秒"
+          }
+        }
+      }
+    },
+    "Can't align. Showing plain text." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法对齐，先显示普通文本"
           }
         }
       }
@@ -506,6 +566,26 @@
         }
       }
     },
+    "Choose Subtitles or Text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择字幕或文本"
+          }
+        }
+      }
+    },
+    "Choose a Subtitle File" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择字幕文件"
+          }
+        }
+      }
+    },
     "Choose a Text File" : {
       "localizations" : {
         "zh-Hans" : {
@@ -542,6 +622,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请换一个 MP3 文件。"
+          }
+        }
+      }
+    },
+    "Click a sentence to jump there" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点一句即可跳到那里"
           }
         }
       }
@@ -666,6 +756,16 @@
         }
       }
     },
+    "Downloading English speech model (one time)…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载英语语音模型（只需一次）…"
+          }
+        }
+      }
+    },
     "Drag the highlighted window to pan, or drag its borders to zoom the detailed timeline." : {
       "localizations" : {
         "zh-Hans" : {
@@ -702,6 +802,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开启循环"
+          }
+        }
+      }
+    },
+    "English speech recognition isn't available on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台 Mac 无法使用英语语音识别。"
           }
         }
       }
@@ -762,6 +872,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "隐藏字幕"
+          }
+        }
+      }
+    },
+    "Highlighting starts when recognition finishes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "识别完成后自动开始高亮"
           }
         }
       }
@@ -1066,6 +1186,16 @@
         }
       }
     },
+    "Pick another source from the menu above" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以在上方菜单换一个来源"
+          }
+        }
+      }
+    },
     "Pick one in the sidebar, or drop an MP3 anywhere in this window." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1312,22 +1442,22 @@
         }
       }
     },
-    "Replace Text…" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "替换文本…"
-          }
-        }
-      }
-    },
     "Replace script text file" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "替换文本文件"
+          }
+        }
+      }
+    },
+    "Runs on this Mac. Nothing is uploaded." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在本机完成，不上传。"
           }
         }
       }
@@ -1545,6 +1675,16 @@
         }
       }
     },
+    "Subtitle file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕文件"
+          }
+        }
+      }
+    },
     "Subtitles" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1611,6 +1751,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App 已没有访问 %@ 的权限。"
+          }
+        }
+      }
+    },
+    "The audio could not be read for speech recognition: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取音频进行语音识别：%@"
           }
         }
       }
@@ -1915,6 +2065,36 @@
         }
       }
     },
+    "The subtitle file could not be read as text: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法以文本方式读取字幕文件：%@。"
+          }
+        }
+      }
+    },
+    "The subtitle file operation failed at %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕文件操作失败（%@）：%@"
+          }
+        }
+      }
+    },
+    "The subtitle settings file is damaged: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕设置文件已损坏：%@。"
+          }
+        }
+      }
+    },
     "The temporary recording at %@ contains no audio frames." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2001,6 +2181,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "当前没有正在进行的录音。"
+          }
+        }
+      }
+    },
+    "This file has no timed subtitles." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个文件里没有带时间的字幕。"
           }
         }
       }

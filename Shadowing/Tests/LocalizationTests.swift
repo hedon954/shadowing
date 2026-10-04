@@ -31,11 +31,37 @@ final class LocalizationTests: XCTestCase {
             "No subtitles yet": "还没有字幕",
             "Input Device": "输入设备",
             "Input Level": "输入电平",
-            "Drop an MP3 anywhere in this window to start": "把 MP3 拖进窗口任意位置就能开始"
+            "Drop an MP3 anywhere in this window to start": "把 MP3 拖进窗口任意位置就能开始",
+            "Subtitle Source": "字幕来源",
+            "Subtitle file": "字幕文件",
+            "Aligned text": "文本对齐",
+            "Add Subtitle File…": "添加字幕文件…",
+            "Aligning text…": "正在对齐文本…",
+            "Downloading English speech model (one time)…": "正在下载英语语音模型（只需一次）…",
+            "Runs on this Mac. Nothing is uploaded.": "在本机完成，不上传。",
+            "Can't align. Showing plain text.": "无法对齐，先显示普通文本",
+            "Click a sentence to jump there": "点一句即可跳到那里",
+            "Pick another source from the menu above": "可以在上方菜单换一个来源"
         ]
         for (key, value) in expected {
             XCTAssertEqual(zh.localizedString(forKey: key, value: nil, table: nil), value, key)
         }
+    }
+
+    func testSpeechRecognitionPromptIsLocalized() throws {
+        let app = Bundle(for: AppNavigationModel.self)
+        XCTAssertEqual(
+            app.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") as? String,
+            "Shadowing recognizes speech on this Mac to time your subtitles. Audio never leaves your Mac."
+        )
+        XCTAssertEqual(
+            try bundle("zh-Hans").localizedString(
+                forKey: "NSSpeechRecognitionUsageDescription",
+                value: nil,
+                table: "InfoPlist"
+            ),
+            "Shadowing 会在本机识别语音，为字幕配上时间。音频不会离开你的 Mac。"
+        )
     }
 
     func testTakeCountsUsePluralVariations() throws {

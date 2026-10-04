@@ -86,6 +86,7 @@ final class PracticeViewModel: ObservableObject {
     let sessionPreparer: any PracticeSessionPreparing
     let recordingDependencies: RecordingDependencies?
     let textFileChooser: (any TextFileChoosing)?
+    let subtitles: SubtitlesViewModel
     let comparisonScheduler: any ComparisonPlaybackScheduler
     var eventTask: Task<Void, Never>?
     var commandTask: Task<Void, Never>?
@@ -160,6 +161,7 @@ final class PracticeViewModel: ObservableObject {
         sessionPreparer: any PracticeSessionPreparing,
         recordingDependencies: RecordingDependencies? = nil,
         textFileChooser: (any TextFileChoosing)? = nil,
+        subtitleDependencies: SubtitleDependencies? = nil,
         comparisonScheduler: any ComparisonPlaybackScheduler = ContinuousComparisonPlaybackScheduler()
     ) {
         project = prepared.project
@@ -173,6 +175,13 @@ final class PracticeViewModel: ObservableObject {
         self.recordingDependencies = recordingDependencies
         self.textFileChooser = textFileChooser
         self.comparisonScheduler = comparisonScheduler
+        subtitles = SubtitlesViewModel(project: prepared.project, dependencies: subtitleDependencies)
+        subtitles.onError = { [weak self] error in
+            self?.show(error)
+        }
+        subtitles.onTextChosen = { [weak self] url in
+            self?.attachScript(from: url)
+        }
     }
 
     deinit {

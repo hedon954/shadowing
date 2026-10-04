@@ -19,6 +19,24 @@
           }
         }
       }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "comment" : "Speech recognition permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadowing recognizes speech on this Mac to time your subtitles. Audio never leaves your Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadowing 会在本机识别语音，为字幕配上时间。音频不会离开你的 Mac。"
+          }
+        }
+      }
     }
   }
 }

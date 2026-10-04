@@ -16,9 +16,8 @@ final class PracticeSnapshotTests: XCTestCase {
             if let newest = practice.takes.first {
                 practice.selectTake(newest)
             }
-            practice.scriptText = SnapshotFixtures.sampleScript
-            practice.project.scriptDisplayName = "vulnerability.txt"
             practice.playhead = 192
+            SnapshotFixtures.showTimedSubtitles(in: practice)
         }
     }
 
@@ -31,8 +30,7 @@ final class PracticeSnapshotTests: XCTestCase {
                 return
             }
             practice.clearTakeSelection()
-            practice.scriptText = SnapshotFixtures.sampleScript
-            practice.project.scriptDisplayName = "vulnerability.txt"
+            SnapshotFixtures.showTimedSubtitles(in: practice)
             Self.showRecording(practice, elapsed: 42)
         }
     }
@@ -40,6 +38,7 @@ final class PracticeSnapshotTests: XCTestCase {
     static func waitForPractice(_ navigation: AppNavigationModel) async -> PracticeViewModel? {
         for _ in 0 ..< 40 {
             if let practice = navigation.activePractice, !practice.takes.isEmpty {
+                await practice.subtitles.loadTask?.value
                 try? await Task.sleep(for: .milliseconds(200))
                 return practice
             }

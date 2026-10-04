@@ -59,6 +59,7 @@ extension PracticeViewModel {
             return
         }
         hasClosed = true
+        subtitles.close()
         leaveConfirmation = nil
         leaveAfterFinalize = nil
         playheadPersistTask?.cancel()
@@ -144,6 +145,7 @@ extension PracticeViewModel {
             return
         }
         await loadScript()
+        subtitles.load(script: subtitleScript)
         await refreshTakes()
         await preloadTakeWaveforms()
         if let take = restoredSelectedTake() {
@@ -173,30 +175,54 @@ extension PracticeViewModel {
     }
 
     func attachScript() {
-        guard !hasClosed, !controlsLocked else {
+        guard !hasClosed, !controlsLocked, let textFileChooser else {
             return
         }
-        guard let textFileChooser, let fileStore = recordingDependencies?.fileStore else {
-            return
-        }
-
         Task { [weak self] in
-            guard let self else {
-                return
-            }
             guard let url = await textFileChooser.choosePlainText() else {
                 return
             }
+            self?.attachScript(from: url)
+        }
+    }
+
+    /// Copies the chosen .txt in and hands it to the Subtitles inspector for alignment.
+    func attachScript(from url: URL) {
+        guard !hasClosed, !controlsLocked, let fileStore = recordingDependencies?.fileStore else {
+            return
+        }
+        let projectID = project.id
+        Task { [weak self] in
             do {
-                try fileStore.commitScript(from: url, projectID: project.id)
-                let text = try fileStore.loadScriptText(projectID: project.id) ?? ""
+                let text = try await Self.commitScript(from: url, projectID: projectID, fileStore: fileStore)
+                guard let self else {
+                    return
+                }
                 project.scriptDisplayName = url.lastPathComponent
                 scriptText = text
                 persistProjectImmediately()
+                subtitles.scriptDidChange(subtitleScript)
             } catch {
-                show(error)
+                self?.show(error)
             }
         }
+    }
+
+    var subtitleScript: SubtitleScript? {
+        guard let scriptText, !scriptText.isEmpty else {
+            return nil
+        }
+        return SubtitleScript(text: scriptText, displayName: project.scriptDisplayName ?? "")
+    }
+
+    /// File work stays off the main actor.
+    private nonisolated static func commitScript(
+        from url: URL,
+        projectID: UUID,
+        fileStore: any RecordingFileStore
+    ) async throws -> String {
+        try fileStore.commitScript(from: url, projectID: projectID)
+        return try fileStore.loadScriptText(projectID: projectID) ?? ""
     }
 
     func loadScript() async {

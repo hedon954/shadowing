@@ -31,6 +31,23 @@ struct SystemTextFileChooser: TextFileChoosing {
     }
 }
 
+struct SystemSubtitleFileChooser: SubtitleFileChoosing {
+    @MainActor
+    func chooseSubtitleFile(includingText: Bool) async -> URL? {
+        let panel = NSOpenPanel()
+        panel.title = includingText
+            ? String(localized: "Choose Subtitles or Text")
+            : String(localized: "Choose a Subtitle File")
+        panel.prompt = String(localized: "Attach")
+        let subtitleTypes = SubtitleFileFormat.allCases.compactMap { UTType(filenameExtension: $0.rawValue) }
+        panel.allowedContentTypes = subtitleTypes + (includingText ? [.plainText] : [])
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+}
+
 struct MP3FileValidator: AudioFileValidating {
     func validate(_ url: URL) throws {
         guard url.isFileURL,

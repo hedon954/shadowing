@@ -77,7 +77,8 @@ private struct PracticeScene: View {
                 projects: dependencies.projects,
                 sessionPreparer: dependencies.sessionPreparer,
                 recordingDependencies: dependencies.recording,
-                textFileChooser: dependencies.textFileChooser
+                textFileChooser: dependencies.textFileChooser,
+                subtitleDependencies: dependencies.subtitles
             )
         )
         self.navigation = navigation

@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Shadowing uses the microphone to record your shadowing takes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Shadowing recognizes speech on this Mac to time your subtitles. Audio never leaves your Mac.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

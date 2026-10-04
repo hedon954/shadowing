@@ -12,6 +12,7 @@ final class AppDependencies {
     let recording: RecordingDependencies
     let inputDevices: any AudioInputDeviceProviding
     let recordingsStorageURL: URL
+    let subtitles: SubtitleDependencies?
 
     init(
         fileChooser: any AudioFileChoosing,
@@ -23,7 +24,8 @@ final class AppDependencies {
         sessionPreparer: any PracticeSessionPreparing,
         recording: RecordingDependencies,
         inputDevices: any AudioInputDeviceProviding,
-        recordingsStorageURL: URL
+        recordingsStorageURL: URL,
+        subtitles: SubtitleDependencies? = nil
     ) {
         self.fileChooser = fileChooser
         self.textFileChooser = textFileChooser
@@ -35,6 +37,7 @@ final class AppDependencies {
         self.recording = recording
         self.inputDevices = inputDevices
         self.recordingsStorageURL = recordingsStorageURL
+        self.subtitles = subtitles
     }
 
     static func live(fileManager: FileManager = .default) throws -> AppDependencies {
@@ -86,8 +89,25 @@ final class AppDependencies {
                 waveformService: waveformService
             ),
             inputDevices: SystemAudioInputDeviceService(),
-            recordingsStorageURL: recordingsStorageURL
+            recordingsStorageURL: recordingsStorageURL,
+            subtitles: SubtitleDependencies(
+                store: LocalSubtitleFileStore(
+                    directory: applicationSupport.appendingPathComponent("Subtitles", isDirectory: true)
+                ),
+                audio: BookmarkedSourceAudio(bookmarks: SecurityScopedBookmarkStore()),
+                recognizer: Self.makeSpeechRecognizer(),
+                fileChooser: SystemSubtitleFileChooser()
+            )
         )
+    }
+
+    /// Speech recognition for subtitles needs `SpeechAnalyzer` (macOS 26). Earlier systems
+    /// show attached text without timing.
+    private static func makeSpeechRecognizer() -> (any SpeechRecognizing)? {
+        if #available(macOS 26, *) {
+            return SpeechAnalyzerRecognizer()
+        }
+        return nil
     }
 
     private static func applicationSupportDirectory(fileManager: FileManager) throws -> URL {
