@@ -346,6 +346,16 @@
         }
       }
     },
+    "Can't generate subtitles." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法生成字幕"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "zh-Hans" : {
@@ -816,6 +826,46 @@
         }
       }
     },
+    "Export" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出"
+          }
+        }
+      }
+    },
+    "Export .srt…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出 .srt…"
+          }
+        }
+      }
+    },
+    "Export Subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出字幕"
+          }
+        }
+      }
+    },
+    "Export subtitles as SRT file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将字幕导出为 SRT 文件"
+          }
+        }
+      }
+    },
     "Finishing…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -836,6 +886,16 @@
         }
       }
     },
+    "From audio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从音频识别"
+          }
+        }
+      }
+    },
     "Full" : {
       "localizations" : {
         "zh-Hans" : {
@@ -852,6 +912,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完整音频波形总览"
+          }
+        }
+      }
+    },
+    "Generate Subtitles from Audio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从音频生成字幕"
+          }
+        }
+      }
+    },
+    "Generated" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已生成"
           }
         }
       }
@@ -1016,6 +1096,16 @@
         }
       }
     },
+    "No English speech was recognized in this audio." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段音频里没有识别出英语语音。"
+          }
+        }
+      }
+    },
     "No practice files yet" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1082,6 +1172,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无"
+          }
+        }
+      }
+    },
+    "Not generated" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未生成"
           }
         }
       }
@@ -1316,6 +1416,16 @@
         }
       }
     },
+    "Recognizing speech…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在从音频识别文字…"
+          }
+        }
+      }
+    },
     "Record" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1452,12 +1562,32 @@
         }
       }
     },
+    "Requires macOS 26" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 macOS 26"
+          }
+        }
+      }
+    },
     "Runs on this Mac. Nothing is uploaded." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "在本机完成，不上传。"
+          }
+        }
+      }
+    },
+    "Runs on this Mac. Nothing is uploaded. Text appears below as it's recognized." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在本机完成，不上传。识别出的文字会陆续出现在下面。"
           }
         }
       }

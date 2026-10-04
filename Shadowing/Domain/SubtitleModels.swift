@@ -12,6 +12,8 @@ struct SubtitleCue: Codable, Equatable, Sendable {
 enum SubtitleSourceKind: String, Codable, CaseIterable, Sendable {
     case subtitleFile
     case alignedText
+    /// Generated from the audio on this Mac, only when the user asks for it.
+    case fromAudio
 }
 
 enum SubtitleFileFormat: String, Codable, CaseIterable, Sendable {
@@ -64,6 +66,12 @@ struct TextAlignmentRecord: Codable, Equatable, Sendable {
     }
 }
 
+/// Subtitles generated from the audio. The cues are kept in `<project id>.srt` while this is the
+/// current source and can be rebuilt from the cached words after switching away.
+struct GeneratedSubtitlesRecord: Codable, Equatable, Sendable {
+    let audioSHA256: String
+}
+
 /// `<project id>.json` in the Subtitles folder. The database schema is not involved.
 struct SubtitleManifest: Codable, Equatable, Sendable {
     static let currentVersion = 1
@@ -73,6 +81,7 @@ struct SubtitleManifest: Codable, Equatable, Sendable {
     var attachedFile: AttachedSubtitleFile?
     var current: SubtitleProvenance?
     var lastAlignment: TextAlignmentRecord?
+    var generated: GeneratedSubtitlesRecord?
 }
 
 /// The attached plain-text script as the subtitles feature sees it.
@@ -93,6 +102,8 @@ enum SubtitleSourcePlanner {
                 manifest.attachedFile != nil
             case .alignedText:
                 hasScript
+            case .fromAudio:
+                manifest.generated != nil
             }
         }
     }
@@ -159,6 +170,7 @@ protocol SpeechRecognizing: Sendable {
 enum SpeechRecognitionError: Error, Equatable, LocalizedError, Sendable {
     case unavailable
     case unreadableAudio(String)
+    case noSpeech
 
     var errorDescription: String? {
         switch self {
@@ -166,6 +178,8 @@ enum SpeechRecognitionError: Error, Equatable, LocalizedError, Sendable {
             String(localized: "English speech recognition isn't available on this Mac.")
         case let .unreadableAudio(reason):
             String(localized: "The audio could not be read for speech recognition: \(reason)")
+        case .noSpeech:
+            String(localized: "No English speech was recognized in this audio.")
         }
     }
 }
@@ -174,4 +188,7 @@ protocol SubtitleFileChoosing: Sendable {
     /// Asks for an .srt, .vtt or .lrc file; `includingText` also allows a .txt script.
     @MainActor
     func chooseSubtitleFile(includingText: Bool) async -> URL?
+    /// Asks where to save an exported .srt.
+    @MainActor
+    func chooseExportDestination(suggestedName: String) async -> URL?
 }

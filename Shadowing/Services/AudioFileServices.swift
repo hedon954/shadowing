@@ -46,6 +46,17 @@ struct SystemSubtitleFileChooser: SubtitleFileChoosing {
         panel.canChooseFiles = true
         return panel.runModal() == .OK ? panel.url : nil
     }
+
+    @MainActor
+    func chooseExportDestination(suggestedName: String) async -> URL? {
+        let panel = NSSavePanel()
+        panel.title = String(localized: "Export Subtitles")
+        panel.prompt = String(localized: "Export")
+        panel.nameFieldStringValue = suggestedName
+        panel.allowedContentTypes = UTType(filenameExtension: "srt").map { [$0] } ?? []
+        panel.canCreateDirectories = true
+        return panel.runModal() == .OK ? panel.url : nil
+    }
 }
 
 struct MP3FileValidator: AudioFileValidating {

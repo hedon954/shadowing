@@ -33,13 +33,24 @@ struct SubtitlesInspector: View {
 
     @ViewBuilder
     private var status: some View {
+        if let error = subtitles.generationError {
+            SubtitleFailureNotice(message: "Can't generate subtitles.", detail: error)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+        } else {
+            displayStatus
+        }
+    }
+
+    @ViewBuilder
+    private var displayStatus: some View {
         switch subtitles.display {
         case let .working(work, _):
             SubtitleWorkBox(work: work)
                 .padding(.horizontal, 12)
                 .padding(.top, 10)
         case .plainText(_, notice: .some):
-            SubtitleFailureNotice(detail: subtitles.failureDetail)
+            SubtitleFailureNotice(message: "Can't align. Showing plain text.", detail: subtitles.failureDetail)
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
         case .loading, .empty, .plainText, .timed:
@@ -55,10 +66,14 @@ struct SubtitlesInspector: View {
         case .empty:
             SubtitlesEmptyState(
                 isEnabled: !viewModel.controlsLocked && subtitles.canAddFiles,
+                canGenerate: subtitles.canGenerate && !subtitles.isGenerating,
+                onGenerate: subtitles.generateFromAudio,
                 onAdd: subtitles.addSubtitlesOrText
             )
-        case let .plainText(text, _), let .working(_, text):
-            PlainSubtitleText(text: text)
+        case let .plainText(text, _):
+            PlainSubtitleText(text: text, isGrowing: false)
+        case let .working(work, text):
+            PlainSubtitleText(text: text, isGrowing: work.phase == .recognizing)
         case let .timed(transcript):
             SubtitleTranscriptView(
                 transcript: transcript,
@@ -85,7 +100,10 @@ struct SubtitlesInspector: View {
     }
 
     private var footerHint: LocalizedStringKey? {
-        switch subtitles.display {
+        if subtitles.generationError != nil, subtitles.exportableCues == nil {
+            return "Pick another source from the menu above"
+        }
+        return switch subtitles.display {
         case .timed:
             "Click a sentence to jump there"
         case .working:
@@ -109,8 +127,9 @@ private struct SubtitleSourceMenu: View {
                     ForEach(subtitles.sources) { option in
                         Toggle(isOn: selection(option.kind)) {
                             Text(verbatim: option.name)
-                            Text(option.kind.detail)
+                            Text(option.isReady ? option.kind.detail : "Not generated")
                         }
+                        .disabled(!option.isReady && subtitles.isGenerating)
                     }
                 }
             }
@@ -123,6 +142,18 @@ private struct SubtitleSourceMenu: View {
                         ? "Attach script text file"
                         : "Replace script text file"
                 )
+            Button(action: subtitles.generateFromAudio) {
+                Text("Generate Subtitles from Audio")
+                if !SubtitleAvailability.isGenerationSupported {
+                    Text("Requires macOS 26")
+                }
+            }
+            .disabled(!subtitles.canGenerate || subtitles.isGenerating)
+            .accessibilityLabel("Generate Subtitles from Audio")
+            Divider()
+            Button("Export .srt…", action: subtitles.exportSRT)
+                .disabled(subtitles.exportableCues == nil)
+                .accessibilityLabel("Export subtitles as SRT file")
         } label: {
             Group {
                 if let name = subtitles.activeSourceName {
@@ -159,7 +190,19 @@ extension SubtitleSourceKind {
             "Subtitle file"
         case .alignedText:
             "Aligned text"
+        case .fromAudio:
+            "Generated"
         }
+    }
+}
+
+enum SubtitleAvailability {
+    /// On-device speech recognition (`SpeechAnalyzer`) needs macOS 26.
+    static var isGenerationSupported: Bool {
+        if #available(macOS 26, *) {
+            return true
+        }
+        return false
     }
 }
 
@@ -180,10 +223,9 @@ private struct SubtitleWorkBox: View {
             ProgressView(value: min(max(work.fraction, 0), 1))
                 .progressViewStyle(.linear)
                 .controlSize(.small)
-            Text("Runs on this Mac. Nothing is uploaded.")
+            Text(note)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(8)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
@@ -196,11 +238,20 @@ private struct SubtitleWorkBox: View {
             "Downloading English speech model (one time)…"
         case .aligning:
             "Aligning text…"
+        case .recognizing:
+            "Recognizing speech…"
         }
+    }
+
+    private var note: LocalizedStringKey {
+        work.phase == .recognizing
+            ? "Runs on this Mac. Nothing is uploaded. Text appears below as it's recognized."
+            : "Runs on this Mac. Nothing is uploaded."
     }
 }
 
 private struct SubtitleFailureNotice: View {
+    let message: LocalizedStringKey
     let detail: String?
 
     var body: some View {
@@ -208,7 +259,7 @@ private struct SubtitleFailureNotice: View {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.orange)
                 .accessibilityHidden(true)
-            Text("Can't align. Showing plain text.")
+            Text(message)
                 .foregroundStyle(.secondary)
         }
         .font(.caption)
@@ -219,21 +270,44 @@ private struct SubtitleFailureNotice: View {
 
 private struct PlainSubtitleText: View {
     let text: String
+    /// Recognition is still adding text.
+    let isGrowing: Bool
+
+    private var paragraphs: [String] {
+        // Blank lines separate paragraphs; single line breaks stay inside one.
+        text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacing(/\n[ \t]*\n\s*/, with: "\u{0}")
+            .split(separator: "\u{0}")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
 
     var body: some View {
         ScrollView {
-            Text(text)
-                .font(.system(size: 13))
-                .lineSpacing(13 * 0.65)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-                .padding(16)
+            VStack(alignment: .leading, spacing: 13) {
+                // Same paragraph spacing as the timed transcript.
+                ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                    Text(verbatim: paragraph)
+                        .font(.system(size: 13))
+                        .lineSpacing(13 * 0.65)
+                        .textSelection(.enabled)
+                }
+                if isGrowing {
+                    Text(verbatim: "…")
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
         }
     }
 }
 
 private struct SubtitlesEmptyState: View {
     let isEnabled: Bool
+    let canGenerate: Bool
+    let onGenerate: () -> Void
     let onAdd: () -> Void
 
     var body: some View {
@@ -253,11 +327,27 @@ private struct SubtitlesEmptyState: View {
             .font(.callout)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            Button("Add Subtitles or Text…", action: onAdd)
+            VStack(spacing: 8) {
+                Button(action: onGenerate) {
+                    Text("Generate Subtitles from Audio")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!isEnabled || !canGenerate)
+                .accessibilityLabel("Generate Subtitles from Audio")
+                if !SubtitleAvailability.isGenerationSupported {
+                    Text("Requires macOS 26")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Button(action: onAdd) {
+                    Text("Add Subtitles or Text…")
+                        .frame(maxWidth: .infinity)
+                }
                 .disabled(!isEnabled)
                 .accessibilityLabel("Attach script text file")
-                .padding(.top, 4)
+            }
+            .padding(.top, 4)
             Text("Supports .srt, .vtt, .lrc and .txt")
                 .font(.caption)
                 .foregroundStyle(.tertiary)

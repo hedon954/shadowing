@@ -10,7 +10,8 @@ Shadowing 引用用户选择的 MP3 而不复制源文件。启用 App Sandbox �
 
 ## Decision
 
-- 应用启用 App Sandbox、麦克风和 user-selected read-only 权限。
+- 应用启用 App Sandbox、麦克风和 user-selected read-write 权限。用户选择的源文件只读取；
+  写入只发生在用户通过保存面板选定的位置（例如导出 .srt）。
 - 用户选择文件后保存 security-scoped bookmark data，不只保存绝对路径。
 - 每次访问都成对调用 start/stop accessing，并限制作用域持有时间。
 - bookmark stale 或文件缺失时进入“重新定位”流程；匹配后更新 bookmark。

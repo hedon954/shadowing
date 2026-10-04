@@ -42,6 +42,25 @@ final class SubtitlesSnapshotTests: XCTestCase {
         }
     }
 
+    func testGeneratingFromAudio() async throws {
+        try await renderPractice(name: "sub-gen") { practice in
+            practice.subtitles.sources = [
+                SubtitleSourceOption(kind: .fromAudio, name: String(localized: "From audio"), isReady: false)
+            ]
+            practice.subtitles.activeSource = .fromAudio
+            practice.subtitles.isGenerating = true
+            let heard = SnapshotFixtures.sampleScript.split(separator: " ").prefix(40).joined(separator: " ")
+            practice.subtitles.display = .working(SubtitleWork(phase: .recognizing, fraction: 0.42), text: heard)
+        }
+    }
+
+    func testGenerationFailed() async throws {
+        try await renderPractice(name: "sub-gen-fail") { practice in
+            practice.subtitles.display = .empty
+            practice.subtitles.generationError = SpeechRecognitionError.noSpeech.localizedDescription
+        }
+    }
+
     static func showText(in practice: PracticeViewModel) {
         practice.subtitles.sources = [SubtitleSourceOption(kind: .alignedText, name: "vulnerability.txt")]
         practice.subtitles.activeSource = .alignedText

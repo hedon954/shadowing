@@ -10,7 +10,8 @@ enum NavigationTestSupport {
         testCase: XCTestCase,
         storage: InMemoryPersistence = InMemoryPersistence(),
         preparer: any PracticeSessionPreparing = RecordingSessionPreparer(),
-        waveforms: (any WaveformPreparing)? = nil
+        waveforms: (any WaveformPreparing)? = nil,
+        recognizer: (any SpeechRecognizing)? = nil
     ) throws -> AppDependencies {
         let root = try M9TestSupport.makeTemporaryRoot()
         testCase.addTeardownBlock {
@@ -43,7 +44,7 @@ enum NavigationTestSupport {
             subtitles: SubtitleDependencies(
                 store: LocalSubtitleFileStore(directory: root.appendingPathComponent("Subtitles", isDirectory: true)),
                 audio: FakeSourceAudio(),
-                recognizer: nil,
+                recognizer: recognizer,
                 fileChooser: StubSubtitleChooser()
             )
         )

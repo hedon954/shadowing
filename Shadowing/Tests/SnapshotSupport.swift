@@ -261,7 +261,9 @@ enum SnapshotFixtures {
             testCase: testCase,
             storage: library.storage,
             preparer: preparer,
-            waveforms: SyntheticWaveforms()
+            waveforms: SyntheticWaveforms(),
+            // Enables "Generate Subtitles from Audio"; it never runs unless clicked.
+            recognizer: FakeSpeechRecognizer()
         )
         let navigation = AppNavigationModel(dependencies: dependencies)
         if openFirst, let first {

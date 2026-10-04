@@ -24,6 +24,10 @@ extension SubtitlesViewModel {
         }
         let available = SubtitleSourcePlanner.availableSources(manifest: manifest, hasScript: script != nil)
         sources = available.map { SubtitleSourceOption(kind: $0, name: sourceName($0)) }
+        if canGenerate, !available.contains(.fromAudio) {
+            // Listed so it can be picked; choosing it starts generation.
+            sources.append(SubtitleSourceOption(kind: .fromAudio, name: sourceName(.fromAudio), isReady: false))
+        }
         activeSource = SubtitleSourcePlanner.activeSource(manifest: manifest, available: available)
         failureDetail = nil
         switch activeSource {
@@ -33,6 +37,8 @@ extension SubtitlesViewModel {
             await showSubtitleFile(store: dependencies.store)
         case .alignedText:
             await showAlignedText(dependencies)
+        case .fromAudio:
+            await showGenerated(store: dependencies.store)
         }
     }
 
@@ -42,10 +48,12 @@ extension SubtitlesViewModel {
             manifest.attachedFile?.displayName ?? ""
         case .alignedText:
             script?.displayName ?? ""
+        case .fromAudio:
+            String(localized: "From audio")
         }
     }
 
-    private var fallbackDisplay: SubtitleDisplay {
+    var fallbackDisplay: SubtitleDisplay {
         script.map { .plainText($0.text, notice: nil) } ?? .empty
     }
 
@@ -105,6 +113,7 @@ extension SubtitlesViewModel {
                 audioHash: audioHash,
                 recognizer: recognizer,
                 dependencies: dependencies,
+                phase: .aligning,
                 text: script.text
             )
             let alignment = await Self.align(script.text, words)
@@ -131,17 +140,19 @@ extension SubtitlesViewModel {
     }
 
     /// Cached words for this exact audio, otherwise a recognition pass on this Mac.
-    private func recognizedWords(
+    /// With no `text`, the words recognized so far are shown as they arrive.
+    func recognizedWords(
         audioHash: String,
         recognizer: any SpeechRecognizing,
         dependencies: SubtitleDependencies,
-        text: String
+        phase: SubtitleWorkPhase,
+        text: String?
     ) async throws -> [TranscribedWord] {
         let cached = try await dependencies.store.recognizedSpeech(projectID: projectID)
         if let cached, cached.audioSHA256 == audioHash {
             return cached.words
         }
-        show(.working(SubtitleWork(phase: .aligning, fraction: 0), text: text))
+        show(.working(SubtitleWork(phase: phase, fraction: 0), text: text ?? ""))
         let duration = duration
         let words = try await dependencies.audio.withAudioFile(bookmark: bookmark) { [weak self] url in
             var words: [TranscribedWord] = []
@@ -149,7 +160,8 @@ extension SubtitlesViewModel {
                 if case let .recognized(newWords, _) = event {
                     words += newWords
                 }
-                await self?.receive(event, phase: .aligning, text: text)
+                let shown = text ?? SubtitleSegmenter.text(of: words)
+                await self?.receive(event, phase: phase, text: shown)
             }
             return words
         }
@@ -169,7 +181,7 @@ extension SubtitlesViewModel {
             SubtitleWork(phase: phase, fraction: progress)
         }
         // Download progress reports often; whole percents are enough for the bar.
-        if case let .working(current, _) = display, current.phase == work.phase {
+        if case let .working(current, shown) = display, current.phase == work.phase, shown == text {
             guard abs(current.fraction - work.fraction) >= 0.01 else {
                 return
             }
@@ -177,7 +189,7 @@ extension SubtitlesViewModel {
         show(.working(work, text: text))
     }
 
-    private func saveCurrent(
+    func saveCurrent(
         _ cues: [SubtitleCue],
         provenance: SubtitleProvenance,
         store: any SubtitleStoring

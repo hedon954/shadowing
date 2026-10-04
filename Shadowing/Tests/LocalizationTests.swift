@@ -41,7 +41,17 @@ final class LocalizationTests: XCTestCase {
             "Runs on this Mac. Nothing is uploaded.": "在本机完成，不上传。",
             "Can't align. Showing plain text.": "无法对齐，先显示普通文本",
             "Click a sentence to jump there": "点一句即可跳到那里",
-            "Pick another source from the menu above": "可以在上方菜单换一个来源"
+            "Pick another source from the menu above": "可以在上方菜单换一个来源",
+            "From audio": "从音频识别",
+            "Not generated": "未生成",
+            "Generate Subtitles from Audio": "从音频生成字幕",
+            "Export .srt…": "导出 .srt…",
+            "Recognizing speech…": "正在从音频识别文字…",
+            "Runs on this Mac. Nothing is uploaded. Text appears below as it's recognized.":
+                "在本机完成，不上传。识别出的文字会陆续出现在下面。",
+            "Highlighting starts when recognition finishes": "识别完成后自动开始高亮",
+            "Requires macOS 26": "需要 macOS 26",
+            "Can't generate subtitles.": "无法生成字幕"
         ]
         for (key, value) in expected {
             XCTAssertEqual(zh.localizedString(forKey: key, value: nil, table: nil), value, key)
@@ -51,7 +61,7 @@ final class LocalizationTests: XCTestCase {
     func testSpeechRecognitionPromptIsLocalized() throws {
         let app = Bundle(for: AppNavigationModel.self)
         XCTAssertEqual(
-            app.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") as? String,
+            app.infoDictionary?["NSSpeechRecognitionUsageDescription"] as? String,
             "Shadowing recognizes speech on this Mac to time your subtitles. Audio never leaves your Mac."
         )
         XCTAssertEqual(

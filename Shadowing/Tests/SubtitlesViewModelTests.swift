@@ -123,7 +123,7 @@ final class SubtitlesViewModelTests: XCTestCase {
         await model.loadTask?.value
 
         XCTAssertEqual(model.activeSource, .subtitleFile)
-        XCTAssertEqual(model.sources.map(\.kind), [.subtitleFile, .alignedText])
+        XCTAssertEqual(model.sources.map(\.kind), [.subtitleFile, .alignedText, .fromAudio])
         let fileCues = [SubtitleCue(start: 1, end: 2, text: "From the file")]
         XCTAssertEqual(model.display, .timed(SubtitleTranscript(cues: fileCues)))
 

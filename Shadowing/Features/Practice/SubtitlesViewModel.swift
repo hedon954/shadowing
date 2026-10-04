@@ -11,6 +11,7 @@ struct SubtitleDependencies: Sendable {
 enum SubtitleWorkPhase: Equatable, Sendable {
     case downloadingModel
     case aligning
+    case recognizing
 }
 
 struct SubtitleWork: Equatable, Sendable {
@@ -43,6 +44,8 @@ enum SubtitleDisplay: Equatable, Sendable {
 struct SubtitleSourceOption: Equatable, Identifiable, Sendable {
     let kind: SubtitleSourceKind
     let name: String
+    /// `false` for "From audio" before subtitles have been generated.
+    var isReady = true
 
     var id: SubtitleSourceKind {
         kind
@@ -58,21 +61,27 @@ final class SubtitlesViewModel: ObservableObject {
     @Published var activeSource: SubtitleSourceKind?
     /// Why recognition failed; shown as help on the failure notice.
     @Published var failureDetail: String?
+    /// Set when "Generate Subtitles from Audio" failed; holds the reason.
+    @Published var generationError: String?
+    @Published var isGenerating = false
 
     var onError: ((any Error) -> Void)?
     /// A .txt picked from "Add Subtitles or Text…" goes through the script attachment flow.
     var onTextChosen: ((URL) -> Void)?
 
     let projectID: UUID
+    let sourceDisplayName: String
     let bookmark: Data
     let duration: TimeInterval
     let dependencies: SubtitleDependencies?
     private(set) var script: SubtitleScript?
     var manifest = SubtitleManifest()
     private(set) var loadTask: Task<Void, Never>?
+    private(set) var exportTask: Task<Void, Never>?
 
     init(project: AudioProject, dependencies: SubtitleDependencies?) {
         projectID = project.id
+        sourceDisplayName = project.sourceDisplayName
         bookmark = project.sourceBookmark
         duration = project.duration
         self.dependencies = dependencies
@@ -84,6 +93,18 @@ final class SubtitlesViewModel: ObservableObject {
 
     var canAddFiles: Bool {
         dependencies != nil
+    }
+
+    /// Generating needs on-device speech recognition, which needs macOS 26.
+    var canGenerate: Bool {
+        dependencies?.recognizer != nil
+    }
+
+    var exportableCues: [SubtitleCue]? {
+        if case let .timed(transcript) = display, !transcript.cues.isEmpty {
+            return transcript.cues
+        }
+        return nil
     }
 
     var activeSourceName: String? {
@@ -110,6 +131,10 @@ final class SubtitlesViewModel: ObservableObject {
 
     func select(_ kind: SubtitleSourceKind) {
         guard kind != activeSource else {
+            return
+        }
+        guard sources.first(where: { $0.kind == kind })?.isReady ?? false else {
+            generateFromAudio()
             return
         }
         restart { model in
@@ -144,6 +169,34 @@ final class SubtitlesViewModel: ObservableObject {
         }
     }
 
+    /// Recognizes the audio on this Mac and saves the result as the project's .srt. Runs only
+    /// when the user asks for it.
+    func generateFromAudio() {
+        guard canGenerate else {
+            return
+        }
+        restart { model in
+            await model.runGeneration()
+        }
+    }
+
+    func exportSRT() {
+        guard let cues = exportableCues, let chooser = dependencies?.fileChooser else {
+            return
+        }
+        let name = (sourceDisplayName as NSString).deletingPathExtension
+        exportTask = Task { [weak self] in
+            guard let url = await chooser.chooseExportDestination(suggestedName: "\(name).srt") else {
+                return
+            }
+            do {
+                try await Self.write(SubtitleSRTWriter.srt(from: cues), to: url)
+            } catch {
+                self?.onError?(error)
+            }
+        }
+    }
+
     func close() {
         loadTask?.cancel()
         loadTask = nil
@@ -168,6 +221,7 @@ final class SubtitlesViewModel: ObservableObject {
     /// One piece of work at a time; a new request cancels the previous one.
     private func restart(_ work: @escaping @MainActor (SubtitlesViewModel) async -> Void) {
         loadTask?.cancel()
+        generationError = nil
         loadTask = Task { [weak self] in
             guard let self else {
                 return

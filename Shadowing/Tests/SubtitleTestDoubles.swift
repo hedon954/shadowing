@@ -63,10 +63,16 @@ struct FakeSourceAudio: SourceAudioAccessing {
 
 struct StubSubtitleChooser: SubtitleFileChoosing {
     var url: URL?
+    var exportURL: URL?
 
     @MainActor
     func chooseSubtitleFile(includingText _: Bool) async -> URL? {
         url
+    }
+
+    @MainActor
+    func chooseExportDestination(suggestedName _: String) async -> URL? {
+        exportURL
     }
 }
 
