@@ -208,15 +208,15 @@ extension PracticeViewModel {
         if recordingPresentation.locksPracticeControls {
             recordingPresentation = .finalizing
             recordingNotice = interruption == .inputDeviceRemoved
-                ? "The microphone was disconnected. Saving the valid recorded portion."
-                : "Recording was interrupted. Saving the valid recorded portion."
+                ? String(localized: "The microphone was disconnected. Saving the valid recorded portion.")
+                : String(localized: "Recording was interrupted. Saving the valid recorded portion.")
             return
         }
         show(
             AudioSourceError.failed(
                 interruption == .outputDeviceChanged
-                    ? "The audio output changed. Press Play to continue."
-                    : "Playback was interrupted. Press Play to continue."
+                    ? String(localized: "The audio output changed. Press Play to continue.")
+                    : String(localized: "Playback was interrupted. Press Play to continue.")
             )
         )
     }

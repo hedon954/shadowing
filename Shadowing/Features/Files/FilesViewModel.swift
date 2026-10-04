@@ -16,11 +16,11 @@ struct FileLoadFailure: Equatable, Identifiable, Sendable {
     var recoveryTitle: String {
         switch action {
         case .chooseAnother:
-            "Choose Another File"
+            String(localized: "Choose Another File")
         case .relocate:
-            "Locate File"
+            String(localized: "Locate File")
         case .reloadRecents:
-            "Try Again"
+            String(localized: "Try Again")
         }
     }
 
@@ -110,8 +110,8 @@ final class FilesViewModel: ObservableObject {
         } catch {
             state = .failed(
                 FileLoadFailure(
-                    message: "Library could not be loaded.",
-                    suggestion: "Try loading the list again.",
+                    message: String(localized: "Library could not be loaded."),
+                    suggestion: String(localized: "Try loading the list again."),
                     action: .reloadRecents
                 )
             )
@@ -225,10 +225,11 @@ final class FilesViewModel: ObservableObject {
 
     private func show(error: Error, recovery: FileRecoveryAction) {
         let sourceError = error as? AudioSourceError
+        let fallbackSuggestion = String(localized: "Try again or choose another MP3 file.")
         state = .failed(
             FileLoadFailure(
                 message: sourceError?.localizedDescription ?? error.localizedDescription,
-                suggestion: sourceError?.recoverySuggestion ?? "Try again or choose another MP3 file.",
+                suggestion: sourceError?.recoverySuggestion ?? fallbackSuggestion,
                 action: recovery
             )
         )

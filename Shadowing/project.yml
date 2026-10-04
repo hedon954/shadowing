@@ -47,6 +47,8 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Shadowing.entitlements
         GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: true
+        LOCALIZATION_PREFERS_STRING_CATALOGS: true
     scheme:
       testTargets:
         - ShadowingTests

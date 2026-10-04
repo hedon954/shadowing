@@ -14,17 +14,17 @@ enum WaveformGenerationError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .noAudioTrack:
-            "The source does not contain an audio track."
+            String(localized: "The source does not contain an audio track.")
         case let .invalidResolution(value):
-            "Waveform resolution must be greater than zero, not \(value)."
+            String(localized: "Waveform resolution must be greater than zero, not \(value).")
         case let .cannotCreateReader(reason):
-            "Cannot create the waveform reader: \(reason)"
+            String(localized: "Cannot create the waveform reader: \(reason)")
         case let .cannotStartReader(reason):
-            "Cannot start the waveform reader: \(reason)"
+            String(localized: "Cannot start the waveform reader: \(reason)")
         case .unsupportedPCMBuffer:
-            "The decoded audio buffer is not supported for waveform generation."
+            String(localized: "The decoded audio buffer is not supported for waveform generation.")
         case let .readerFailed(reason):
-            "Waveform decoding failed: \(reason)"
+            String(localized: "Waveform decoding failed: \(reason)")
         }
     }
 }

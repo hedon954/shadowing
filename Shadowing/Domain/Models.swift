@@ -299,11 +299,11 @@ enum DomainError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .invalidTimeRange:
-            "The selected time range is invalid."
+            String(localized: "The selected time range is invalid.")
         case .regionDurationOutOfBounds:
-            "A practice region must be between 0.5 and 60 seconds."
+            String(localized: "A practice region must be between 0.5 and 60 seconds.")
         case .invalidTake:
-            "The recording is not a valid take."
+            String(localized: "The recording is not a valid take.")
         }
     }
 }

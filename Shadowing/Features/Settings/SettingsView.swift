@@ -26,7 +26,7 @@ struct SettingsView: View {
                 .tag(Tab.microphone)
             RecordingSettingsTab(viewModel: viewModel)
                 .tabItem {
-                    Label("Recording", systemImage: "record.circle")
+                    Label("Recording (tab)", systemImage: "record.circle")
                 }
                 .tag(Tab.recording)
             PlaybackSettingsTab(viewModel: viewModel)
@@ -117,7 +117,7 @@ private struct MicrophoneSettingsTab: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(
                         """
-                        Speak into the microphone and the level should move. \\
+                        Speak into the microphone and the level should move. \
                         Recording uses the device selected here.
                         """
                     )

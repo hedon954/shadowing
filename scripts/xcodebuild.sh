@@ -21,6 +21,14 @@ case "$action" in
     ;;
 esac
 
+# Tests compare English UI text, so pin the test language instead of
+# following the system language. Chinese strings are covered by
+# LocalizationTests, which loads the zh-Hans bundle explicitly.
+extra_args=()
+if [[ "$action" == "test" ]]; then
+  extra_args+=(-testLanguage en -testRegion US)
+fi
+
 xcodebuild "$action" \
   -project "$project_path" \
   -scheme Shadowing \
@@ -29,4 +37,5 @@ xcodebuild "$action" \
   -clonedSourcePackagesDirPath "$source_packages_path" \
   CODE_SIGN_IDENTITY="" \
   CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGNING_ALLOWED=NO
+  CODE_SIGNING_ALLOWED=NO \
+  ${extra_args[@]+"${extra_args[@]}"}

@@ -111,19 +111,19 @@ enum AudioSourceError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .unsupportedFormat:
-            "Only MP3 audio files are supported."
+            String(localized: "Only MP3 audio files are supported.")
         case .fileMissing:
-            "The audio file could not be found."
+            String(localized: "The audio file could not be found.")
         case .permissionDenied:
-            "Shadowing no longer has permission to read this audio file."
+            String(localized: "Shadowing no longer has permission to read this audio file.")
         case .corruptFile:
-            "The audio file is damaged or cannot be decoded."
+            String(localized: "The audio file is damaged or cannot be decoded.")
         case .noAudioTrack:
-            "The selected file does not contain an audio track."
+            String(localized: "The selected file does not contain an audio track.")
         case .invalidDuration:
-            "The audio file does not have a valid duration."
+            String(localized: "The audio file does not have a valid duration.")
         case .bookmarkStale:
-            "Access to this audio file must be restored."
+            String(localized: "Access to this audio file must be restored.")
         case let .failed(message):
             message
         }
@@ -132,11 +132,11 @@ enum AudioSourceError: Error, Equatable, LocalizedError, Sendable {
     var recoverySuggestion: String {
         switch self {
         case .unsupportedFormat, .corruptFile, .noAudioTrack, .invalidDuration:
-            "Choose another MP3 file."
+            String(localized: "Choose another MP3 file.")
         case .fileMissing, .permissionDenied, .bookmarkStale:
-            "Locate the file again to restore access."
+            String(localized: "Locate the file again to restore access.")
         case .failed:
-            "Try again or choose another MP3 file."
+            String(localized: "Try again or choose another MP3 file.")
         }
     }
 }

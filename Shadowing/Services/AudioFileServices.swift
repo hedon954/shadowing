@@ -7,8 +7,8 @@ struct SystemAudioFileChooser: AudioFileChoosing {
     @MainActor
     func chooseMP3() async -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "Choose an MP3"
-        panel.prompt = "Choose File"
+        panel.title = String(localized: "Choose an MP3")
+        panel.prompt = String(localized: "Choose File")
         panel.allowedContentTypes = [.mp3]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -21,8 +21,8 @@ struct SystemTextFileChooser: TextFileChoosing {
     @MainActor
     func choosePlainText() async -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "Choose a Text File"
-        panel.prompt = "Attach"
+        panel.title = String(localized: "Choose a Text File")
+        panel.prompt = String(localized: "Attach")
         panel.allowedContentTypes = [.plainText]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false

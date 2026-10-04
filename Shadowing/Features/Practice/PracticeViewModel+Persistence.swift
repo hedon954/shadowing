@@ -221,11 +221,7 @@ extension PracticeViewModel {
 
     private func updateRegionNoticeForHydratedTake(_ take: Take) {
         if let currentRegion = project.currentRegion, take.region != currentRegion {
-            recordingNotice = """
-            This take keeps its recorded region \
-            (\(Self.formatTime(take.region.start))–\(Self.formatTime(take.region.end))). \
-            Changing the practice region does not change past takes.
-            """
+            recordingNotice = Self.regionSnapshotNotice(for: take)
         }
     }
 

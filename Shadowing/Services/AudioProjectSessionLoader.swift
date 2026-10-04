@@ -159,7 +159,7 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
         } catch {
             return WaveformPresentation(
                 peaks: [],
-                warning: "The waveform is unavailable. Audio playback is still available."
+                warning: String(localized: "The waveform is unavailable. Audio playback is still available.")
             )
         }
     }

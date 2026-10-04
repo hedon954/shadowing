@@ -16,25 +16,25 @@ enum PracticeAudioEngineError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .sourceNotLoaded:
-            "Load an audio source before starting playback."
+            String(localized: "Load an audio source before starting playback.")
         case let .invalidPlaybackRate(rate):
-            "Playback rate \(rate) is outside the supported 0.5x–1.5x range."
+            String(localized: "Playback rate \(rate) is outside the supported 0.5x–1.5x range.")
         case let .invalidVolume(volume):
-            "Volume \(volume) is outside the supported 0–1 range."
+            String(localized: "Volume \(volume) is outside the supported 0–1 range.")
         case let .invalidSeekTime(time):
-            "Cannot seek to invalid audio time \(time)."
+            String(localized: "Cannot seek to invalid audio time \(time).")
         case .frameCountTooLarge:
-            "The scheduled audio range is too large for AVAudioPlayerNode."
+            String(localized: "The scheduled audio range is too large for AVAudioPlayerNode.")
         case .recordingAlreadyActive:
-            "A microphone recording is already active."
+            String(localized: "A microphone recording is already active.")
         case .recordingNotActive:
-            "There is no active microphone recording to stop."
+            String(localized: "There is no active microphone recording to stop.")
         case .inputUnavailable:
-            "No usable microphone input format is available."
+            String(localized: "No usable microphone input format is available.")
         case let .takeResolutionUnavailable(takeID):
-            "No recording URL resolver is configured for take \(takeID)."
+            String(localized: "No recording URL resolver is configured for take \(takeID.uuidString).")
         case let .audioEngineFailed(reason):
-            "The audio engine failed: \(reason)"
+            String(localized: "The audio engine failed: \(reason)")
         }
     }
 }

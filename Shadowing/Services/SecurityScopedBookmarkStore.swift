@@ -8,11 +8,11 @@ enum BookmarkStoreError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .creationFailed(path, reason):
-            "Could not save access to \(path): \(reason)"
+            String(localized: "Could not save access to \(path): \(reason)")
         case let .resolutionFailed(reason):
-            "Could not restore access to the selected file: \(reason)"
+            String(localized: "Could not restore access to the selected file: \(reason)")
         case let .accessDenied(path):
-            "The app no longer has permission to access \(path)."
+            String(localized: "The app no longer has permission to access \(path).")
         }
     }
 }

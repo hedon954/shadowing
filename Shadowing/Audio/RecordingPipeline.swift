@@ -11,13 +11,13 @@ enum RecordingPipelineError: Error, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .cannotCopyInputBuffer:
-            "The microphone buffer could not be copied for recording."
+            String(localized: "The microphone buffer could not be copied for recording.")
         case let .writerCreationFailed(path, reason):
-            "Cannot create the temporary recording at \(path): \(reason)"
+            String(localized: "Cannot create the temporary recording at \(path): \(reason)")
         case let .writerFailed(path, reason):
-            "Cannot write the temporary recording at \(path): \(reason)"
+            String(localized: "Cannot write the temporary recording at \(path): \(reason)")
         case .bufferQueueOverrun:
-            "The recording writer could not keep up with the microphone input."
+            String(localized: "The recording writer could not keep up with the microphone input.")
         }
     }
 }

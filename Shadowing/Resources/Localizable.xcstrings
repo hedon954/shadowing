@@ -1,6 +1,93 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@\n\n%@" : {
+      "shouldTranslate" : false
+    },
+    "%@ – %@" : {
+      "shouldTranslate" : false
+    },
+    "%@, %@" : {
+      "shouldTranslate" : false
+    },
+    "%lld percent" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%%"
+          }
+        }
+      }
+    },
+    "%lld seconds" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld second"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld seconds"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld takes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld take"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld takes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次跟读"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld takes · %@" : {
       "localizations" : {
         "en" : {
@@ -19,6 +106,2031 @@
                 }
               }
             }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次跟读 · %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld takes · Last practiced %@" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld take · Last practiced %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld takes · Last practiced %@"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次跟读 · 上次 %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "0 seconds" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0 秒"
+          }
+        }
+      }
+    },
+    "A committed recording already exists: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已有同名的录音：%@。"
+          }
+        }
+      }
+    },
+    "A microphone recording is already active." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风已经在录音。"
+          }
+        }
+      }
+    },
+    "A practice region must be between 0.5 and 60 seconds." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习片段需在 0.5 到 60 秒之间。"
+          }
+        }
+      }
+    },
+    "A repository query limit cannot be negative: %lld." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查询数量不能为负数：%lld。"
+          }
+        }
+      }
+    },
+    "Access to this audio file must be restored." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新授权访问这个音频文件。"
+          }
+        }
+      }
+    },
+    "Add Subtitles or Text…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字幕或文本…"
+          }
+        }
+      }
+    },
+    "Add Text…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加文本…"
+          }
+        }
+      }
+    },
+    "Add a subtitle or text file if you have one. If not, generate subtitles from the audio on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有字幕或文本就添加进来；没有的话，可以在本机从音频生成。"
+          }
+        }
+      }
+    },
+    "Aligned original and recording waveforms" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原音与录音波形"
+          }
+        }
+      }
+    },
+    "Attach" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加"
+          }
+        }
+      }
+    },
+    "Attach script text file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加文本文件"
+          }
+        }
+      }
+    },
+    "Back 5 seconds" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "后退 5 秒"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
+    "Cancel audio loading" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消加载音频"
+          }
+        }
+      }
+    },
+    "Cancel practice selection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消练习选段"
+          }
+        }
+      }
+    },
+    "Cancel selection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消选段"
+          }
+        }
+      }
+    },
+    "Cannot create the merged take file: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法创建合并后的录音文件：%@"
+          }
+        }
+      }
+    },
+    "Cannot create the temporary recording at %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法在 %@ 创建临时录音：%@"
+          }
+        }
+      }
+    },
+    "Cannot create the waveform reader: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法创建波形读取器：%@"
+          }
+        }
+      }
+    },
+    "Cannot fingerprint the waveform source at %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法识别 %@ 处的波形来源。"
+          }
+        }
+      }
+    },
+    "Cannot handle %@ while the practice session is %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习处于 %2$@ 状态，无法处理 %1$@。"
+          }
+        }
+      }
+    },
+    "Cannot open the existing take for overwrite: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开要覆盖的录音：%@"
+          }
+        }
+      }
+    },
+    "Cannot open the new recording for overwrite: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开用于覆盖的新录音：%@"
+          }
+        }
+      }
+    },
+    "Cannot read audio while merging takes: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并录音时无法读取音频：%@"
+          }
+        }
+      }
+    },
+    "Cannot read waveform cache at %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取 %@ 处的波形缓存：%@"
+          }
+        }
+      }
+    },
+    "Cannot seek to invalid audio time %lf." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法跳到无效的时间 %lf。"
+          }
+        }
+      }
+    },
+    "Cannot start the waveform reader: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法启动波形读取器：%@"
+          }
+        }
+      }
+    },
+    "Cannot write the merged take: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法写入合并后的录音：%@"
+          }
+        }
+      }
+    },
+    "Cannot write the temporary recording at %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法写入 %@ 处的临时录音：%@"
+          }
+        }
+      }
+    },
+    "Cannot write waveform cache at %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法写入 %@ 处的波形缓存：%@"
+          }
+        }
+      }
+    },
+    "Checking microphone…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查麦克风…"
+          }
+        }
+      }
+    },
+    "Choose Another File" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择其他文件"
+          }
+        }
+      }
+    },
+    "Choose File" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择文件"
+          }
+        }
+      }
+    },
+    "Choose MP3 file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择 MP3 文件"
+          }
+        }
+      }
+    },
+    "Choose a Text File" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择文本文件"
+          }
+        }
+      }
+    },
+    "Choose a practice file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选一个练习材料"
+          }
+        }
+      }
+    },
+    "Choose an MP3" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择 MP3"
+          }
+        }
+      }
+    },
+    "Choose another MP3 file." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请换一个 MP3 文件。"
+          }
+        }
+      }
+    },
+    "Click to jump there. Drag across the waveform to select one sentence." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击跳到该处；在波形上拖动可选中一句。"
+          }
+        }
+      }
+    },
+    "Continue Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续录音"
+          }
+        }
+      }
+    },
+    "Could not restore access to the selected file: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法恢复对所选文件的访问：%@"
+          }
+        }
+      }
+    },
+    "Could not save access to %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存对 %@ 的访问权限：%@"
+          }
+        }
+      }
+    },
+    "Could not save metadata for %@ (%@) or remove the committed recording (%@)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存 %1$@ 的信息（%2$@），也无法删除已保存的录音（%3$@）。"
+          }
+        }
+      }
+    },
+    "Could not save metadata for %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存 %@ 的信息：%@"
+          }
+        }
+      }
+    },
+    "Couldn’t Open Audio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开音频"
+          }
+        }
+      }
+    },
+    "Countdown" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "倒计时"
+          }
+        }
+      }
+    },
+    "Default speed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认倍速"
+          }
+        }
+      }
+    },
+    "Delete" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        }
+      }
+    },
+    "Delete Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除第 %lld 遍"
+          }
+        }
+      }
+    },
+    "Disable loop" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭循环"
+          }
+        }
+      }
+    },
+    "Drag the highlighted window to pan, or drag its borders to zoom the detailed timeline." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动高亮区域可平移，拖动边缘可缩放时间轴。"
+          }
+        }
+      }
+    },
+    "Drop an MP3 anywhere in this window to start" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 MP3 拖进窗口任意位置就能开始"
+          }
+        }
+      }
+    },
+    "Drop an MP3 here or use the Choose File button." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 MP3 拖到这里，或使用“打开 MP3…”按钮。"
+          }
+        }
+      }
+    },
+    "Enable loop" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启循环"
+          }
+        }
+      }
+    },
+    "Finishing…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在完成…"
+          }
+        }
+      }
+    },
+    "Forward 5 seconds" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前进 5 秒"
+          }
+        }
+      }
+    },
+    "Full" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        }
+      }
+    },
+    "Full audio waveform overview" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完整音频波形总览"
+          }
+        }
+      }
+    },
+    "Headphones are recommended to prevent the original audio from being recorded again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建议戴耳机，避免把原音也录进去。"
+          }
+        }
+      }
+    },
+    "Hide Subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏字幕"
+          }
+        }
+      }
+    },
+    "Input Device" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入设备"
+          }
+        }
+      }
+    },
+    "Input Level" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入电平"
+          }
+        }
+      }
+    },
+    "Library" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习材料"
+          }
+        }
+      }
+    },
+    "Library could not be loaded." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载练习材料列表。"
+          }
+        }
+      }
+    },
+    "Load an audio source before starting playback." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先加载音频再播放。"
+          }
+        }
+      }
+    },
+    "Loading %@…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载 %@…"
+          }
+        }
+      }
+    },
+    "Loading audio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载音频"
+          }
+        }
+      }
+    },
+    "Locate File" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找文件"
+          }
+        }
+      }
+    },
+    "Locate the file again to restore access." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新找到这个文件即可恢复访问。"
+          }
+        }
+      }
+    },
+    "MP3 drop area" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MP3 拖放区域"
+          }
+        }
+      }
+    },
+    "Microphone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风"
+          }
+        }
+      }
+    },
+    "Microphone Access Required" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要麦克风权限"
+          }
+        }
+      }
+    },
+    "Microphone input level" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风输入电平"
+          }
+        }
+      }
+    },
+    "No practice files yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有练习材料"
+          }
+        }
+      }
+    },
+    "No recording URL resolver is configured for take %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音 %@ 没有可用的文件位置。"
+          }
+        }
+      }
+    },
+    "No subtitles yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有字幕"
+          }
+        }
+      }
+    },
+    "No takes yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没跟读"
+          }
+        }
+      }
+    },
+    "No takes yet · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没跟读 · %@"
+          }
+        }
+      }
+    },
+    "No usable microphone input format is available." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可用的麦克风输入格式。"
+          }
+        }
+      }
+    },
+    "None" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关"
+          }
+        }
+      }
+    },
+    "On" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开"
+          }
+        }
+      }
+    },
+    "Only MP3 audio files are supported." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只支持 MP3 音频文件。"
+          }
+        }
+      }
+    },
+    "Open %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 %@"
+          }
+        }
+      }
+    },
+    "Open MP3…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 MP3…"
+          }
+        }
+      }
+    },
+    "Open System Settings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开系统设置"
+          }
+        }
+      }
+    },
+    "Original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原音"
+          }
+        }
+      }
+    },
+    "Pause Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停第 %lld 遍"
+          }
+        }
+      }
+    },
+    "Pause audio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停"
+          }
+        }
+      }
+    },
+    "Pick one in the sidebar, or drop an MP3 anywhere in this window." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在侧栏选一个，或把 MP3 拖进窗口任意位置。"
+          }
+        }
+      }
+    },
+    "Play Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放第 %lld 遍"
+          }
+        }
+      }
+    },
+    "Play audio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放"
+          }
+        }
+      }
+    },
+    "Play original while recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音时播放原音"
+          }
+        }
+      }
+    },
+    "Playback" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放"
+          }
+        }
+      }
+    },
+    "Playback rate %lf is outside the supported 0.5x–1.5x range." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "倍速 %lf 超出支持的 0.5x–1.5x 范围。"
+          }
+        }
+      }
+    },
+    "Playback speed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放倍速"
+          }
+        }
+      }
+    },
+    "Playback volume" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放音量"
+          }
+        }
+      }
+    },
+    "Playback was interrupted. Press Play to continue." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放被中断，按播放继续。"
+          }
+        }
+      }
+    },
+    "Practice Error" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习出错"
+          }
+        }
+      }
+    },
+    "Practice script" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习文本"
+          }
+        }
+      }
+    },
+    "Project %@ contains invalid persisted data." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习材料 %@ 的已存数据无效。"
+          }
+        }
+      }
+    },
+    "Record" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音"
+          }
+        }
+      }
+    },
+    "Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音"
+          }
+        }
+      }
+    },
+    "Recording (tab)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音"
+          }
+        }
+      }
+    },
+    "Recording In Progress" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音"
+          }
+        }
+      }
+    },
+    "Recording is in progress.\n\nStop recording and close, or continue recording?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音。\n\n要停止录音并关闭，还是继续录音？"
+          }
+        }
+      }
+    },
+    "Recording is unavailable in this practice session." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前练习无法录音。"
+          }
+        }
+      }
+    },
+    "Recording starts in %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 秒后开始录音"
+          }
+        }
+      }
+    },
+    "Recording was interrupted. Saving the valid recorded portion." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音被中断，正在保存已录下的有效部分。"
+          }
+        }
+      }
+    },
+    "Recording · Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音 · 第 %lld 遍"
+          }
+        }
+      }
+    },
+    "Recording, %@ elapsed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音，已录 %@"
+          }
+        }
+      }
+    },
+    "Recordings folder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音文件夹"
+          }
+        }
+      }
+    },
+    "Repeats only the selected region." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只循环选中的片段。"
+          }
+        }
+      }
+    },
+    "Replace Text…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换文本…"
+          }
+        }
+      }
+    },
+    "Replace script text file" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换文本文件"
+          }
+        }
+      }
+    },
+    "Saving recording…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在保存录音…"
+          }
+        }
+      }
+    },
+    "Select a practice region before enabling loop." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先选一个片段再开启循环。"
+          }
+        }
+      }
+    },
+    "Select a practice region before recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先选一个片段再录音。"
+          }
+        }
+      }
+    },
+    "Select to play this take." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中即可播放这一遍。"
+          }
+        }
+      }
+    },
+    "Selected region from %@ to %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选片段 %@ 到 %@"
+          }
+        }
+      }
+    },
+    "Selection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选段"
+          }
+        }
+      }
+    },
+    "Selection end" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选段结束"
+          }
+        }
+      }
+    },
+    "Selection start" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选段开始"
+          }
+        }
+      }
+    },
+    "Settings Error" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置出错"
+          }
+        }
+      }
+    },
+    "Settings can't change while recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音时不能修改设置。"
+          }
+        }
+      }
+    },
+    "Shadowing" : {
+      "shouldTranslate" : false
+    },
+    "Shadowing Couldn’t Start" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadowing 无法启动"
+          }
+        }
+      }
+    },
+    "Shadowing no longer has permission to read this audio file." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadowing 已没有读取这个音频文件的权限。"
+          }
+        }
+      }
+    },
+    "Show Full Waveform" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示完整波形"
+          }
+        }
+      }
+    },
+    "Show Subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示字幕"
+          }
+        }
+      }
+    },
+    "Speak into the microphone and the level should move. Recording uses the device selected here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对着麦克风说话，电平条应该跳动。录音时用这里选中的设备。"
+          }
+        }
+      }
+    },
+    "Starts recording from the current Original playhead until the audio ends, or until you stop. With a take selected, recording replaces that take." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从原音当前位置开始录音，直到音频结束或你手动停止。选中某一遍时，录音会替换那一遍。"
+          }
+        }
+      }
+    },
+    "Stop %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止 %@"
+          }
+        }
+      }
+    },
+    "Stop Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止录音"
+          }
+        }
+      }
+    },
+    "Stop and Close" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止并关闭"
+          }
+        }
+      }
+    },
+    "Storage" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储"
+          }
+        }
+      }
+    },
+    "Subtitle Source" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕来源"
+          }
+        }
+      }
+    },
+    "Subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕"
+          }
+        }
+      }
+    },
+    "Supports .srt, .vtt, .lrc and .txt" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持 .srt .vtt .lrc .txt"
+          }
+        }
+      }
+    },
+    "System Default" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系统默认"
+          }
+        }
+      }
+    },
+    "Take %@ contains invalid persisted data." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音 %@ 的已存数据无效。"
+          }
+        }
+      }
+    },
+    "Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 遍"
+          }
+        }
+      }
+    },
+    "Takes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟读"
+          }
+        }
+      }
+    },
+    "The app no longer has permission to access %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App 已没有访问 %@ 的权限。"
+          }
+        }
+      }
+    },
+    "The audio engine failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频引擎出错：%@"
+          }
+        }
+      }
+    },
+    "The audio engine returned an unexpected temporary recording at %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频引擎返回了意外的临时录音：%@。"
+          }
+        }
+      }
+    },
+    "The audio file could not be found." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到这个音频文件。"
+          }
+        }
+      }
+    },
+    "The audio file does not have a valid duration." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个音频文件的时长无效。"
+          }
+        }
+      }
+    },
+    "The audio file is damaged or cannot be decoded." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频文件已损坏或无法解码。"
+          }
+        }
+      }
+    },
+    "The audio frame range is invalid." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频帧范围无效。"
+          }
+        }
+      }
+    },
+    "The audio output changed. Press Play to continue." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频输出设备已变化，按播放继续。"
+          }
+        }
+      }
+    },
+    "The audio sample rate must be finite and greater than zero." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频采样率必须是大于零的有限值。"
+          }
+        }
+      }
+    },
+    "The audio time cannot be represented as a frame position." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个时间无法换算成音频帧位置。"
+          }
+        }
+      }
+    },
+    "The audio time must be finite and greater than or equal to zero." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频时间必须是不小于零的有限值。"
+          }
+        }
+      }
+    },
+    "The completed recording has no active recording session." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音已结束，但找不到对应的录音会话。"
+          }
+        }
+      }
+    },
+    "The completed take does not match the active recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成的录音与当前录音不一致。"
+          }
+        }
+      }
+    },
+    "The decoded audio buffer is not supported for waveform generation." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解码后的音频无法用于生成波形。"
+          }
+        }
+      }
+    },
+    "The microphone buffer could not be copied for recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法复制麦克风数据用于录音。"
+          }
+        }
+      }
+    },
+    "The microphone was disconnected. Saving the valid recorded portion." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风已断开，正在保存已录下的有效部分。"
+          }
+        }
+      }
+    },
+    "The overwrite merge plan is invalid." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖录音的合并方案无效。"
+          }
+        }
+      }
+    },
+    "The playback rate must be finite and greater than zero." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "倍速必须是大于零的有限值。"
+          }
+        }
+      }
+    },
+    "The practice session received an invalid time." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习收到了无效的时间。"
+          }
+        }
+      }
+    },
+    "The recording countdown must be zero or greater." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音倒计时不能小于零。"
+          }
+        }
+      }
+    },
+    "The recording file operation failed at %@: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音文件操作失败（%@）：%@"
+          }
+        }
+      }
+    },
+    "The recording is not a valid take." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段录音不是有效的跟读。"
+          }
+        }
+      }
+    },
+    "The recording path is invalid: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音路径无效：%@。"
+          }
+        }
+      }
+    },
+    "The recording was only %@ seconds. Please record again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这次只录了 %@ 秒，请重新录。"
+          }
+        }
+      }
+    },
+    "The recording writer could not keep up with the microphone input." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音写入跟不上麦克风输入。"
+          }
+        }
+      }
+    },
+    "The scheduled audio range is too large for AVAudioPlayerNode." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要播放的音频范围过大。"
+          }
+        }
+      }
+    },
+    "The script file does not exist: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文本文件不存在：%@。"
+          }
+        }
+      }
+    },
+    "The script file is not valid UTF-8 text: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文本文件不是有效的 UTF-8 文本：%@。"
+          }
+        }
+      }
+    },
+    "The selected file does not contain an audio track." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选文件没有音轨。"
+          }
+        }
+      }
+    },
+    "The selected time range is invalid." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选时间范围无效。"
+          }
+        }
+      }
+    },
+    "The source does not contain an audio track." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频来源没有音轨。"
+          }
+        }
+      }
+    },
+    "The temporary recording at %@ contains no audio frames." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "临时录音 %@ 里没有音频数据。"
+          }
+        }
+      }
+    },
+    "The temporary recording at %@ is not playable: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "临时录音 %@ 无法播放：%@"
+          }
+        }
+      }
+    },
+    "The temporary recording does not exist: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "临时录音不存在：%@。"
+          }
+        }
+      }
+    },
+    "The temporary recording is empty: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "临时录音是空的：%@。"
+          }
+        }
+      }
+    },
+    "The temporary recording is outside the managed directory: %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "临时录音不在受管理的文件夹里：%@。"
+          }
+        }
+      }
+    },
+    "The waveform cache could not be read and was rebuilt." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波形缓存读取失败，已重新生成。"
+          }
+        }
+      }
+    },
+    "The waveform is ready, but its cache could not be saved." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波形已生成，但缓存没能保存。"
+          }
+        }
+      }
+    },
+    "The waveform is unavailable. Audio playback is still available." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波形暂不可用，仍可正常播放。"
+          }
+        }
+      }
+    },
+    "There is no active microphone recording to stop." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前没有正在进行的录音。"
+          }
+        }
+      }
+    },
+    "This take keeps its recorded region (%@–%@). Changing the practice region does not change past takes." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一遍保留录制时的片段（%@–%@）。修改练习片段不会影响已有的跟读。"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
+    },
+    "Try again or choose another MP3 file." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重试，或换一个 MP3 文件。"
+          }
+        }
+      }
+    },
+    "Try loading the list again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重新加载列表。"
+          }
+        }
+      }
+    },
+    "Using the system default input device." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用系统默认输入设备。"
+          }
+        }
+      }
+    },
+    "Visible from %@ to %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示 %@ 到 %@"
+          }
+        }
+      }
+    },
+    "Volume %f is outside the supported 0–1 range." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音量 %f 超出支持的 0–1 范围。"
+          }
+        }
+      }
+    },
+    "Waveform decoding failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波形解码失败：%@"
+          }
+        }
+      }
+    },
+    "Waveform resolution must be greater than zero, not %lld." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波形精度必须大于零，当前是 %lld。"
+          }
+        }
+      }
+    },
+    "Waveform warning: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波形提示：%@"
+          }
+        }
+      }
+    },
+    "Zoom In" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放大"
+          }
+        }
+      }
+    },
+    "Zoom Out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩小"
+          }
+        }
+      }
+    },
+    "Zoom to Selection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩放到选段"
           }
         }
       }

@@ -104,17 +104,17 @@ enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            "Recording is unavailable in this practice session."
+            String(localized: "Recording is unavailable in this practice session.")
         case .missingContext:
-            "The completed recording has no active recording session."
+            String(localized: "The completed recording has no active recording session.")
         case let .unexpectedTemporaryFile(path):
-            "The audio engine returned an unexpected temporary recording at \(path)."
+            String(localized: "The audio engine returned an unexpected temporary recording at \(path).")
         case let .tooShort(duration):
-            """
+            String(localized: """
             The recording was only \
             \(duration.formatted(.number.precision(.fractionLength(1)))) seconds. \
             Please record again.
-            """
+            """)
         }
     }
 }
@@ -317,7 +317,7 @@ extension PracticeViewModel {
         let appSettings = await dependencies.resolvedSettings()
         recordingTimelineRate = appSettings.playOriginalWhileRecording ? rate : 1
         recordingNotice = appSettings.playOriginalWhileRecording
-            ? "Headphones are recommended to prevent the original audio from being recorded again."
+            ? String(localized: "Headphones are recommended to prevent the original audio from being recorded again.")
             : nil
         try await runCountdown(
             dependencies,

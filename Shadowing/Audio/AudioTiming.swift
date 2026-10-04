@@ -10,15 +10,15 @@ enum AudioTimingError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .invalidSampleRate:
-            "The audio sample rate must be finite and greater than zero."
+            String(localized: "The audio sample rate must be finite and greater than zero.")
         case .invalidTime:
-            "The audio time must be finite and greater than or equal to zero."
+            String(localized: "The audio time must be finite and greater than or equal to zero.")
         case .invalidPlaybackRate:
-            "The playback rate must be finite and greater than zero."
+            String(localized: "The playback rate must be finite and greater than zero.")
         case .invalidFrameRange:
-            "The audio frame range is invalid."
+            String(localized: "The audio frame range is invalid.")
         case .frameOverflow:
-            "The audio time cannot be represented as a frame position."
+            String(localized: "The audio time cannot be represented as a frame position.")
         }
     }
 }

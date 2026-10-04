@@ -66,11 +66,11 @@ enum WaveformCacheError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .invalidSource(path):
-            "Cannot fingerprint the waveform source at \(path)."
+            String(localized: "Cannot fingerprint the waveform source at \(path).")
         case let .cacheReadFailed(path, reason):
-            "Cannot read waveform cache at \(path): \(reason)"
+            String(localized: "Cannot read waveform cache at \(path): \(reason)")
         case let .cacheWriteFailed(path, reason):
-            "Cannot write waveform cache at \(path): \(reason)"
+            String(localized: "Cannot write waveform cache at \(path): \(reason)")
         }
     }
 }

@@ -12,17 +12,17 @@ enum TakeAudioSplicerError: Error, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .cannotOpenExisting(reason):
-            "Cannot open the existing take for overwrite: \(reason)"
+            String(localized: "Cannot open the existing take for overwrite: \(reason)")
         case let .cannotOpenNewRecording(reason):
-            "Cannot open the new recording for overwrite: \(reason)"
+            String(localized: "Cannot open the new recording for overwrite: \(reason)")
         case let .cannotCreateOutput(reason):
-            "Cannot create the merged take file: \(reason)"
+            String(localized: "Cannot create the merged take file: \(reason)")
         case let .readFailed(reason):
-            "Cannot read audio while merging takes: \(reason)"
+            String(localized: "Cannot read audio while merging takes: \(reason)")
         case let .writeFailed(reason):
-            "Cannot write the merged take: \(reason)"
+            String(localized: "Cannot write the merged take: \(reason)")
         case .invalidPlan:
-            "The overwrite merge plan is invalid."
+            String(localized: "The overwrite merge plan is invalid.")
         }
     }
 }

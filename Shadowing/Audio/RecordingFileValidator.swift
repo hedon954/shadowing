@@ -8,9 +8,9 @@ enum RecordingValidationError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .unplayable(path, reason):
-            "The temporary recording at \(path) is not playable: \(reason)"
+            String(localized: "The temporary recording at \(path) is not playable: \(reason)")
         case let .empty(path):
-            "The temporary recording at \(path) contains no audio frames."
+            String(localized: "The temporary recording at \(path) contains no audio frames.")
         }
     }
 }

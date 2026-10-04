@@ -177,16 +177,20 @@ enum PracticeTransitionError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .invalidTransition(state, intent):
-            "Cannot handle \(intent) while the practice session is \(state)."
+            Self.invalidTransitionMessage(state: String(describing: state), intent: String(describing: intent))
         case .missingPracticeRegion:
-            "Select a practice region before recording."
+            String(localized: "Select a practice region before recording.")
         case .invalidTime:
-            "The practice session received an invalid time."
+            String(localized: "The practice session received an invalid time.")
         case .invalidCountdown:
-            "The recording countdown must be zero or greater."
+            String(localized: "The recording countdown must be zero or greater.")
         case .takeDoesNotMatchRecording:
-            "The completed take does not match the active recording."
+            String(localized: "The completed take does not match the active recording.")
         }
+    }
+
+    private static func invalidTransitionMessage(state: String, intent: String) -> String {
+        String(localized: "Cannot handle \(intent) while the practice session is \(state).")
     }
 }
 

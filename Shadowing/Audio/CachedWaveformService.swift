@@ -24,7 +24,7 @@ struct CachedWaveformService: WaveformPreparing {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            warning = "The waveform cache could not be read and was rebuilt."
+            warning = String(localized: "The waveform cache could not be read and was rebuilt.")
         }
 
         let waveform = try await generator.generate(from: url)
@@ -34,7 +34,7 @@ struct CachedWaveformService: WaveformPreparing {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            warning = "The waveform is ready, but its cache could not be saved."
+            warning = String(localized: "The waveform is ready, but its cache could not be saved.")
         }
         return makePresentation(from: waveform, warning: warning)
     }

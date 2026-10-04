@@ -9,11 +9,11 @@ enum RepositoryError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .invalidLimit(limit):
-            "A repository query limit cannot be negative: \(limit)."
+            String(localized: "A repository query limit cannot be negative: \(limit).")
         case let .corruptProject(id):
-            "Project \(id) contains invalid persisted data."
+            String(localized: "Project \(id) contains invalid persisted data.")
         case let .corruptTake(id):
-            "Take \(id) contains invalid persisted data."
+            String(localized: "Take \(id) contains invalid persisted data.")
         }
     }
 }

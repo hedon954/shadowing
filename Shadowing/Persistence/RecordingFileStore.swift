@@ -13,21 +13,21 @@ enum RecordingFileStoreError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .invalidRelativePath(path):
-            "The recording path is invalid: \(path)."
+            String(localized: "The recording path is invalid: \(path).")
         case let .unmanagedTemporaryFile(path):
-            "The temporary recording is outside the managed directory: \(path)."
+            String(localized: "The temporary recording is outside the managed directory: \(path).")
         case let .temporaryFileMissing(path):
-            "The temporary recording does not exist: \(path)."
+            String(localized: "The temporary recording does not exist: \(path).")
         case let .temporaryFileEmpty(path):
-            "The temporary recording is empty: \(path)."
+            String(localized: "The temporary recording is empty: \(path).")
         case let .destinationAlreadyExists(path):
-            "A committed recording already exists: \(path)."
+            String(localized: "A committed recording already exists: \(path).")
         case let .fileOperationFailed(path, reason):
-            "The recording file operation failed at \(path): \(reason)"
+            String(localized: "The recording file operation failed at \(path): \(reason)")
         case let .invalidScriptEncoding(path):
-            "The script file is not valid UTF-8 text: \(path)."
+            String(localized: "The script file is not valid UTF-8 text: \(path).")
         case let .scriptSourceMissing(path):
-            "The script file does not exist: \(path)."
+            String(localized: "The script file does not exist: \(path).")
         }
     }
 }
@@ -295,12 +295,12 @@ enum TakeCommitError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case let .metadataSaveFailed(relativePath, reason):
-            "Could not save metadata for \(relativePath): \(reason)"
+            String(localized: "Could not save metadata for \(relativePath): \(reason)")
         case let .rollbackFailed(relativePath, saveReason, rollbackReason):
-            """
+            String(localized: """
             Could not save metadata for \(relativePath) (\(saveReason)) or remove the committed \
             recording (\(rollbackReason)).
-            """
+            """)
         }
     }
 }

@@ -121,11 +121,17 @@ final class PracticeViewModel: ObservableObject {
         else {
             return nil
         }
-        return """
-        This take keeps its recorded region \
-        (\(Self.formatTime(take.region.start))–\(Self.formatTime(take.region.end))). \
+        return Self.regionSnapshotNotice(for: take)
+    }
+
+    /// Shown when the selected take was recorded over a different region than the current one.
+    static func regionSnapshotNotice(for take: Take) -> String {
+        let start = formatTime(take.region.start)
+        let end = formatTime(take.region.end)
+        return String(localized: """
+        This take keeps its recorded region (\(start)–\(end)). \
         Changing the practice region does not change past takes.
-        """
+        """)
     }
 
     var controlsLocked: Bool {
