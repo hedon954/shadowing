@@ -9,6 +9,8 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var inputLevel: Float = 0
     @Published private(set) var storagePath: String
     @Published var failureMessage: String?
+    /// True while a take is recording; the Settings window is read-only then.
+    @Published var isLocked = false
 
     private let store: any SettingsStore
     private let inputDevicesProvider: any AudioInputDeviceProviding

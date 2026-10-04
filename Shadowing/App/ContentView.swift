@@ -4,8 +4,13 @@ struct ContentView: View {
     @StateObject private var navigation: AppNavigationModel
     @State private var isDropTargeted = false
 
-    init(dependencies: AppDependencies) {
-        self.init(navigation: AppNavigationModel(dependencies: dependencies))
+    init(dependencies: AppDependencies, settingsViewModel: SettingsViewModel) {
+        self.init(
+            navigation: AppNavigationModel(
+                dependencies: dependencies,
+                settingsViewModel: settingsViewModel
+            )
+        )
     }
 
     /// Lets previews and snapshot tests drive navigation with fake dependencies.
@@ -19,11 +24,6 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 340)
         } detail: {
             detail
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        settingsButton
-                    }
-                }
         }
         .frame(minWidth: 900, minHeight: 560)
         .dropDestination(for: URL.self) { urls, _ in
@@ -44,21 +44,6 @@ struct ContentView: View {
         .practiceKeyboardShortcuts(isEnabled: true) { action in
             navigation.handleShortcut(action)
         }
-    }
-
-    private var settingsButton: some View {
-        Button {
-            navigation.isSettingsPresented.toggle()
-        } label: {
-            Label("Settings", systemImage: "gearshape")
-        }
-        .popover(isPresented: $navigation.isSettingsPresented, arrowEdge: .bottom) {
-            SettingsView(viewModel: navigation.settingsViewModel)
-                .frame(width: 400, height: 520)
-        }
-        .disabled(navigation.practiceControlsLocked)
-        .accessibilityLabel("Settings")
-        .help("Settings")
     }
 
     @ViewBuilder

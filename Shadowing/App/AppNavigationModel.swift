@@ -3,8 +3,13 @@ import SwiftUI
 @MainActor
 final class AppNavigationModel: ObservableObject {
     @Published var preparedPractice: PreparedPractice?
-    @Published var practiceControlsLocked = false
-    @Published var isSettingsPresented = false
+    /// Recording locks practice controls and the Settings window.
+    @Published var practiceControlsLocked = false {
+        didSet {
+            settingsViewModel.isLocked = practiceControlsLocked
+        }
+    }
+
     /// Sidebar highlight; set on click so the row stays selected while the file loads.
     @Published var selectedProjectID: UUID?
 
@@ -28,14 +33,20 @@ final class AppNavigationModel: ObservableObject {
         self?.openPrepared(prepared)
     }
 
-    lazy var settingsViewModel = SettingsViewModel(
-        store: dependencies.settings,
-        inputDevicesProvider: dependencies.inputDevices,
-        storageDirectory: dependencies.recordingsStorageURL
-    )
+    /// Shared with the Settings window so it can lock while recording.
+    let settingsViewModel: SettingsViewModel
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: AppDependencies, settingsViewModel: SettingsViewModel? = nil) {
         self.dependencies = dependencies
+        self.settingsViewModel = settingsViewModel ?? Self.makeSettingsViewModel(dependencies: dependencies)
+    }
+
+    static func makeSettingsViewModel(dependencies: AppDependencies) -> SettingsViewModel {
+        SettingsViewModel(
+            store: dependencies.settings,
+            inputDevicesProvider: dependencies.inputDevices,
+            storageDirectory: dependencies.recordingsStorageURL
+        )
     }
 
     var currentProjectID: UUID? {
@@ -86,7 +97,6 @@ final class AppNavigationModel: ObservableObject {
             guard !Task.isCancelled else {
                 return
             }
-            isSettingsPresented = false
             preparedPractice = prepared
             selectedProjectID = prepared.project.id
             practiceControlsLocked = false
@@ -145,7 +155,6 @@ final class AppNavigationModel: ObservableObject {
                 return
             }
             pendingLeaveCancel = nil
-            isSettingsPresented = false
             preparedPractice = nil
             practiceControlsLocked = false
             next()

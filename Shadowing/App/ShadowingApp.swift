@@ -23,10 +23,18 @@ private struct TestHostApp: App {
 
 struct ShadowingApp: App {
     private let dependencies: Result<AppDependencies, Error>
+    /// One settings model for the Settings window and every practice window.
+    private let settingsViewModel: SettingsViewModel?
 
     init() {
-        dependencies = Result {
+        let dependencies = Result {
             try AppDependencies.live()
+        }
+        self.dependencies = dependencies
+        if case let .success(live) = dependencies {
+            settingsViewModel = AppNavigationModel.makeSettingsViewModel(dependencies: live)
+        } else {
+            settingsViewModel = nil
         }
     }
 
@@ -34,7 +42,9 @@ struct ShadowingApp: App {
         WindowGroup {
             switch dependencies {
             case let .success(dependencies):
-                ContentView(dependencies: dependencies)
+                if let settingsViewModel {
+                    ContentView(dependencies: dependencies, settingsViewModel: settingsViewModel)
+                }
             case let .failure(error):
                 ContentUnavailableView(
                     "Shadowing Couldn’t Start",
@@ -46,5 +56,11 @@ struct ShadowingApp: App {
         }
         .defaultSize(width: 1180, height: 720)
         .windowToolbarStyle(.unified)
+
+        Settings {
+            if let settingsViewModel {
+                SettingsView(viewModel: settingsViewModel)
+            }
+        }
     }
 }

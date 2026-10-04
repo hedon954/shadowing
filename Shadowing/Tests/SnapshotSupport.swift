@@ -28,6 +28,7 @@ enum SnapshotSupport {
         name: String,
         size: CGSize = windowSize,
         settle: Duration = .milliseconds(900),
+        toolbarStyle: NSWindow.ToolbarStyle = .automatic,
         prepare: @MainActor () async -> Void = {}
     ) async throws {
         let directory = try outputDirectory()
@@ -40,6 +41,7 @@ enum SnapshotSupport {
             )
             window.isReleasedWhenClosed = false
             window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            window.toolbarStyle = toolbarStyle
             window.contentViewController = NSHostingController(rootView: view)
             window.setContentSize(size)
             window.setFrameOrigin(CGPoint(x: -30000, y: -30000))
