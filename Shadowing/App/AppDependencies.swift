@@ -91,13 +91,15 @@ final class AppDependencies {
     }
 
     private static func applicationSupportDirectory(fileManager: FileManager) throws -> URL {
-        let applicationSupport = try fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        .appendingPathComponent("Shadowing", isDirectory: true)
+        let environment = ProcessInfo.processInfo.environment
+        let applicationSupport = try AppLaunchEnvironment.testDataDirectory(environment: environment)
+            ?? fileManager.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            .appendingPathComponent("Shadowing", isDirectory: true)
         try fileManager.createDirectory(
             at: applicationSupport,
             withIntermediateDirectories: true

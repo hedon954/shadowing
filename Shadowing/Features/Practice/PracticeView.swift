@@ -2,13 +2,11 @@ import SwiftUI
 
 struct PracticeView: View {
     @ObservedObject var viewModel: PracticeViewModel
-    let onBack: () -> Void
     @State private var isScriptExpanded = true
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                header
                 scriptSection
                 if viewModel.showsMultiTrackWorkspace {
                     RecordingWorkspaceView(viewModel: viewModel)
@@ -20,7 +18,7 @@ struct PracticeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(32)
         }
-        .navigationTitle("Practice")
+        .navigationTitle(viewModel.project.sourceDisplayName)
         .onAppear {
             viewModel.start()
         }
@@ -30,31 +28,6 @@ struct PracticeView: View {
             }
         }
         .modifier(PracticeAlertsModifier(viewModel: viewModel))
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            Button {
-                viewModel.requestLeave {
-                    onBack()
-                }
-            } label: {
-                Image(systemName: "chevron.backward")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Back to Library")
-            .accessibilityLabel("Back to Library")
-
-            Text(viewModel.project.sourceDisplayName)
-                .font(.title3.weight(.semibold))
-                .lineLimit(1)
-
-            Spacer()
-        }
     }
 
     private var waveform: some View {
