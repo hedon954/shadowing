@@ -42,7 +42,8 @@ enum M9TestSupport {
         countdownSeconds: Int = 0,
         playOriginalWhileRecording: Bool = false,
         selectRegion: Bool = true,
-        scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler()
+        scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler(),
+        withAlignment: Bool = false
     ) async throws -> M9Fixture {
         let project = makeProject(name: "Speech.mp3", openedAt: 100)
         let region = try PracticeRegion(start: 4, end: 7, sourceDuration: 30)
@@ -81,6 +82,7 @@ enum M9TestSupport {
                 takes: takes,
                 committer: committer,
                 settings: settings,
+                alignment: withAlignment ? LocalRecordingAlignmentStore(rootDirectory: root) : nil,
                 countdownSeconds: countdownSeconds,
                 playOriginalWhileRecording: playOriginalWhileRecording,
                 now: { Date(timeIntervalSince1970: 200) }
@@ -107,13 +109,21 @@ enum M9TestSupport {
     @MainActor
     static func makeFixtureWithCommittedTake(
         testCase: XCTestCase,
-        scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler()
+        scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler(),
+        measuredOffset: TimeInterval? = nil
     ) async throws -> M9Fixture {
-        let fixture = try await makeFixture(testCase: testCase, scheduler: scheduler)
+        let fixture = try await makeFixture(
+            testCase: testCase,
+            scheduler: scheduler,
+            withAlignment: measuredOffset != nil
+        )
         fixture.viewModel.startRecording()
         let temporaryURL = await waitForBeginRecording(audio: fixture.audio)
         try Data([1, 2, 3, 4]).write(to: temporaryURL)
         await fixture.audio.emit(.recordingStarted)
+        if let measuredOffset {
+            await fixture.audio.emit(.recordingAlignmentMeasured(measuredOffset))
+        }
         await fixture.audio.emit(
             .recordingFinished(url: temporaryURL, duration: 1.5, reason: .manual)
         )
@@ -160,37 +170,55 @@ enum M9TestSupport {
         return URL(fileURLWithPath: "/missing")
     }
 
+    /// Yields 200 times, then sleeps in 2 ms steps for up to 2 s; false when time is up.
+    /// Pure yield counting was flaky once background work (pause detection) shares the actor.
+    private static func pause(after attempt: inout Int) async -> Bool {
+        attempt += 1
+        if attempt == 1 {
+            return true
+        }
+        if attempt <= 200 {
+            await Task.yield()
+            return true
+        }
+        guard attempt <= 1200 else {
+            return false
+        }
+        try? await Task.sleep(for: .milliseconds(2))
+        return true
+    }
+
     static func waitForCommand(
         _ expected: PracticeAudioCommand,
         audio: PracticeAudioClientSpy
     ) async {
-        for _ in 0 ..< 200 {
+        var attempt = 0
+        while await pause(after: &attempt) {
             if await audio.commands.contains(expected) {
                 return
             }
-            await Task.yield()
         }
         XCTFail("Expected command \(expected)")
     }
 
     @MainActor
     static func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0 ..< 200 {
+        var attempt = 0
+        while await pause(after: &attempt) {
             if condition() {
                 return
             }
-            await Task.yield()
         }
         XCTFail("Condition was not satisfied")
     }
 
     @MainActor
     static func waitUntilAsync(_ condition: @MainActor () async -> Bool) async {
-        for _ in 0 ..< 200 {
+        var attempt = 0
+        while await pause(after: &attempt) {
             if await condition() {
                 return
             }
-            await Task.yield()
         }
         XCTFail("Condition was not satisfied")
     }

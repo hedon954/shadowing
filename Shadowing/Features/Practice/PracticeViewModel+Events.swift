@@ -6,6 +6,7 @@ extension PracticeViewModel {
         case .recordingStarted,
              .recordingProgress,
              .recordingEnvelope,
+             .recordingAlignmentMeasured,
              .recordingFinished:
             receiveRecordingEvent(event)
         default:
@@ -20,6 +21,9 @@ extension PracticeViewModel {
         case let .playheadChanged(position):
             updatePlayhead(from: position)
         case .playbackFinished:
+            if handleComparePlaybackFinished() {
+                return
+            }
             if playingTakeID != nil {
                 handleTakePlaybackFinished()
             } else {
@@ -32,6 +36,7 @@ extension PracticeViewModel {
         case .recordingStarted,
              .recordingProgress,
              .recordingEnvelope,
+             .recordingAlignmentMeasured,
              .recordingFinished:
             break
         }
@@ -48,6 +53,8 @@ extension PracticeViewModel {
                 return
             }
             appendLiveEnvelope(points)
+        case let .recordingAlignmentMeasured(offset):
+            saveAlignmentOffset(offset)
         case let .recordingFinished(url, duration, reason):
             handleRecordingFinishedEvent(url: url, duration: duration, reason: reason)
         case .sourceLoaded,
@@ -115,6 +122,10 @@ extension PracticeViewModel {
                 show(error)
             }
         }
+        if let context = recordingContext, !context.replacesExisting {
+            takeOffsets[context.id] = nil
+            recordingDependencies?.alignment?.deleteOffset(for: context.id)
+        }
         recordingContext = nil
         recordingWindow = nil
         recordingTimelineRate = 1
@@ -181,10 +192,13 @@ extension PracticeViewModel {
 
     private func updatePlayhead(from position: TimeInterval) {
         if let take = currentlyPlayingTake() {
-            playhead = take.region.start + min(
-                max(position, 0),
-                take.duration
+            let local = min(max(position, 0), take.duration)
+            let source = RecordingAlignment.sourceTime(
+                forTakeTime: local,
+                regionStart: take.region.start,
+                offset: alignmentOffset(for: take.id)
             )
+            playhead = min(max(source, take.region.start), take.region.end)
             followPlayheadInTimeline(at: playhead)
             return
         }

@@ -58,9 +58,11 @@ extension PracticeAudioEngine {
         var installedTap = false
         var pipeline: RecordingPipeline?
 
+        let clock = RecordingAlignmentClock()
         do {
             let createdPipeline = try armRecordingPipeline(
                 input: input,
+                clock: clock,
                 destinationURL: destinationURL,
                 // Always cap at remaining source audio; loop selection is unrelated.
                 maximumDuration: region.duration
@@ -71,10 +73,12 @@ extension PracticeAudioEngine {
                 pipeline: createdPipeline,
                 destinationURL: destinationURL,
                 region: region,
-                previousLoopRegion: loopRegion
+                previousLoopRegion: loopRegion,
+                clock: clock
             )
             startPeakForwarding(from: createdPipeline)
             try startRecordingPlaybackIfNeeded(
+                clock: clock,
                 playOriginal: playOriginal,
                 region: region,
                 sourceInfo: sourceInfo
@@ -105,6 +109,7 @@ extension PracticeAudioEngine {
     /// Stabilizes the input graph, creates the writer, and installs the mic tap.
     private func armRecordingPipeline(
         input: AVAudioInputNode,
+        clock: RecordingAlignmentClock,
         destinationURL: URL,
         maximumDuration: TimeInterval?
     ) throws -> RecordingPipeline {
@@ -121,13 +126,15 @@ extension PracticeAudioEngine {
             onBus: 0,
             bufferSize: 4096,
             format: nil
-        ) { buffer, _ in
+        ) { buffer, when in
+            clock.noteInput(when)
             pipeline.capture(buffer)
         }
         return pipeline
     }
 
     private func startRecordingPlaybackIfNeeded(
+        clock: RecordingAlignmentClock,
         playOriginal: Bool,
         region: PracticeRegion,
         sourceInfo: LoadedAudioSource
@@ -141,7 +148,10 @@ extension PracticeAudioEngine {
         let endFrame = try converter.frame(at: region.end)
         try schedulePlayback(from: startFrame, forcedEndFrame: endFrame)
         try ensureEngineRunning()
-        player.play()
+        // Start at a known host time so the take can be aligned to the original afterwards.
+        let startHostTime = mach_absolute_time() + AVAudioTime.hostTime(forSeconds: 0.05)
+        player.play(at: AVAudioTime(hostTime: startHostTime))
+        clock.notePlayerStart(hostTime: startHostTime)
         isPlaying = true
         startPlayheadUpdates()
     }
@@ -224,6 +234,12 @@ extension PracticeAudioEngine {
         if result.droppedBufferCount > 0 {
             try removeTemporaryRecording(at: result.url)
             throw RecordingPipelineError.bufferQueueOverrun
+        }
+        if let offset = context.clock.offset(
+            outputLatency: engine.outputNode.presentationLatency,
+            inputLatency: engine.inputNode.presentationLatency
+        ) {
+            eventContinuation.yield(.recordingAlignmentMeasured(offset))
         }
         eventContinuation.yield(
             .recordingFinished(
@@ -309,4 +325,5 @@ struct RecordingContext: Sendable {
     let destinationURL: URL
     let region: PracticeRegion
     let previousLoopRegion: PracticeRegion?
+    let clock: RecordingAlignmentClock
 }

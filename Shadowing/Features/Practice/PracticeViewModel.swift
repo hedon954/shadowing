@@ -80,6 +80,13 @@ final class PracticeViewModel: ObservableObject {
     @Published var failure: PracticeFailure?
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
     @Published var scriptText: String?
+    /// Sentences found from pauses in the original; used when there are no timed subtitles.
+    @Published var sentenceChunks: [SentenceChunk] = []
+    /// Measured take offsets (`RecordingAlignment`); missing means 0.
+    @Published var takeOffsets: [UUID: TimeInterval] = [:]
+    /// The running "compare" playback, if any.
+    @Published var comparison: ComparisonPlayback?
+    @Published var compareMode = CompareMode.originalThenMine
 
     let audioClient: any PracticeAudioClient
     let projects: any ProjectRepository
@@ -88,6 +95,7 @@ final class PracticeViewModel: ObservableObject {
     let textFileChooser: (any TextFileChoosing)?
     let subtitles: SubtitlesViewModel
     let comparisonScheduler: any ComparisonPlaybackScheduler
+    let pauseChunks: any PauseChunkProviding
     var eventTask: Task<Void, Never>?
     var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
@@ -162,7 +170,8 @@ final class PracticeViewModel: ObservableObject {
         recordingDependencies: RecordingDependencies? = nil,
         textFileChooser: (any TextFileChoosing)? = nil,
         subtitleDependencies: SubtitleDependencies? = nil,
-        comparisonScheduler: any ComparisonPlaybackScheduler = ContinuousComparisonPlaybackScheduler()
+        comparisonScheduler: any ComparisonPlaybackScheduler = ContinuousComparisonPlaybackScheduler(),
+        pauseChunks: any PauseChunkProviding = ComputedPauseChunks()
     ) {
         project = prepared.project
         waveform = prepared.waveform
@@ -175,6 +184,7 @@ final class PracticeViewModel: ObservableObject {
         self.recordingDependencies = recordingDependencies
         self.textFileChooser = textFileChooser
         self.comparisonScheduler = comparisonScheduler
+        self.pauseChunks = pauseChunks
         subtitles = SubtitlesViewModel(project: prepared.project, dependencies: subtitleDependencies)
         subtitles.onError = { [weak self] error in
             self?.show(error)
@@ -211,6 +221,7 @@ final class PracticeViewModel: ObservableObject {
         Task { [weak self] in
             await self?.hydrateRestoredSession()
         }
+        loadSentenceChunks()
     }
 
     func send(_ intent: PracticeIntent) {
@@ -219,6 +230,7 @@ final class PracticeViewModel: ObservableObject {
         else {
             return
         }
+        cancelComparison(for: intent)
 
         switch intent {
         case .togglePlayback:

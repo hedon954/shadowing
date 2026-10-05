@@ -77,19 +77,30 @@ extension PracticeAudioEngine {
             try await playOriginalSegmentCommand(region: region, from: position, rate: rate)
         case let .playTake(takeID, position, loop):
             try await playTakeCommand(takeID: takeID, from: position, loop: loop)
+        case let .playTakeSegment(takeID, region):
+            try await playTakeCommand(takeID: takeID, from: region.start, loop: nil, end: region.end)
         case let .playTogether(region, takeID, rate):
             try await playTogetherCommand(region: region, takeID: takeID, rate: rate)
         case .pause:
             pause()
         case let .seek(position):
             try seek(to: position)
+        case .setRate, .setVolume, .setLoop:
+            try applySetting(command)
+        case .loadSource, .beginRecording, .stopRecording, .abortRecording:
+            return
+        }
+    }
+
+    private func applySetting(_ command: PracticeAudioCommand) throws {
+        switch command {
         case let .setRate(rate):
             try setRate(rate)
         case let .setVolume(volume):
             try setVolume(volume)
         case let .setLoop(region):
             try setLoop(region)
-        case .loadSource, .beginRecording, .stopRecording, .abortRecording:
+        default:
             return
         }
     }
@@ -119,13 +130,14 @@ extension PracticeAudioEngine {
     private func playTakeCommand(
         takeID: UUID,
         from position: TimeInterval,
-        loop: PracticeRegion?
+        loop: PracticeRegion?,
+        end: TimeInterval? = nil
     ) async throws {
         guard let takeURLResolver else {
             throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
         }
         let takeURL = try await takeURLResolver(takeID)
-        try playTake(url: takeURL, from: position, loop: loop)
+        try playTake(url: takeURL, from: position, loop: loop, end: end)
     }
 
     private func playTogetherCommand(

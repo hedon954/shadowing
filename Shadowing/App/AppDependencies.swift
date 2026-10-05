@@ -13,6 +13,7 @@ final class AppDependencies {
     let inputDevices: any AudioInputDeviceProviding
     let recordingsStorageURL: URL
     let subtitles: SubtitleDependencies?
+    let pauseChunks: any PauseChunkProviding
 
     init(
         fileChooser: any AudioFileChoosing,
@@ -25,7 +26,8 @@ final class AppDependencies {
         recording: RecordingDependencies,
         inputDevices: any AudioInputDeviceProviding,
         recordingsStorageURL: URL,
-        subtitles: SubtitleDependencies? = nil
+        subtitles: SubtitleDependencies? = nil,
+        pauseChunks: any PauseChunkProviding = ComputedPauseChunks()
     ) {
         self.fileChooser = fileChooser
         self.textFileChooser = textFileChooser
@@ -38,6 +40,7 @@ final class AppDependencies {
         self.inputDevices = inputDevices
         self.recordingsStorageURL = recordingsStorageURL
         self.subtitles = subtitles
+        self.pauseChunks = pauseChunks
     }
 
     static func live(fileManager: FileManager = .default) throws -> AppDependencies {
@@ -54,14 +57,8 @@ final class AppDependencies {
         )
         let recordingFiles = LocalRecordingFileStore(rootDirectory: recordingsStorageURL)
         Self.cleanupOrphanedTemporaryTakes(using: recordingFiles)
-        let waveformService = CachedWaveformService(
-            cache: WaveformFileCache(
-                directory: applicationSupport.appendingPathComponent(
-                    "Waveforms",
-                    isDirectory: true
-                )
-            )
-        )
+        let waveformDirectory = applicationSupport.appendingPathComponent("Waveforms", isDirectory: true)
+        let waveformService = CachedWaveformService(cache: WaveformFileCache(directory: waveformDirectory))
         let audioClient = PracticeAudioEngine { takeID in
             guard let take = try await takes.take(id: takeID) else {
                 throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
@@ -97,7 +94,8 @@ final class AppDependencies {
                 audio: BookmarkedSourceAudio(bookmarks: SecurityScopedBookmarkStore()),
                 recognizer: Self.makeSpeechRecognizer(),
                 fileChooser: SystemSubtitleFileChooser()
-            )
+            ),
+            pauseChunks: CachedPauseChunks(directory: waveformDirectory)
         )
     }
 
@@ -161,7 +159,8 @@ final class AppDependencies {
                 validator: AVAudioRecordingFileValidator()
             ),
             settings: settings,
-            waveforms: waveformService
+            waveforms: waveformService,
+            alignment: LocalRecordingAlignmentStore(rootDirectory: recordingFiles.rootURL)
         )
     }
 

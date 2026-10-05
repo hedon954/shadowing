@@ -39,6 +39,11 @@ struct LocalRecordingFileStore: RecordingFileStore {
         self.rootDirectory = rootDirectory.standardizedFileURL
     }
 
+    /// `Recordings/`; alignment sidecars (`<take id>.json`) live here too.
+    var rootURL: URL {
+        rootDirectory
+    }
+
     func temporaryTakeURL(id: UUID) throws -> URL {
         let directory = temporaryDirectory
         try createDirectory(directory)

@@ -13,9 +13,11 @@ struct SentenceChunk: Codable, Equatable, Hashable, Sendable {
         time >= start && time < end
     }
 
-    /// The same span as a practice region, trimmed to the longest region allowed.
+    /// The same span as a practice region: at least the shortest region allowed, at most the longest.
     func region(sourceDuration: TimeInterval) -> PracticeRegion? {
-        let end = min(end, start + PracticeRegion.maximumDuration, sourceDuration)
+        let minimum = PracticeRegion.minimumDuration
+        let end = min(max(end, start + minimum), start + PracticeRegion.maximumDuration, sourceDuration)
+        let start = max(min(start, end - minimum), 0)
         return try? PracticeRegion(start: start, end: end, sourceDuration: sourceDuration)
     }
 }

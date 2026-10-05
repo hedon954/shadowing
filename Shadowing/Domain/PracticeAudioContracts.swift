@@ -6,6 +6,8 @@ enum PracticeAudioCommand: Equatable, Sendable {
     /// Plays the region once without looping; used by A/B comparison.
     case playOriginalSegment(region: PracticeRegion, from: TimeInterval, rate: Double)
     case playTake(takeID: UUID, from: TimeInterval, loop: PracticeRegion?)
+    /// Plays part of a take once (take-file time), then reports `playbackFinished`.
+    case playTakeSegment(takeID: UUID, region: PracticeRegion)
     case playTogether(region: PracticeRegion, takeID: UUID, rate: Double)
     case pause
     case seek(TimeInterval)
@@ -65,6 +67,8 @@ enum PracticeAudioEvent: Equatable, Sendable {
     case recordingStarted
     case recordingProgress(TimeInterval)
     case recordingEnvelope([TimedWaveformEnvelopePoint])
+    /// Seconds into the take file where the original starts (see `RecordingAlignment`).
+    case recordingAlignmentMeasured(TimeInterval)
     case recordingFinished(url: URL, duration: TimeInterval, reason: RecordingStopReason)
     case interrupted(PracticeAudioInterruption)
     case failed(PracticeAudioFailure)

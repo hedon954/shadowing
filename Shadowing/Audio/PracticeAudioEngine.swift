@@ -29,6 +29,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var loopRegion: PracticeRegion?
     /// Take-local loop window while `playbackTarget == .take`.
     var takeLoopRegion: PracticeRegion?
+    /// Stops take playback here (frames) instead of at the end of the file; used by Compare.
+    var takeEndFrame: Int64?
     var scheduledStartFrame: Int64 = 0
     var firstScheduledFrameCount: Int64 = 0
     var scheduleGeneration: UInt64 = 0

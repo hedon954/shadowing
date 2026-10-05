@@ -198,7 +198,7 @@ extension PracticeAudioEngine {
         startPlayheadUpdates()
     }
 
-    func playTake(url: URL, from position: TimeInterval, loop: PracticeRegion?) throws {
+    func playTake(url: URL, from position: TimeInterval, loop: PracticeRegion?, end: TimeInterval? = nil) throws {
         guard sourceFile != nil else {
             throw PracticeAudioEngineError.sourceNotLoaded
         }
@@ -226,6 +226,7 @@ extension PracticeAudioEngine {
         playbackTarget = .take
 
         let converter = try AudioFrameTimeConverter(sampleRate: sampleRate)
+        takeEndFrame = try end.map { try min(converter.frame(at: $0), frameCount) }
         if let loop {
             _ = try RegionLoopScheduler(
                 region: loop,
@@ -265,6 +266,7 @@ extension PracticeAudioEngine {
             frameCount: frameCount
         )
         takeLoopRegion = nil
+        takeEndFrame = nil
 
         try setLoop(nil)
         try setRate(rate)
@@ -309,7 +311,7 @@ extension PracticeAudioEngine {
         } else {
             plan = try PlaybackSegmentPlanner.plan(
                 from: sourceFrame,
-                sourceFrameCount: takeInfo.frameCount,
+                sourceFrameCount: takeEndFrame ?? takeInfo.frameCount,
                 loopScheduler: nil
             )
         }

@@ -25,6 +25,7 @@ struct RecordingDependencies: Sendable {
     let committer: any TakeCommitting
     let settings: (any SettingsStore)?
     let waveforms: (any WaveformPreparing)?
+    let alignment: (any RecordingAlignmentStoring)?
     /// Fallback when settings are unavailable (tests may inject a fixed value).
     let countdownSeconds: Int
     let playOriginalWhileRecording: Bool
@@ -39,6 +40,7 @@ struct RecordingDependencies: Sendable {
         committer: any TakeCommitting,
         settings: (any SettingsStore)? = nil,
         waveforms: (any WaveformPreparing)? = nil,
+        alignment: (any RecordingAlignmentStoring)? = nil,
         countdownSeconds: Int = 0,
         playOriginalWhileRecording: Bool = false,
         now: @escaping @Sendable () -> Date = Date.init,
@@ -51,6 +53,7 @@ struct RecordingDependencies: Sendable {
         self.committer = committer
         self.settings = settings
         self.waveforms = waveforms
+        self.alignment = alignment
         self.countdownSeconds = max(countdownSeconds, 0)
         self.playOriginalWhileRecording = playOriginalWhileRecording
         self.now = now
@@ -124,6 +127,7 @@ extension PracticeViewModel {
         guard recordingTask == nil else {
             return
         }
+        cancelComparison()
         // Finalization may still hold the task after presentation returns to idle.
         if case .idle = recordingPresentation {
             finalizationTask = nil

@@ -85,6 +85,7 @@ extension PracticeViewModel {
     }
 
     func toggleTakePlayback(_ take: Take) {
+        cancelComparison()
         if playingTakeID == take.id, isPlaying {
             pauseTakePlaybackIfNeeded()
             return
@@ -286,6 +287,7 @@ extension PracticeViewModel {
             let ids = Set(takes.map(\.id))
             takeWaveforms = takeWaveforms.filter { ids.contains($0.key) }
             takeLoopSelections = takeLoopSelections.filter { ids.contains($0.key) }
+            await loadTakeOffsets()
         } catch {
             show(error)
         }
@@ -311,6 +313,8 @@ extension PracticeViewModel {
             } catch {
                 show(error)
             }
+            recordingDependencies.alignment?.deleteOffset(for: take.id)
+            takeOffsets[take.id] = nil
             takeWaveforms[take.id] = nil
             takeLoopSelections[take.id] = nil
             if project.keptTakeID == take.id {
