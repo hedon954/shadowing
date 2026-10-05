@@ -14,6 +14,16 @@ final class TranscriptInspectorTests: XCTestCase {
         XCTAssertEqual(TranscriptLineEmphasis.current.color, .labelColor)
         XCTAssertEqual(TranscriptLineEmphasis.other.color, .secondaryLabelColor)
         XCTAssertEqual(TranscriptLineEmphasis.fontSize, 14, "one size for every line, current included")
+        XCTAssertEqual(TranscriptLineEmphasis.bandCornerRadius, 6)
+        XCTAssertEqual(TranscriptLineEmphasis.bandAnimationDuration, 0.15, accuracy: 0.001)
+        XCTAssertEqual(TranscriptLineEmphasis.manualScrollPause, 3, accuracy: 0.001)
+    }
+
+    func testCurrentSentenceBandOpacityFollowsAppearanceAndContrast() {
+        XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: false, increaseContrast: false), 0.14, accuracy: 0.001)
+        XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: true, increaseContrast: false), 0.24, accuracy: 0.001)
+        XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: false, increaseContrast: true), 0.22, accuracy: 0.001)
+        XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: true, increaseContrast: true), 0.32, accuracy: 0.001)
     }
 
     // MARK: - Source picker

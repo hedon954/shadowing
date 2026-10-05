@@ -102,6 +102,9 @@ struct PendingRecordingContext: Sendable {
 }
 
 enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
+    /// Below this, discard and show the empty-mic retry status instead of saving.
+    static let minimumSavedTakeDuration: TimeInterval = 1
+
     case unavailable
     case missingContext
     case unexpectedTemporaryFile(String)
@@ -371,9 +374,9 @@ extension PracticeViewModel {
         }
 
         lastRecordingStopReason = reason
-        guard duration >= PracticeRegion.minimumDuration else {
+        guard duration >= PracticeRecordingError.minimumSavedTakeDuration else {
             discardPendingRecording()
-            show(PracticeRecordingError.tooShort(duration))
+            recordingIssue = .noMicrophoneAudio
             completePendingLeaveIfNeeded()
             return
         }

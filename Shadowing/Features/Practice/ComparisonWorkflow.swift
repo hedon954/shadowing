@@ -44,24 +44,27 @@ extension PracticeViewModel {
         }
     }
 
+    /// Select a take, jump the playhead to its start, and sync the practice selection to
+    /// that take's interval. Does not start playback. Stops Compare first if it is running.
     func selectTake(_ take: Take) {
         guard take.projectID == project.id else {
             return
         }
-        if activeTake?.id == take.id {
-            return
+        if comparison != nil {
+            stopComparison()
         }
         pauseTakePlaybackIfNeeded()
-        activeTake = take
-        project.selectedTakeID = take.id
-        selectedTakePeaks = takeWaveforms[take.id]?.peaks ?? []
-        Task { [weak self] in
-            await self?.loadTakeWaveform(for: take)
+        if activeTake?.id != take.id {
+            activeTake = take
+            project.selectedTakeID = take.id
+            selectedTakePeaks = takeWaveforms[take.id]?.peaks ?? []
+            Task { [weak self] in
+                await self?.loadTakeWaveform(for: take)
+            }
         }
-        // Keep the Original-timeline playhead where it is so the next recording
-        // still starts from the user's current cursor.
+        // Jump to the take's start and mirror its interval on the main waveform selection.
+        selectRegion(take.region)
         updateRegionSnapshotNotice(for: take)
-        persistProjectImmediately()
     }
 
     func clearTakeSelection() {

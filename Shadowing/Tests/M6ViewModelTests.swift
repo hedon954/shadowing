@@ -39,7 +39,29 @@ final class M6ViewModelTests: XCTestCase {
             Set(fixture.viewModel.takes.map(\.id)),
             Set([first.id, second.id])
         )
-        XCTAssertNotNil(fixture.viewModel.comparisonRegionNotice)
+        // selectTake syncs the practice selection to the take's interval, so the snapshot
+        // notice for a mismatched region is cleared.
+        XCTAssertEqual(fixture.viewModel.project.currentRegion, first.region)
+        XCTAssertNil(fixture.viewModel.comparisonRegionNotice)
+    }
+
+    func testSelectTakeJumpsPlayheadToTakeStartAndSyncsSelection() async throws {
+        let fixture = try await makeFixtureWithCommittedTake()
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        let elsewhere = try PracticeRegion(start: 8, end: 12, sourceDuration: 30)
+        fixture.viewModel.selectRegion(elsewhere)
+        fixture.viewModel.seek(to: 20)
+        await M6TestSupport.waitUntil {
+            fixture.viewModel.playhead == 20
+        }
+
+        fixture.viewModel.selectTake(take)
+
+        XCTAssertEqual(fixture.viewModel.activeTake?.id, take.id)
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start, accuracy: 0.001)
+        XCTAssertEqual(fixture.viewModel.project.currentRegion, take.region)
+        XCTAssertFalse(fixture.viewModel.isPlaying)
+        XCTAssertNil(fixture.viewModel.comparison)
     }
 
     func testDeleteCurrentTakeSelectsMostRecentRemaining() async throws {

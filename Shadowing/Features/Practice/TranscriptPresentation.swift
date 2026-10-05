@@ -1,14 +1,18 @@
 import AppKit
 
-/// Music-lyrics style emphasis in the full transcript: the current sentence uses the primary
-/// label color, every other sentence the secondary one. No band or marker, and the size never
-/// changes, so lines don't reflow while playing.
+/// Full-transcript emphasis: the current sentence keeps label color at regular weight (no bold,
+/// so lines don't reflow) and sits on a full-width accent band; every other sentence is secondary.
 enum TranscriptLineEmphasis: Equatable {
     case current
     case other
 
-    /// All sentences share one size; only the color marks the current one.
+    /// All sentences share one size and regular weight; only color + band mark the current one.
     static let fontSize: CGFloat = 14
+    static let bandCornerRadius: CGFloat = 6
+    /// How long the accent band takes to settle on a new sentence.
+    static let bandAnimationDuration: TimeInterval = 0.15
+    /// Auto-scroll waits this long after the user scrolls by hand.
+    static let manualScrollPause: TimeInterval = 3
 
     init(cueIndex: Int, current: Int?) {
         self = cueIndex == current ? .current : .other
@@ -20,6 +24,21 @@ enum TranscriptLineEmphasis: Equatable {
             .labelColor
         case .other:
             .secondaryLabelColor
+        }
+    }
+
+    /// Accent band opacity behind the current sentence.
+    /// Light 14% / dark 24%; Increase Contrast raises that to 22% / 32%.
+    static func bandOpacity(dark: Bool, increaseContrast: Bool) -> Double {
+        switch (dark, increaseContrast) {
+        case (false, false):
+            0.14
+        case (true, false):
+            0.24
+        case (false, true):
+            0.22
+        case (true, true):
+            0.32
         }
     }
 }

@@ -33,7 +33,10 @@ struct TakesListSection: View {
             ForEach(viewModel.takes) { take in
                 TakeRow(
                     take: take,
-                    isComparing: viewModel.compareTake?.id == take.id && !viewModel.showsLiveTakeRow,
+                    isSelected: viewModel.activeTake?.id == take.id && !viewModel.showsLiveTakeRow,
+                    isComparing: viewModel.comparison != nil
+                        && viewModel.compareTake?.id == take.id
+                        && !viewModel.showsLiveTakeRow,
                     isPlaying: viewModel.playingTakeID == take.id && viewModel.isPlaying,
                     onPlay: { viewModel.toggleTakePlayback(take) },
                     onSelect: { viewModel.selectTake(take) },
@@ -127,6 +130,8 @@ private struct TakeListRowChrome: ViewModifier {
 /// ▶  第 3 遍 今天 09:12 ……… 正在对比 / 对比   1:58
 private struct TakeRow: View {
     let take: Take
+    let isSelected: Bool
+    /// True only while Compare playback is actively running for this take.
     let isComparing: Bool
     let isPlaying: Bool
     let onPlay: () -> Void
@@ -160,7 +165,7 @@ private struct TakeRow: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
         .background {
-            if isComparing {
+            if isSelected {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(Color.primary.opacity(0.045))
             }
@@ -172,7 +177,7 @@ private struct TakeRow: View {
         .accessibilityValue(
             Text("\(TakeDateText.short(take.createdAt)), \(ClockText.duration(take.duration))")
         )
-        .accessibilityAddTraits(isComparing ? .isSelected : [])
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

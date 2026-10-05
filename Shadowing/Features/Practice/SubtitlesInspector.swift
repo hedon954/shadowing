@@ -107,7 +107,8 @@ struct SubtitlesInspector: View {
         }
         return switch subtitles.display {
         case .timed:
-            "Click a sentence to jump there"
+            // Timed transcript is self-explanatory; no footer hint.
+            nil
         case .working:
             "Highlighting starts when recognition finishes"
         case .plainText(_, notice: .some):

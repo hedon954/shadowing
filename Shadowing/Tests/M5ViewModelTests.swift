@@ -126,18 +126,17 @@ final class M5ViewModelTests: XCTestCase {
         await fixture.audio.emit(
             .recordingFinished(
                 url: temporaryURL,
-                duration: 0.2,
+                duration: 0.8,
                 reason: .manual
             )
         )
         await waitUntil {
-            fixture.viewModel.failure != nil
+            fixture.viewModel.recordingIssue == .noMicrophoneAudio
         }
 
         XCTAssertEqual(fixture.viewModel.recordingPresentation, .idle)
-        XCTAssertTrue(
-            fixture.viewModel.failure?.message.contains("record again") == true
-        )
+        XCTAssertEqual(fixture.viewModel.recordingIssue, .noMicrophoneAudio)
+        XCTAssertNil(fixture.viewModel.failure)
         XCTAssertFalse(FileManager.default.fileExists(atPath: temporaryURL.path))
         let takes = try await fixture.takes.takes(projectID: fixture.project.id)
         XCTAssertTrue(takes.isEmpty)
