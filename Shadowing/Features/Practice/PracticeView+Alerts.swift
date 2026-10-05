@@ -8,35 +8,6 @@ struct PracticeAlertsModifier: ViewModifier {
             .modifier(PracticeFailureAlertsModifier(viewModel: viewModel))
             .modifier(PracticeRecordingLeaveAlertModifier(viewModel: viewModel))
             .modifier(PracticeMicrophoneAlertModifier(viewModel: viewModel))
-            .modifier(PracticeRecordingIssueAlertModifier(viewModel: viewModel))
-    }
-}
-
-/// "No sound from the microphone" with Try Again; nothing was saved.
-private struct PracticeRecordingIssueAlertModifier: ViewModifier {
-    @ObservedObject var viewModel: PracticeViewModel
-
-    func body(content: Content) -> some View {
-        content.alert(
-            "No sound from the microphone",
-            isPresented: Binding(
-                get: { viewModel.recordingIssue != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.dismissRecordingIssue()
-                    }
-                }
-            )
-        ) {
-            Button("Try Again") {
-                viewModel.retryAfterRecordingIssue()
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.dismissRecordingIssue()
-            }
-        } message: {
-            Text("Nothing was recorded. Check the input device in System Settings › Sound, then try again.")
-        }
     }
 }
 

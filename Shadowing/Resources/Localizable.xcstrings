@@ -888,6 +888,16 @@
         }
       }
     },
+    "Dismiss" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
+    },
     "Downloading English speech model (one time)…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3041,6 +3051,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩放到选段"
+          }
+        }
+      }
+    },
+    "· Check the input device in System Settings › Sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· 请在“系统设置 › 声音”中检查输入设备"
           }
         }
       }

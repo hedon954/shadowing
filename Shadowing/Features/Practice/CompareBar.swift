@@ -13,6 +13,8 @@ struct CompareBar: View {
         HStack(spacing: 12) {
             if isRecording {
                 recordingStatus
+            } else if viewModel.recordingIssue != nil {
+                RecordingIssueStatus(viewModel: viewModel)
             } else {
                 // In a narrow column the gray hint drops first; the segments and the button stay.
                 ViewThatFits(in: .horizontal) {
@@ -217,5 +219,38 @@ struct ShortcutKeyHint: View {
                 in: RoundedRectangle(cornerRadius: 4, style: .continuous)
             )
             .accessibilityHidden(true)
+    }
+}
+
+/// "No sound from the microphone" with Try Again, in the status line instead of an alert.
+/// Nothing was saved; the record button is already back.
+private struct RecordingIssueStatus: View {
+    @ObservedObject var viewModel: PracticeViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "mic.slash")
+                .foregroundStyle(.red)
+            Text("No sound from the microphone")
+                .fontWeight(.semibold)
+            Text("· Check the input device in System Settings › Sound")
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .layoutPriority(-1)
+            Spacer(minLength: 0)
+            Button("Try Again") {
+                viewModel.retryAfterRecordingIssue()
+            }
+            .controlSize(.small)
+            Button {
+                viewModel.dismissRecordingIssue()
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless)
+            .help(Text("Dismiss"))
+            .accessibilityLabel(Text("Dismiss"))
+        }
+        .font(.system(size: 12))
     }
 }

@@ -133,6 +133,7 @@ extension PracticeViewModel {
         guard recordingTask == nil else {
             return
         }
+        recordingIssue = nil
         cancelComparison()
         // Finalization may still hold the task after presentation returns to idle.
         if case .idle = recordingPresentation {

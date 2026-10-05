@@ -51,7 +51,7 @@ final class MicrophoneRecorder: MicrophoneCapturing, @unchecked Sendable {
         onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void,
         onConfigurationChange: @escaping @Sendable () -> Void
     ) throws {
-        engine.inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil, block: onBuffer)
+        engine.inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil, block: Self.deliverable(onBuffer))
         hasTap = true
         configurationToken = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange,
@@ -91,6 +91,19 @@ final class MicrophoneRecorder: MicrophoneCapturing, @unchecked Sendable {
         } catch {
             throw PracticeAudioEngineError.audioEngineFailed(error.localizedDescription)
         }
+    }
+
+    /// Debug builds launched with `-ShadowingFakeNoMicBuffers` drop every microphone buffer, so
+    /// the "No sound from the microphone" state can be reproduced and reviewed.
+    private static func deliverable(
+        _ onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void
+    ) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
+        #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-ShadowingFakeNoMicBuffers") {
+                return { _, _ in }
+            }
+        #endif
+        return onBuffer
     }
 
     private static func usableFormat(of input: AVAudioInputNode) -> AVAudioFormat? {
