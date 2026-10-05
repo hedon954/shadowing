@@ -142,8 +142,7 @@ extension PracticeViewModel {
         comparison = nil
         playingTakeID = nil
         isPlaying = false
-        playhead = playback.restoredPlayhead
-        project.playhead = playback.restoredPlayhead
+        restorePlayheadAfterComparison(playback)
     }
 
     func stopComparison() {
@@ -162,16 +161,26 @@ extension PracticeViewModel {
         }
     }
 
-    /// Forgets the running comparison without touching the audio (another command follows).
-    /// Restores the playhead from before Compare started; selection and loop are unchanged.
+    /// Ends the running comparison and restores the playhead (engine included).
+    /// Selection and loop are unchanged. Callers that issue another audio command next
+    /// still get a correct engine position if that command never seeks.
     func cancelComparison() {
         guard let playback = comparison else {
             return
         }
         comparison = nil
         playingTakeID = nil
-        playhead = playback.restoredPlayhead
-        project.playhead = playback.restoredPlayhead
+        restorePlayheadAfterComparison(playback)
+    }
+
+    /// Syncs ViewModel + project playhead and seeks the audio engine to the pre-Compare position.
+    private func restorePlayheadAfterComparison(_ playback: ComparisonPlayback) {
+        let restored = playback.restoredPlayhead
+        playhead = restored
+        project.playhead = restored
+        performVoidCommand { [audioClient] in
+            try await audioClient.execute(.seek(restored))
+        }
     }
 
     // MARK: - Alignment offsets
@@ -185,10 +194,8 @@ extension PracticeViewModel {
         guard let alignment = recordingDependencies?.alignment else {
             return
         }
-        let takeID = context.id
-        Task.detached(priority: .utility) {
-            try? alignment.saveOffset(offset, for: takeID)
-        }
+        // Persist before recordingFinished → refreshTakes → loadTakeOffsets can race a missing sidecar.
+        try? alignment.saveOffset(offset, for: context.id)
     }
 
     func loadTakeOffsets() async {

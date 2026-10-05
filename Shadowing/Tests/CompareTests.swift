@@ -101,10 +101,23 @@ final class CompareViewModelTests: XCTestCase {
             }
         }
         XCTAssertEqual(model.playingTakeID, take.id)
+        let commandsBeforeFinish = await fixture.audio.commands.count
         await fixture.audio.emit(.playbackFinished)
         await M9TestSupport.waitUntil { model.comparison == nil }
         XCTAssertNil(model.playingTakeID)
         XCTAssertEqual(model.playhead, fixture.region.start, accuracy: 1e-9)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBeforeFinish else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBeforeFinish).contains {
+                if case let .seek(position) = $0 {
+                    return abs(position - fixture.region.start) < 1e-9
+                }
+                return false
+            }
+        }
     }
 
     func testPressingCompareAgainStopsAndPlayCancelsIt() async throws {
@@ -153,12 +166,25 @@ final class CompareViewModelTests: XCTestCase {
         XCTAssertEqual(model.region, regionBefore, "Compare must not change selection region")
         XCTAssertEqual(model.loopEnabled, loopBefore, "Compare must not touch loop")
         // Playhead may move for the compare step itself; stop restores the prior playhead.
+        let commandsBeforeStop = await fixture.audio.commands.count
         model.compare() // stop
         XCTAssertNil(model.comparison)
         XCTAssertEqual(model.playhead, playheadBefore, accuracy: 1e-9)
         XCTAssertEqual(model.activeTake?.id, selectedBefore)
         XCTAssertEqual(model.region, regionBefore)
         XCTAssertEqual(model.loopEnabled, loopBefore)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBeforeStop else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBeforeStop).contains {
+                if case let .seek(position) = $0 {
+                    return abs(position - playheadBefore) < 1e-9
+                }
+                return false
+            }
+        }
     }
 
     func testCompareDoesNotGoThroughSelectTake() async throws {
@@ -180,5 +206,53 @@ final class CompareViewModelTests: XCTestCase {
         XCTAssertNil(model.activeTake, "C-key Compare must not select a take")
         XCTAssertEqual(model.region, regionBefore)
         XCTAssertEqual(model.loopEnabled, loopBefore)
+    }
+
+    func testFinishAndStopComparisonSeekEngineToRestoredPlayhead() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        model.seek(to: 7.25)
+        await M9TestSupport.waitForCommand(.seek(7.25), audio: fixture.audio)
+        model.setCompareMode(.original)
+
+        model.compare()
+        XCTAssertNotNil(model.comparison)
+        let commandsBeforeFinish = await fixture.audio.commands.count
+        await fixture.audio.emit(.playbackFinished)
+        await M9TestSupport.waitUntil { model.comparison == nil }
+        XCTAssertEqual(model.playhead, 7.25, accuracy: 1e-9)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBeforeFinish else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBeforeFinish).contains {
+                if case let .seek(position) = $0 {
+                    return abs(position - 7.25) < 1e-9
+                }
+                return false
+            }
+        }
+
+        model.seek(to: 4.5)
+        await M9TestSupport.waitForCommand(.seek(4.5), audio: fixture.audio)
+        model.compare()
+        XCTAssertNotNil(model.comparison)
+        let commandsBeforeStop = await fixture.audio.commands.count
+        model.compare() // stop → stopComparison → cancelComparison
+        XCTAssertNil(model.comparison)
+        XCTAssertEqual(model.playhead, 4.5, accuracy: 1e-9)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBeforeStop else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBeforeStop).contains {
+                if case let .seek(position) = $0 {
+                    return abs(position - 4.5) < 1e-9
+                }
+                return false
+            }
+        }
     }
 }
