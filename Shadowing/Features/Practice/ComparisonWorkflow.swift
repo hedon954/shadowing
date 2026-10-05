@@ -45,7 +45,9 @@ extension PracticeViewModel {
     }
 
     /// Select a take, jump the playhead to its start, and sync the practice selection to
-    /// that take's interval. Does not start playback. Stops Compare first if it is running.
+    /// that take's interval. Does not start playback, and does not change loop on/off.
+    /// Stops Compare first if it is running. Always seeks to the take start — even when
+    /// original audio or Compare was playing with the playhead already inside the region.
     func selectTake(_ take: Take) {
         guard take.projectID == project.id else {
             return
@@ -54,6 +56,10 @@ extension PracticeViewModel {
             stopComparison()
         }
         pauseTakePlaybackIfNeeded()
+        // Clear playing flags synchronously so a following seek is never gated on a stale
+        // isPlaying that pauseTakePlaybackIfNeeded only clears in its async completion.
+        playingTakeID = nil
+        isPlaying = false
         if activeTake?.id != take.id {
             activeTake = take
             project.selectedTakeID = take.id
@@ -62,8 +68,20 @@ extension PracticeViewModel {
                 await self?.loadTakeWaveform(for: take)
             }
         }
-        // Jump to the take's start and mirror its interval on the main waveform selection.
-        selectRegion(take.region)
+        // Mirror the take interval on the waveform selection without turning loop on.
+        project.currentRegion = take.region
+        let shouldUpdateLoop = loopEnabled
+        // Always force the playhead to the take start (Designer: click take → jump).
+        playhead = take.region.start
+        project.playhead = take.region.start
+        performVoidCommand { [audioClient] in
+            if shouldUpdateLoop {
+                try await audioClient.execute(.setLoop(take.region))
+            }
+            try await audioClient.execute(.seek(take.region.start))
+        } completion: { [weak self] in
+            self?.persistProjectImmediately()
+        }
         updateRegionSnapshotNotice(for: take)
     }
 

@@ -6,13 +6,18 @@ struct ComparisonPlayback: Equatable, Sendable {
     let source: SentenceSource
     let takeID: UUID?
     let mode: CompareMode
+    /// Playhead to restore when Compare ends or is stopped (selection/loop stay untouched).
+    let restoredPlayhead: TimeInterval
     var remaining: [CompareStep]
     var current: CompareStep?
 }
 
 extension PracticeViewModel {
-    /// The take Compare uses: the selected one, else the newest.
+    /// The take Compare uses while playing, else the selected one, else the newest.
     var compareTake: Take? {
+        if let id = comparison?.takeID, let take = takes.first(where: { $0.id == id }) {
+            return take
+        }
         if let active = activeTake, let take = takes.first(where: { $0.id == active.id }) {
             return take
         }
@@ -28,7 +33,8 @@ extension PracticeViewModel {
     }
 
     /// C: play the current sentence as the original, mine, or the original then mine.
-    /// Pressing C again while comparing stops.
+    /// Pressing C again while comparing stops. Does not change selection, playhead, or loop;
+    /// playhead is restored when Compare ends.
     func compare() {
         if comparison != nil {
             stopComparison()
@@ -37,7 +43,26 @@ extension PracticeViewModel {
         guard !controlsLocked, let (sentence, source) = currentSentenceWithSource else {
             return
         }
-        let take = compareTake
+        beginComparison(sentence: sentence, source: source, take: compareTake)
+    }
+
+    /// The "Compare" action on a take row. Uses that take for Compare playback only —
+    /// does not change selection, playhead, or loop (unlike list-click `selectTake`).
+    func compare(with take: Take) {
+        guard take.projectID == project.id, !controlsLocked else {
+            return
+        }
+        if comparison != nil {
+            stopComparison()
+        }
+        guard let (sentence, source) = currentSentenceWithSource else {
+            return
+        }
+        beginComparison(sentence: sentence, source: source, take: take)
+    }
+
+    /// Starts Compare for `take` without going through `selectTake`.
+    private func beginComparison(sentence: SentenceChunk, source: SentenceSource, take: Take?) {
         let steps = ComparePlanner.steps(
             sentence: sentence,
             sourceDuration: project.duration,
@@ -48,25 +73,16 @@ extension PracticeViewModel {
         guard !steps.isEmpty else {
             return
         }
-        if let take, activeTake?.id != take.id {
-            selectTake(take)
-        }
         pauseTakePlaybackIfNeeded()
         comparison = ComparisonPlayback(
             sentence: sentence,
             source: source,
             takeID: take?.id,
             mode: compareMode,
+            restoredPlayhead: playhead,
             remaining: steps
         )
         playNextCompareStep()
-    }
-
-    /// The "Compare" action on a take row.
-    func compare(with take: Take) {
-        cancelComparison()
-        selectTake(take)
-        compare()
     }
 
     func playNextCompareStep() {
@@ -126,7 +142,8 @@ extension PracticeViewModel {
         comparison = nil
         playingTakeID = nil
         isPlaying = false
-        playhead = playback.sentence.start
+        playhead = playback.restoredPlayhead
+        project.playhead = playback.restoredPlayhead
     }
 
     func stopComparison() {
@@ -146,12 +163,15 @@ extension PracticeViewModel {
     }
 
     /// Forgets the running comparison without touching the audio (another command follows).
+    /// Restores the playhead from before Compare started; selection and loop are unchanged.
     func cancelComparison() {
-        guard comparison != nil else {
+        guard let playback = comparison else {
             return
         }
         comparison = nil
         playingTakeID = nil
+        playhead = playback.restoredPlayhead
+        project.playhead = playback.restoredPlayhead
     }
 
     // MARK: - Alignment offsets

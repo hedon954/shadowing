@@ -33,10 +33,8 @@ struct TakesListSection: View {
             ForEach(viewModel.takes) { take in
                 TakeRow(
                     take: take,
-                    isSelected: viewModel.activeTake?.id == take.id && !viewModel.showsLiveTakeRow,
-                    isComparing: viewModel.comparison != nil
-                        && viewModel.compareTake?.id == take.id
-                        && !viewModel.showsLiveTakeRow,
+                    isSelected: isTakeRowSelected(take),
+                    isComparing: isTakeRowComparing(take),
                     isPlaying: viewModel.playingTakeID == take.id && viewModel.isPlaying,
                     onPlay: { viewModel.toggleTakePlayback(take) },
                     onSelect: { viewModel.selectTake(take) },
@@ -71,6 +69,21 @@ struct TakesListSection: View {
 
     private var canReorder: Bool {
         !viewModel.controlsLocked && viewModel.takes.count > 1
+    }
+
+    /// While Compare plays, only that take is highlighted; otherwise the selection.
+    private func isTakeRowSelected(_ take: Take) -> Bool {
+        guard !viewModel.showsLiveTakeRow else {
+            return false
+        }
+        if let comparingID = viewModel.comparison?.takeID {
+            return comparingID == take.id
+        }
+        return viewModel.activeTake?.id == take.id
+    }
+
+    private func isTakeRowComparing(_ take: Take) -> Bool {
+        viewModel.comparison?.takeID == take.id && !viewModel.showsLiveTakeRow
     }
 
     @ViewBuilder

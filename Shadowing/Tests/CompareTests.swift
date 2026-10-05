@@ -121,4 +121,64 @@ final class CompareViewModelTests: XCTestCase {
         model.togglePlayback()
         XCTAssertNil(model.comparison, "any transport action ends the comparison")
     }
+
+    func testCompareWithTakeDoesNotChangeSelectionPlayheadOrLoop() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let first = try XCTUnwrap(model.activeTake)
+        let secondRegion = try PracticeRegion(start: 10, end: 13, sourceDuration: 30)
+        let second = try Take(
+            projectID: fixture.project.id,
+            region: secondRegion,
+            sequence: 2,
+            relativeAudioPath: "takes/second.caf",
+            duration: 1.5,
+            createdAt: Date(timeIntervalSince1970: 300)
+        )
+        model.takes = [first, second]
+        model.activeTake = first
+        model.project.selectedTakeID = first.id
+        model.seek(to: 6)
+        await M9TestSupport.waitForCommand(.seek(6), audio: fixture.audio)
+        let loopBefore = model.loopEnabled
+        let regionBefore = model.region
+        let playheadBefore = model.playhead
+        let selectedBefore = model.activeTake?.id
+
+        model.setCompareMode(.original)
+        model.compare(with: second)
+
+        XCTAssertEqual(model.comparison?.takeID, second.id)
+        XCTAssertEqual(model.activeTake?.id, selectedBefore, "Compare must not change selection")
+        XCTAssertEqual(model.region, regionBefore, "Compare must not change selection region")
+        XCTAssertEqual(model.loopEnabled, loopBefore, "Compare must not touch loop")
+        // Playhead may move for the compare step itself; stop restores the prior playhead.
+        model.compare() // stop
+        XCTAssertNil(model.comparison)
+        XCTAssertEqual(model.playhead, playheadBefore, accuracy: 1e-9)
+        XCTAssertEqual(model.activeTake?.id, selectedBefore)
+        XCTAssertEqual(model.region, regionBefore)
+        XCTAssertEqual(model.loopEnabled, loopBefore)
+    }
+
+    func testCompareDoesNotGoThroughSelectTake() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let take = try XCTUnwrap(model.activeTake)
+        model.clearTakeSelection()
+        XCTAssertNil(model.activeTake)
+        let regionBefore = model.region
+        let loopBefore = model.loopEnabled
+        model.seek(to: 5.5)
+        await M9TestSupport.waitForCommand(.seek(5.5), audio: fixture.audio)
+
+        model.setCompareMode(.original)
+        model.compare()
+
+        XCTAssertNotNil(model.comparison)
+        XCTAssertEqual(model.comparison?.takeID, take.id, "uses newest/available take for playback")
+        XCTAssertNil(model.activeTake, "C-key Compare must not select a take")
+        XCTAssertEqual(model.region, regionBefore)
+        XCTAssertEqual(model.loopEnabled, loopBefore)
+    }
 }

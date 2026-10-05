@@ -108,7 +108,6 @@ enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
     case unavailable
     case missingContext
     case unexpectedTemporaryFile(String)
-    case tooShort(TimeInterval)
     case savingTimedOut
 
     var errorDescription: String? {
@@ -119,12 +118,6 @@ enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
             String(localized: "The completed recording has no active recording session.")
         case let .unexpectedTemporaryFile(path):
             String(localized: "The audio engine returned an unexpected temporary recording at \(path).")
-        case let .tooShort(duration):
-            String(localized: """
-            The recording was only \
-            \(duration.formatted(.number.precision(.fractionLength(1)))) seconds. \
-            Please record again.
-            """)
         case .savingTimedOut:
             String(localized: "Saving the recording took too long. Nothing was saved.")
         }

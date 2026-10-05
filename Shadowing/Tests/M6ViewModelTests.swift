@@ -50,18 +50,94 @@ final class M6ViewModelTests: XCTestCase {
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
         let elsewhere = try PracticeRegion(start: 8, end: 12, sourceDuration: 30)
         fixture.viewModel.selectRegion(elsewhere)
-        fixture.viewModel.seek(to: 20)
-        await M6TestSupport.waitUntil {
-            fixture.viewModel.playhead == 20
-        }
+        // Keep loop on while moving the playhead outside the take (direct assignment —
+        // seek(to:) would turn loop off when leaving the selection).
+        fixture.viewModel.playhead = 20
+        fixture.viewModel.project.playhead = 20
+        XCTAssertTrue(fixture.viewModel.loopEnabled)
 
         fixture.viewModel.selectTake(take)
 
         XCTAssertEqual(fixture.viewModel.activeTake?.id, take.id)
         XCTAssertEqual(fixture.viewModel.playhead, take.region.start, accuracy: 0.001)
         XCTAssertEqual(fixture.viewModel.project.currentRegion, take.region)
+        // Clicking a take leaves loop as the user set it (on here); it must not toggle it.
+        XCTAssertTrue(fixture.viewModel.loopEnabled)
         XCTAssertFalse(fixture.viewModel.isPlaying)
         XCTAssertNil(fixture.viewModel.comparison)
+    }
+
+    func testSelectTakeDoesNotEnableLoopAsSideEffect() async throws {
+        let fixture = try await makeFixtureWithCommittedTake()
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        fixture.viewModel.setLoopEnabled(false)
+        XCTAssertFalse(fixture.viewModel.loopEnabled)
+
+        fixture.viewModel.selectTake(take)
+
+        XCTAssertEqual(fixture.viewModel.project.currentRegion, take.region)
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start, accuracy: 0.001)
+        XCTAssertFalse(fixture.viewModel.loopEnabled)
+    }
+
+    func testSelectTakeForcesSeekWhileOriginalPlayingInsideTakeRegion() async throws {
+        let fixture = try await makeFixtureWithCommittedTake()
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        // Play original with the playhead already inside the take region — the old
+        // selectRegion "resume inside loop" path would keep this position.
+        fixture.viewModel.playhead = take.region.start + 0.4
+        fixture.viewModel.project.playhead = take.region.start + 0.4
+        fixture.viewModel.isPlaying = true
+        fixture.viewModel.playingTakeID = nil
+        let commandsBefore = await fixture.audio.commands.count
+
+        fixture.viewModel.selectTake(take)
+
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start, accuracy: 0.001)
+        XCTAssertFalse(fixture.viewModel.isPlaying)
+        XCTAssertNil(fixture.viewModel.playingTakeID)
+        await M6TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBefore else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBefore).contains {
+                if case let .seek(position) = $0 {
+                    return abs(position - take.region.start) < 0.001
+                }
+                return false
+            }
+        }
+    }
+
+    func testSelectTakeForcesSeekWhileCompareInProgress() async throws {
+        let fixture = try await makeFixtureWithCommittedTake()
+        let take = try XCTUnwrap(fixture.viewModel.activeTake)
+        fixture.viewModel.setCompareMode(.original)
+        fixture.viewModel.compare()
+        XCTAssertNotNil(fixture.viewModel.comparison)
+        // Simulate compare having moved the playhead into the take region.
+        fixture.viewModel.playhead = take.region.start + 0.5
+        fixture.viewModel.isPlaying = true
+        let commandsBefore = await fixture.audio.commands.count
+
+        fixture.viewModel.selectTake(take)
+
+        XCTAssertNil(fixture.viewModel.comparison)
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start, accuracy: 0.001)
+        XCTAssertFalse(fixture.viewModel.isPlaying)
+        await M6TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBefore else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBefore).contains {
+                if case let .seek(position) = $0 {
+                    return abs(position - take.region.start) < 0.001
+                }
+                return false
+            }
+        }
     }
 
     func testDeleteCurrentTakeSelectsMostRecentRemaining() async throws {
