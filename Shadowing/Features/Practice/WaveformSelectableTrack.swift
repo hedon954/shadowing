@@ -39,6 +39,7 @@ struct WaveformSelectableTrack: View {
     var showsChrome = true
     var playedColor: Color?
     var playheadStyle = WaveformPlayheadStyle.standard
+    var barStyle: WaveformBarStyle?
 
     @State private var draftRegion: PracticeRegion?
     @State private var dragKind: DragKind?
@@ -59,7 +60,8 @@ struct WaveformSelectableTrack: View {
                     emphasized: true,
                     showsChrome: showsChrome,
                     playedColor: playedColor,
-                    playheadStyle: playheadStyle
+                    playheadStyle: playheadStyle,
+                    barStyle: barStyle
                 )
 
                 // Stable full-width layer: gestures must not live on moving handles.

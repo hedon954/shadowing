@@ -215,11 +215,12 @@ private struct MiniWaveform: View {
                 timedPoints: timedPoints,
                 viewport: viewport,
                 color: color,
-                showsChrome: false
+                showsChrome: false,
+                barStyle: .mini
             )
             .frame(width: geometry.size.width * fraction)
         }
-        .frame(height: 22)
+        .frame(height: 26)
         .frame(maxWidth: .infinity)
         .accessibilityHidden(true)
     }

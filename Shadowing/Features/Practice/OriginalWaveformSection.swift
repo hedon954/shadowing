@@ -5,6 +5,9 @@ struct OriginalWaveformSection: View {
     @ObservedObject var viewModel: PracticeViewModel
     @State private var magnifyOrigin: TimelineViewport?
 
+    /// 72 pt of bars plus the playhead's 6 pt overhang above and below.
+    static let trackHeight: CGFloat = 72 + WaveformBarStyle.original.verticalInset * 2
+
     private var isRecording: Bool {
         viewModel.recordingPresentation.locksPracticeControls
     }
@@ -13,7 +16,8 @@ struct OriginalWaveformSection: View {
         VStack(alignment: .leading, spacing: 8) {
             header
             originalTrack
-                .frame(height: 64)
+                .frame(height: Self.trackHeight)
+                .padding(.vertical, -WaveformBarStyle.original.verticalInset)
             WaveformRuler(viewport: viewModel.timelineViewport)
             if let take = selectedTake {
                 AlignedTakeLane(viewModel: viewModel, take: take)
@@ -92,7 +96,8 @@ struct OriginalWaveformSection: View {
             color: Color(nsColor: .tertiaryLabelColor),
             showsChrome: false,
             playedColor: .accentColor,
-            playheadStyle: WaveformPlayheadStyle(color: isRecording ? .red : .accentColor, width: 2)
+            playheadStyle: WaveformPlayheadStyle(color: isRecording ? .red : .accentColor, width: 2),
+            barStyle: .original
         )
         .help("Click to jump there. Drag across the waveform to select one sentence.")
         .contextMenu {
@@ -191,8 +196,8 @@ struct WaveformRuler: View {
                     .frame(maxWidth: .infinity, alignment: alignment(for: index))
             }
         }
-        .font(.caption.monospacedDigit())
-        .foregroundStyle(.tertiary)
+        .font(.system(size: 10.5).monospacedDigit())
+        .foregroundStyle(.secondary)
         .accessibilityHidden(true)
     }
 

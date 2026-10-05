@@ -22,6 +22,8 @@ struct WaveformTimelineTrack: View {
     /// When set, the part before the playhead uses this color and the rest uses `color`.
     var playedColor: Color?
     var playheadStyle = WaveformPlayheadStyle.standard
+    /// When set, draws discrete mirrored bars instead of a filled envelope.
+    var barStyle: WaveformBarStyle?
 
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
@@ -90,6 +92,10 @@ struct WaveformTimelineTrack: View {
             return
         }
         let gain = displayGain(for: points)
+        if let barStyle {
+            drawBars(points: points, gain: gain, style: barStyle, context: context, size: size)
+            return
+        }
         let centerY = size.height / 2
         let halfHeight = size.height * 0.44
         var path = Path()
@@ -121,6 +127,25 @@ struct WaveformTimelineTrack: View {
         var played = context
         played.clip(to: Path(CGRect(x: 0, y: 0, width: playedWidth, height: size.height)))
         played.fill(path, with: .color(playedColor))
+    }
+
+    private func drawBars(
+        points: [TimedWaveformEnvelopePoint],
+        gain: Float,
+        style: WaveformBarStyle,
+        context: GraphicsContext,
+        size: CGSize
+    ) {
+        let samples = points.map { point in
+            WaveformBarSample(
+                position: xPosition(for: point.time, width: size.width),
+                value: CGFloat(min(point.envelope.amplitude * gain, 1))
+            )
+        }
+        let playedX = playedColor == nil ? nil : playhead.map { xPosition(for: $0, width: size.width) }
+        let bars = WaveformBarLayout.bars(samples: samples, size: size, style: style, playedX: playedX)
+        let baseColor = playedColor == nil ? color.opacity(emphasized ? 1 : 0.3) : color
+        WaveformBarLayout.draw(bars, style: style, context: context, color: baseColor, playedColor: playedColor)
     }
 
     private func drawPlayhead(context: GraphicsContext, size: CGSize) {
