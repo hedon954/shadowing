@@ -92,6 +92,8 @@ final class PracticeViewModel: ObservableObject {
     weak var undoManager: UndoManager?
     /// The running "compare" playback, if any.
     @Published var comparison: ComparisonPlayback?
+    /// Non-nil while a post-Compare engine seek is in flight; ignore late playheadChanged.
+    var restoringPlayheadAfterComparison: TimeInterval?
     @Published var compareMode = CompareMode.originalThenMine
 
     let audioClient: any PracticeAudioClient
@@ -347,6 +349,7 @@ extension PracticeViewModel {
     }
 
     private func seekCommand(to position: TimeInterval) {
+        restoringPlayheadAfterComparison = nil
         let clamped = min(max(position, 0), project.duration)
         let disablesLoop = loopEnabled &&
             region.map { !($0.start ..< $0.end ~= clamped) } == true

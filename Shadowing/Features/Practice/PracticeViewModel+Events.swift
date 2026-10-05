@@ -219,6 +219,9 @@ extension PracticeViewModel {
     }
 
     private func updatePlayhead(from position: TimeInterval) {
+        if restoringPlayheadAfterComparison != nil {
+            return
+        }
         if let take = currentlyPlayingTake() {
             let local = min(max(position, 0), take.duration)
             let source = RecordingAlignment.sourceTime(

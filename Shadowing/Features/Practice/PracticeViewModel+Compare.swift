@@ -74,6 +74,7 @@ extension PracticeViewModel {
             return
         }
         pauseTakePlaybackIfNeeded()
+        restoringPlayheadAfterComparison = nil
         comparison = ComparisonPlayback(
             sentence: sentence,
             source: source,
@@ -149,8 +150,6 @@ extension PracticeViewModel {
         cancelComparison()
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.pause)
-        } completion: { [weak self] in
-            self?.isPlaying = false
         }
     }
 
@@ -170,6 +169,8 @@ extension PracticeViewModel {
         }
         comparison = nil
         playingTakeID = nil
+        // Clear before async pause/seek so Space (C then Space) plays from restored, never pauses.
+        isPlaying = false
         restorePlayheadAfterComparison(playback)
     }
 
@@ -178,8 +179,17 @@ extension PracticeViewModel {
         let restored = playback.restoredPlayhead
         playhead = restored
         project.playhead = restored
+        restoringPlayheadAfterComparison = restored
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.seek(restored))
+        } completion: { [weak self] in
+            guard let self else {
+                return
+            }
+            // Drop the gate only for this restore; do not clobber a newer seek/playhead.
+            if restoringPlayheadAfterComparison == restored {
+                restoringPlayheadAfterComparison = nil
+            }
         }
     }
 

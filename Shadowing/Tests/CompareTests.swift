@@ -255,4 +255,96 @@ final class CompareViewModelTests: XCTestCase {
             }
         }
     }
+
+    func testStopComparisonThenImmediateSpacePlaysFromRestoredPlayhead() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        model.seek(to: 5)
+        await M9TestSupport.waitForCommand(.seek(5), audio: fixture.audio)
+        model.setCompareMode(.original)
+        model.compare()
+        await M9TestSupport.waitUntil { model.isPlaying }
+        XCTAssertNotNil(model.comparison)
+
+        let commandsBeforeStop = await fixture.audio.commands.count
+        model.compare() // stop — must clear isPlaying before async pause finishes
+        XCTAssertNil(model.comparison)
+        XCTAssertFalse(model.isPlaying, "isPlaying must clear synchronously so Space plays, not pauses")
+        XCTAssertEqual(model.playhead, 5, accuracy: 1e-9)
+
+        model.togglePlayback() // immediate Space (C then Space rhythm)
+        await M9TestSupport.waitUntilAsync {
+            let commands = await fixture.audio.commands
+            guard commands.count > commandsBeforeStop else {
+                return false
+            }
+            return commands.suffix(commands.count - commandsBeforeStop).contains {
+                if case let .playOriginal(_, from, _) = $0 {
+                    return abs(from - 5) < 1e-9
+                }
+                return false
+            }
+        }
+        let commands = await fixture.audio.commands
+        let suffix = Array(commands.suffix(max(0, commands.count - commandsBeforeStop)))
+        let pauseOnly = suffix.allSatisfy {
+            if case .pause = $0 {
+                return true
+            }
+            if case .seek = $0 {
+                return true
+            }
+            return false
+        }
+        XCTAssertFalse(pauseOnly, "Space after stop must start play from restored playhead, not only pause")
+        XCTAssertTrue(
+            suffix.contains {
+                if case let .playOriginal(_, from, _) = $0 {
+                    return abs(from - 5) < 1e-9
+                }
+                return false
+            }
+        )
+    }
+
+    func testLatePlayheadChangedAfterCompareDoesNotOverwriteRestoredPlayhead() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let take = try XCTUnwrap(model.takes.first)
+        model.seek(to: 7.25)
+        await M9TestSupport.waitForCommand(.seek(7.25), audio: fixture.audio)
+        model.setCompareMode(.original)
+        model.compare()
+        await M9TestSupport.waitUntil { model.isPlaying }
+
+        // Finish synchronously on MainActor so restore gating is still active before any await.
+        model.receive(.playbackFinished)
+        XCTAssertNil(model.comparison)
+        XCTAssertEqual(model.playhead, 7.25, accuracy: 1e-9)
+        model.receive(.playheadChanged(take.duration))
+        model.receive(.playheadChanged(fixture.region.end))
+        XCTAssertEqual(
+            model.playhead,
+            7.25,
+            accuracy: 1e-9,
+            "late playheadChanged must not overwrite restored playhead until seek completes"
+        )
+
+        // Stop path: same late-tick protection (no await between stop and receive).
+        model.seek(to: 4.5)
+        await M9TestSupport.waitForCommand(.seek(4.5), audio: fixture.audio)
+        model.compare()
+        await M9TestSupport.waitUntil { model.isPlaying }
+        model.compare() // stop
+        XCTAssertNil(model.comparison)
+        XCTAssertEqual(model.playhead, 4.5, accuracy: 1e-9)
+        model.receive(.playheadChanged(fixture.region.end))
+        model.receive(.playheadChanged(take.duration))
+        XCTAssertEqual(
+            model.playhead,
+            4.5,
+            accuracy: 1e-9,
+            "late playheadChanged after stop must not stick"
+        )
+    }
 }
