@@ -122,7 +122,7 @@ extension PracticeViewModel {
                 show(error)
             }
         }
-        if let context = recordingContext, !context.replacesExisting {
+        if let context = recordingContext {
             takeOffsets[context.id] = nil
             recordingDependencies?.alignment?.deleteOffset(for: context.id)
         }

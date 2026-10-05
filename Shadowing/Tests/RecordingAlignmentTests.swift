@@ -75,4 +75,30 @@ final class RecordingAlignmentTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.url(for: take.id).path))
         XCTAssertNil(fixture.viewModel.takeOffsets[take.id])
     }
+
+    /// A second recording made while the first take is selected gets its own offset file;
+    /// the first take's measurement is left as it was.
+    @MainActor
+    func testRecordingWithATakeSelectedKeepsThatTakesOffset() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self, measuredOffset: 0.2)
+        let first = try XCTUnwrap(fixture.viewModel.takes.first)
+        let store = LocalRecordingAlignmentStore(rootDirectory: fixture.fileStore.rootURL)
+        await M9TestSupport.waitUntil { store.offset(for: first.id) > 0 }
+        XCTAssertEqual(fixture.viewModel.activeTake?.id, first.id)
+
+        let before = await fixture.audio.commands.count
+        fixture.viewModel.startRecording()
+        let temporaryURL = await M9TestSupport.waitForBeginRecording(audio: fixture.audio, afterCommandCount: before)
+        try Data([5, 5, 5, 5]).write(to: temporaryURL)
+        await fixture.audio.emit(.recordingStarted)
+        await fixture.audio.emit(.recordingAlignmentMeasured(-0.1))
+        await fixture.audio.emit(.recordingFinished(url: temporaryURL, duration: 1.5, reason: .manual))
+        await M9TestSupport.waitUntil { fixture.viewModel.takes.count == 2 }
+
+        let second = try XCTUnwrap(fixture.viewModel.takes.first { $0.id != first.id })
+        await M9TestSupport.waitUntil { store.offset(for: second.id) < 0 }
+        XCTAssertEqual(store.offset(for: second.id), -0.1, accuracy: 1e-9)
+        XCTAssertEqual(store.offset(for: first.id), 0.2, accuracy: 1e-9)
+        XCTAssertEqual(fixture.viewModel.alignmentOffset(for: first.id), 0.2, accuracy: 1e-9)
+    }
 }

@@ -48,20 +48,12 @@ struct TakesListSection: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Takes")
                 .font(.system(size: 12, weight: .semibold))
-            Text(verbatim: "\(viewModel.takes.count + (liveRowAddsTake ? 1 : 0))")
+            Text(verbatim: "\(viewModel.takes.count + (viewModel.showsLiveTakeRow ? 1 : 0))")
                 .font(.system(size: 12).monospacedDigit())
             Spacer()
         }
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
-    }
-
-    /// Recording over a selected take replaces it, so only a new take raises the count.
-    private var liveRowAddsTake: Bool {
-        guard viewModel.showsLiveTakeRow else {
-            return false
-        }
-        return !viewModel.takes.contains { $0.sequence == viewModel.recordingTakeNumber }
     }
 
     private var canReorder: Bool {

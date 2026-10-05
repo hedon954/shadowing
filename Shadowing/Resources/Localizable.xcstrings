@@ -456,26 +456,6 @@
         }
       }
     },
-    "Cannot open the existing take for overwrite: %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法打开要覆盖的录音：%@"
-          }
-        }
-      }
-    },
-    "Cannot open the new recording for overwrite: %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法打开用于覆盖的新录音：%@"
-          }
-        }
-      }
-    },
     "Cannot read audio while merging takes: %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2123,12 +2103,12 @@
         }
       }
     },
-    "Starts recording from the current Original playhead until the audio ends, or until you stop. With a take selected, recording replaces that take." : {
+    "Starts recording from the current Original playhead until the audio ends, or until you stop. Each recording is saved as a new take." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从原音当前位置开始录音，直到音频结束或你手动停止。选中某一遍时，录音会替换那一遍。"
+            "value" : "从原音当前播放位置开始录音，直到音频结束或你停止。每次录音都会保存为新的一遍。"
           }
         }
       }
@@ -2475,16 +2455,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "麦克风已断开，正在保存已录下的有效部分。"
-          }
-        }
-      }
-    },
-    "The overwrite merge plan is invalid." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "覆盖录音的合并方案无效。"
           }
         }
       }

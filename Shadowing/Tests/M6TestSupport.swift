@@ -113,11 +113,15 @@ enum M6TestSupport {
         return root
     }
 
+    /// Waits poll until a deadline instead of counting yields, so a cold first test is not flaky.
+    static let waitTimeout: Duration = .seconds(2)
+
     static func waitForBeginRecording(
         audio: PracticeAudioClientSpy,
         afterCommandCount: Int = 0
     ) async -> URL {
-        for _ in 0 ..< 200 {
+        let deadline = ContinuousClock.now + waitTimeout
+        while ContinuousClock.now < deadline {
             let commands = await audio.commands
             for command in commands.suffix(from: min(afterCommandCount, commands.count)) {
                 if case let .beginRecording(_, url, _) = command {
@@ -134,7 +138,8 @@ enum M6TestSupport {
         _ expected: PracticeAudioCommand,
         audio: PracticeAudioClientSpy
     ) async {
-        for _ in 0 ..< 200 {
+        let deadline = ContinuousClock.now + waitTimeout
+        while ContinuousClock.now < deadline {
             if await audio.commands.contains(expected) {
                 return
             }
@@ -145,7 +150,8 @@ enum M6TestSupport {
 
     @MainActor
     static func waitUntilAsync(_ condition: @MainActor () async -> Bool) async {
-        for _ in 0 ..< 200 {
+        let deadline = ContinuousClock.now + waitTimeout
+        while ContinuousClock.now < deadline {
             if await condition() {
                 return
             }
@@ -156,7 +162,8 @@ enum M6TestSupport {
 
     @MainActor
     static func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0 ..< 200 {
+        let deadline = ContinuousClock.now + waitTimeout
+        while ContinuousClock.now < deadline {
             if condition() {
                 return
             }

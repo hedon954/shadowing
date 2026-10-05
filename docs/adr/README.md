@@ -32,6 +32,7 @@ ADR-0004/0005 在硬件 Spike 矩阵完成前保持 Proposed；Decision 描述�
 - [ADR-0009：构建、签名与分发](0009-build-and-distribution.md)
 - [ADR-0010：引入 Rust/UniFFI 的门槛](0010-rust-uniffi-adoption-threshold.md)
 - [ADR-0011：暂不启用 App Sandbox，书签不带安全作用域](0011-unsandboxed-app-and-plain-bookmarks.md)
+- [ADR-0012：录音总是新增 Take，不再覆盖选中的 Take](0012-recording-always-creates-a-new-take.md)
 
 完成条件：CI 构建稳定；发布前补齐签名、公证和 DMG 流程。仅在 ADR-0010
 的触发条件满足后评估 Rust。

@@ -81,9 +81,13 @@ final class M6ViewModelTests: XCTestCase {
         XCTAssertFalse(fixture.viewModel.showsMultiTrackWorkspace)
     }
 
-    func testSelectedTakeRecordOverwritesSameTake() async throws {
+    /// ADR-0012: with a take selected, Record still adds a new take and leaves the selected one alone.
+    func testSelectedTakeRecordAddsNewTakeAndKeepsTheSelectedOne() async throws {
         let fixture = try await makeFixtureWithCommittedTake()
         let existing = try XCTUnwrap(fixture.viewModel.activeTake)
+        XCTAssertEqual(fixture.viewModel.recordingTakeNumber, existing.sequence + 1, "shown before recording")
+        let existingFile = try fixture.fileStore.audioURL(relativePath: existing.relativeAudioPath)
+        let existingBytes = try Data(contentsOf: existingFile)
         let commandCountBefore = await fixture.audio.commands.count
 
         fixture.viewModel.startRecording()
@@ -92,7 +96,8 @@ final class M6ViewModelTests: XCTestCase {
             afterCommandCount: commandCountBefore
         )
 
-        XCTAssertTrue(temporaryURL.lastPathComponent.hasPrefix(existing.id.uuidString))
+        XCTAssertFalse(temporaryURL.lastPathComponent.hasPrefix(existing.id.uuidString))
+        XCTAssertEqual(fixture.viewModel.recordingTakeNumber, existing.sequence + 1)
         try Data([2, 2, 2, 2]).write(to: temporaryURL)
         await fixture.audio.emit(.recordingStarted)
         await fixture.audio.emit(
@@ -103,13 +108,17 @@ final class M6ViewModelTests: XCTestCase {
             )
         )
         await M6TestSupport.waitUntil {
-            fixture.viewModel.takes.count == 1
-                && fixture.viewModel.activeTake?.duration == 2.0
+            fixture.viewModel.takes.count == 2
         }
 
-        XCTAssertEqual(fixture.viewModel.takes.map(\.id), [existing.id])
-        XCTAssertEqual(fixture.viewModel.activeTake?.id, existing.id)
-        XCTAssertEqual(fixture.viewModel.activeTake?.sequence, existing.sequence)
+        let kept = try XCTUnwrap(fixture.viewModel.takes.first { $0.id == existing.id })
+        XCTAssertEqual(kept, existing, "the selected take is not touched")
+        XCTAssertEqual(try Data(contentsOf: existingFile), existingBytes)
+        let newest = try XCTUnwrap(fixture.viewModel.takes.first)
+        XCTAssertNotEqual(newest.id, existing.id)
+        XCTAssertEqual(newest.sequence, existing.sequence + 1)
+        XCTAssertEqual(newest.duration, 2.0)
+        XCTAssertEqual(fixture.viewModel.activeTake?.id, newest.id, "the new take is selected for comparing")
     }
 
     func testUnselectedRecordAppendsNewTake() async throws {

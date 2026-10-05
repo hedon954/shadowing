@@ -22,7 +22,7 @@ extension PracticeViewModel {
         return project.keptTakeID == take.id
     }
 
-    /// Select a take for overwrite / delete without changing page layout.
+    /// Select a take for comparing / delete without changing page layout.
     func focusTake(_ take: Take, preferExistingViewport: Bool = false) async {
         pauseTakePlaybackIfNeeded()
         activeTake = take
@@ -58,8 +58,8 @@ extension PracticeViewModel {
         Task { [weak self] in
             await self?.loadTakeWaveform(for: take)
         }
-        // Keep the Original-timeline playhead where it is so overwrite recording
-        // still starts from the user's current cursor (PRD §10.6).
+        // Keep the Original-timeline playhead where it is so the next recording
+        // still starts from the user's current cursor.
         updateRegionSnapshotNotice(for: take)
         persistProjectImmediately()
     }

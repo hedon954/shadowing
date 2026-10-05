@@ -19,13 +19,10 @@ enum PracticeHeaderStatus: Equatable {
 }
 
 extension PracticeViewModel {
-    /// Number of the take being recorded. Recording over a selected take keeps that take's number.
+    /// Number of the take being recorded. Recording always adds a new take, selected or not.
     var recordingTakeNumber: Int {
         if let recordingContext {
             return recordingContext.sequence
-        }
-        if let activeTake {
-            return activeTake.sequence
         }
         return (takes.map(\.sequence).max() ?? 0) + 1
     }

@@ -278,7 +278,7 @@ struct PracticeRecordControl: View {
 
     private static let recordHint: LocalizedStringKey = """
     Starts recording from the current Original playhead until the audio ends, \
-    or until you stop. With a take selected, recording replaces that take.
+    or until you stop. Each recording is saved as a new take.
     """
 
     private func toggle() {

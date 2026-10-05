@@ -91,11 +91,6 @@ struct PendingRecordingContext: Sendable {
     let displayOrder: Int
     let temporaryURL: URL
     let createdAt: Date
-    let replacesExisting: Bool
-    /// Relative path of the take being overwritten; nil when appending.
-    let previousRelativePath: String?
-    let previousRegionStart: TimeInterval?
-    let previousDuration: TimeInterval?
 }
 
 enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
@@ -278,45 +273,23 @@ extension PracticeViewModel {
         region: PracticeRegion,
         dependencies: RecordingDependencies
     ) async throws {
-        let overwriteTarget = activeTake
-        let takeID: UUID
-        let sequence: Int
-        let displayOrder: Int
-        let createdAt: Date
-        let replacesExisting: Bool
-        if let overwriteTarget {
-            takeID = overwriteTarget.id
-            sequence = overwriteTarget.sequence
-            displayOrder = overwriteTarget.displayOrder
-            createdAt = overwriteTarget.createdAt
-            replacesExisting = true
-        } else {
-            let existingTakes = try await dependencies.takes.takes(projectID: project.id)
-            takeID = dependencies.makeID()
-            sequence = (existingTakes.map(\.sequence).max() ?? 0) + 1
-            displayOrder = TakeDisplayOrdering.nextTopDisplayOrder(existing: existingTakes)
-            createdAt = dependencies.now()
-            replacesExisting = false
-        }
+        // Every recording is a new take, even with a take selected: comparing takes against each
+        // other is the point, so an earlier take is never overwritten (ADR-0012).
+        let existingTakes = try await dependencies.takes.takes(projectID: project.id)
+        let takeID = dependencies.makeID()
         let temporaryURL = try dependencies.fileStore.temporaryTakeURL(id: takeID)
         recordingContext = PendingRecordingContext(
             id: takeID,
             region: region,
-            sequence: sequence,
-            displayOrder: displayOrder,
+            sequence: (existingTakes.map(\.sequence).max() ?? 0) + 1,
+            displayOrder: TakeDisplayOrdering.nextTopDisplayOrder(existing: existingTakes),
             temporaryURL: temporaryURL,
-            createdAt: createdAt,
-            replacesExisting: replacesExisting,
-            previousRelativePath: overwriteTarget?.relativeAudioPath,
-            previousRegionStart: overwriteTarget?.region.start,
-            previousDuration: overwriteTarget?.duration
+            createdAt: dependencies.now()
         )
         liveRecordingPeaks = []
         liveRecordingEnvelope = []
         lastRecordingStopReason = nil
-        if !replacesExisting {
-            activeTake = nil
-        }
+        activeTake = nil
 
         let appSettings = await dependencies.resolvedSettings()
         recordingTimelineRate = appSettings.playOriginalWhileRecording ? rate : 1
@@ -369,27 +342,16 @@ extension PracticeViewModel {
         }
 
         do {
-            let prepared = try TakeOverwriteCommit.prepare(
-                newRecordingURL: url,
-                duration: duration,
-                context: context,
-                sourceDuration: project.duration,
-                fileStore: dependencies.fileStore
-            )
             let draft = try TakeDraft(
                 id: context.id,
                 projectID: project.id,
-                region: prepared.region,
+                region: resolvedTakeRegion(context: context, duration: duration),
                 sequence: context.sequence,
                 displayOrder: context.displayOrder,
-                duration: prepared.duration,
+                duration: duration,
                 createdAt: context.createdAt
             )
-            let take = try await dependencies.committer.commit(
-                draft,
-                temporaryFile: prepared.fileURL,
-                replaceExisting: context.replacesExisting
-            )
+            let take = try await dependencies.committer.commit(draft, temporaryFile: url)
             recordingContext = nil
             recordingWindow = nil
             recordingPresentation = .idle

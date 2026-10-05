@@ -17,7 +17,7 @@ final class PracticePresentationTests: XCTestCase {
         )
     }
 
-    func testRecordingNumberIsNextTakeOrTheTakeBeingReplaced() throws {
+    func testRecordingNumberIsAlwaysTheNextTakeEvenWithATakeSelected() throws {
         let viewModel = makeViewModel()
         let first = try makeTake(viewModel, sequence: 1, createdAt: 1000)
         let third = try makeTake(viewModel, sequence: 3, createdAt: 3000)
@@ -28,10 +28,10 @@ final class PracticePresentationTests: XCTestCase {
         XCTAssertTrue(viewModel.showsLiveTakeRow)
 
         viewModel.activeTake = first
-        XCTAssertEqual(viewModel.headerStatus, .recording(takeNumber: 1))
+        XCTAssertEqual(viewModel.headerStatus, .recording(takeNumber: 4), "ADR-0012: never replaces Take 1")
 
         viewModel.recordingPresentation = .countingDown(remainingSeconds: 2)
-        XCTAssertEqual(viewModel.headerStatus, .countingDown(takeNumber: 1, remainingSeconds: 2))
+        XCTAssertEqual(viewModel.headerStatus, .countingDown(takeNumber: 4, remainingSeconds: 2))
 
         viewModel.recordingPresentation = .checkingPermission
         XCTAssertEqual(viewModel.headerStatus, .checkingMicrophone)
