@@ -52,6 +52,14 @@ final class V8SnapshotTests: XCTestCase {
         }
     }
 
+    /// ⌥⌘S: the full transcript inspector, closed by default. Long lines must wrap, not clip.
+    func testInspectorOpen() async throws {
+        try await render(name: "v8-inspector", transcriptVisible: true) { practice in
+            Self.selectNewestTake(practice)
+            SnapshotFixtures.showLongTimedSubtitles(in: practice)
+        }
+    }
+
     private static func selectNewestTake(_ practice: PracticeViewModel) {
         if let newest = practice.takes.first {
             practice.selectTake(newest)
@@ -61,12 +69,13 @@ final class V8SnapshotTests: XCTestCase {
     private func render(
         name: String,
         captionVisible: Bool = false,
+        transcriptVisible: Bool = false,
         configure: @escaping @MainActor (PracticeViewModel) -> Void
     ) async throws {
         _ = try SnapshotSupport.outputDirectory()
         let store = try XCTUnwrap(UserDefaults(suiteName: "V8SnapshotTests-\(UUID().uuidString)"))
         store.set(captionVisible, forKey: SubtitlePreferences.captionKey)
-        store.set(false, forKey: SubtitlePreferences.transcriptKey)
+        store.set(transcriptVisible, forKey: SubtitlePreferences.transcriptKey)
         let library = try await SnapshotFixtures.library(
             entries: Self.entries,
             takeLengths: [131, 125, 118],
