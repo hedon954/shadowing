@@ -48,7 +48,8 @@ struct OriginalWaveformSection: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text("Original")
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             if let region = viewModel.region {
                 Label(
@@ -59,12 +60,6 @@ struct OriginalWaveformSection: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(regionAccessibilityLabel(region))
             }
-            Text(
-                verbatim: ClockText.paddedPosition(viewModel.playhead) + " / "
-                    + ClockText.paddedPosition(viewModel.project.duration)
-            )
-            .font(.callout.monospacedDigit())
-            .foregroundStyle(.secondary)
         }
     }
 

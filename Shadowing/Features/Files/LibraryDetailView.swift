@@ -29,9 +29,6 @@ struct LibraryDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Shadowing")
-        .toolbar {
-            PlaceholderPracticeToolbar()
-        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("MP3 drop area")
         .accessibilityHint("Drop an MP3 here or use the Choose File button.")

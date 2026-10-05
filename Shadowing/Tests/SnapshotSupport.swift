@@ -42,7 +42,9 @@ enum SnapshotSupport {
             window.isReleasedWhenClosed = false
             window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
             window.toolbarStyle = toolbarStyle
-            window.contentViewController = NSHostingController(rootView: view)
+            window.contentViewController = NSHostingController(
+                rootView: view.environment(\.prefersOpaqueChrome, true)
+            )
             window.setContentSize(size)
             window.setFrameOrigin(CGPoint(x: -30000, y: -30000))
             window.orderFrontRegardless()

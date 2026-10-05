@@ -12,6 +12,10 @@ struct PracticeView: View {
         }
         .padding(.top, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            PracticeControlBar(viewModel: viewModel)
+                .padding(PracticeControlBar.inset)
+        }
         .navigationTitle(DisplayName.cleaned(viewModel.project.sourceDisplayName))
         .toolbar(removing: .title)
         .toolbar {

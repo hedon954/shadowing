@@ -336,6 +336,16 @@
         }
       }
     },
+    "Back 5 seconds (←)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "后退 5 秒（←）"
+          }
+        }
+      }
+    },
     "Can't align. Showing plain text." : {
       "localizations" : {
         "zh-Hans" : {
@@ -766,6 +776,16 @@
         }
       }
     },
+    "Disable loop (L)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭循环（L）"
+          }
+        }
+      }
+    },
     "Downloading English speech model (one time)…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -812,6 +832,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开启循环"
+          }
+        }
+      }
+    },
+    "Enable loop (L)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启循环（L）"
           }
         }
       }
@@ -882,6 +912,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "前进 5 秒"
+          }
+        }
+      }
+    },
+    "Forward 5 seconds (→)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前进 5 秒（→）"
           }
         }
       }
@@ -1286,6 +1326,16 @@
         }
       }
     },
+    "Pause audio (Space)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停（空格）"
+          }
+        }
+      }
+    },
     "Pick another source from the menu above" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1326,6 +1376,16 @@
         }
       }
     },
+    "Play audio (Space)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放（空格）"
+          }
+        }
+      }
+    },
     "Play original while recording" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1342,6 +1402,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "播放"
+          }
+        }
+      }
+    },
+    "Playback controls" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放控制"
+          }
+        }
+      }
+    },
+    "Playback position" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放位置"
           }
         }
       }
@@ -1436,6 +1516,16 @@
         }
       }
     },
+    "Record (R)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音（R）"
+          }
+        }
+      }
+    },
     "Recording" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1514,6 +1604,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld 秒后开始录音"
+          }
+        }
+      }
+    },
+    "Recording stopped" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音已停止"
           }
         }
       }
@@ -1787,6 +1887,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "停止录音"
+          }
+        }
+      }
+    },
+    "Stop Recording (R)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止录音（R）"
           }
         }
       }
