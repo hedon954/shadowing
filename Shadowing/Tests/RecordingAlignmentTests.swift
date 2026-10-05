@@ -69,6 +69,8 @@ final class RecordingAlignmentTests: XCTestCase {
         let store = LocalRecordingAlignmentStore(rootDirectory: fixture.fileStore.rootURL)
         await M9TestSupport.waitUntil { store.offset(for: take.id) > 0 }
         XCTAssertEqual(store.offset(for: take.id), 0.2, accuracy: 1e-9)
+        // The view model loads offsets in the background after the takes reload.
+        await M9TestSupport.waitUntil { fixture.viewModel.alignmentOffset(for: take.id) > 0 }
         XCTAssertEqual(fixture.viewModel.alignmentOffset(for: take.id), 0.2, accuracy: 1e-9)
 
         await fixture.viewModel.deleteTake(take)
@@ -99,6 +101,8 @@ final class RecordingAlignmentTests: XCTestCase {
         await M9TestSupport.waitUntil { store.offset(for: second.id) < 0 }
         XCTAssertEqual(store.offset(for: second.id), -0.1, accuracy: 1e-9)
         XCTAssertEqual(store.offset(for: first.id), 0.2, accuracy: 1e-9)
+        // The view model reloads offsets in the background after the new take lands.
+        await M9TestSupport.waitUntil { fixture.viewModel.alignmentOffset(for: first.id) > 0 }
         XCTAssertEqual(fixture.viewModel.alignmentOffset(for: first.id), 0.2, accuracy: 1e-9)
     }
 }
