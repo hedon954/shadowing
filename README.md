@@ -113,6 +113,10 @@ make check     # format + lint + build + test
 make dmg       # Release 无签名 DMG（build/Shadowing-<version>.dmg）
 ```
 
+Debug 构建是独立的应用：bundle id 为 `com.hedon.shadowing.debug`，数据在
+`~/Library/Application Support/Shadowing-Debug`。`make upgrade` 只重启 Debug 构建，不会动
+装在 /Applications 的 Release 版（`com.hedon.shadowing`，数据在 `Application Support/Shadowing`）。
+
 `make setup` 会按 `Brewfile` 安装依赖、安装 pre-commit hooks，并生成
 `Shadowing/Shadowing.xcodeproj`。生成的工程不要提交，请改 `Shadowing/project.yml`。
 

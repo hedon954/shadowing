@@ -49,12 +49,15 @@ targets:
         SWIFT_EMIT_LOC_STRINGS: true
         LOCALIZATION_PREFERS_STRING_CATALOGS: true
       # Debug (and the test host) is a separate app for macOS: its own microphone grant,
-      # preferences and data folder, so it never mixes with the installed Release app.
+      # preferences and data folder (Application Support/Shadowing-Debug), so it never mixes
+      # with the installed Release app.
       configs:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.hedon.shadowing.debug
+          SHADOWING_DATA_FOLDER_NAME: Shadowing-Debug
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.hedon.shadowing
+          SHADOWING_DATA_FOLDER_NAME: Shadowing
     scheme:
       testTargets:
         - ShadowingTests

@@ -7,6 +7,24 @@ import Foundation
 /// in a normal launch.
 enum AppLaunchEnvironment {
     static let testDataDirectoryKey = "SHADOWING_TEST_DATA_DIR"
+    /// Info.plist key naming the folder under Application Support (per build configuration).
+    static let dataFolderNameKey = "ShadowingDataFolderName"
+    static let defaultDataFolderName = "Shadowing"
+
+    /// `Shadowing` for Release, `Shadowing-Debug` for Debug builds, so a Debug build never opens
+    /// the installed app's library. Anything missing or odd falls back to `Shadowing`.
+    static func dataFolderName(infoDictionary: [String: Any]?) -> String {
+        guard let name = infoDictionary?[dataFolderNameKey] as? String,
+              !name.isEmpty,
+              !name.contains("/"),
+              !name.contains("$("),
+              name != ".",
+              name != ".."
+        else {
+            return defaultDataFolderName
+        }
+        return name
+    }
 
     static var isRunningTests: Bool {
         isRunningTests(environment: ProcessInfo.processInfo.environment)

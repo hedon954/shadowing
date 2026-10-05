@@ -117,7 +117,10 @@ final class AppDependencies {
                 appropriateFor: nil,
                 create: true
             )
-            .appendingPathComponent("Shadowing", isDirectory: true)
+            .appendingPathComponent(
+                AppLaunchEnvironment.dataFolderName(infoDictionary: Bundle.main.infoDictionary),
+                isDirectory: true
+            )
         try fileManager.createDirectory(
             at: applicationSupport,
             withIntermediateDirectories: true
