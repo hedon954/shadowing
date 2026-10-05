@@ -676,6 +676,62 @@
         }
       }
     },
+    "Compare mode" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对比方式"
+          }
+        }
+      }
+    },
+    "Compare take action" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对比"
+          }
+        }
+      }
+    },
+    "Compare the selected sentence with this take (C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用这一遍对比选中的一句（C）"
+          }
+        }
+      }
+    },
+    "Compare with Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "和第 %lld 遍对比"
+          }
+        }
+      }
+    },
+    "Comparing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在对比"
+          }
+        }
+      }
+    },
     "Continue Recording" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1086,6 +1142,16 @@
         }
       }
     },
+    "Live recording waveform" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音的波形"
+          }
+        }
+      }
+    },
     "Load an audio source before starting playback." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1192,6 +1258,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "麦克风输入电平"
+          }
+        }
+      }
+    },
+    "Mine" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的"
           }
         }
       }
@@ -1366,6 +1442,16 @@
         }
       }
     },
+    "Original then mine" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先原音再我的"
+          }
+        }
+      }
+    },
     "Pause Take %lld" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1456,6 +1542,16 @@
         }
       }
     },
+    "Play the selected sentence: the original, your take, or both (C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放选中的一句：原音、我的，或先原音再我的（C）"
+          }
+        }
+      }
+    },
     "Play/Pause" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1532,6 +1628,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "播放被中断，按播放继续。"
+          }
+        }
+      }
+    },
+    "Plays only the selected sentence · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只播选中的一句 · %@"
           }
         }
       }
@@ -1668,6 +1774,22 @@
         }
       }
     },
+    "Recording badge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音中"
+          }
+        }
+      }
+    },
     "Recording is in progress.\n\nStop recording and close, or continue recording?" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1744,6 +1866,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录音文件夹"
+          }
+        }
+      }
+    },
+    "Recording…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音中…"
           }
         }
       }
@@ -1931,6 +2063,16 @@
         }
       }
     },
+    "Shortcut: C" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷键：C"
+          }
+        }
+      }
+    },
     "Show Full Waveform" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1997,6 +2139,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "停止 %@"
+          }
+        }
+      }
+    },
+    "Stop Comparing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止对比"
           }
         }
       }
@@ -2617,6 +2769,16 @@
         }
       }
     },
+    "Today %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天 %@"
+          }
+        }
+      }
+    },
     "Try Again" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2707,6 +2869,16 @@
         }
       }
     },
+    "Yesterday %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天 %@"
+          }
+        }
+      }
+    },
     "Zoom In" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2733,6 +2905,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩放到选段"
+          }
+        }
+      }
+    },
+    "· Speak along with the original. It lines up above when you stop." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· 跟着原音说，录完自动对齐到上面"
+          }
+        }
+      }
+    },
+    "● Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "● 录音中"
+          }
+        }
+      }
+    },
+    "● Recording Take %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "● 正在录第 %lld 遍"
           }
         }
       }

@@ -8,16 +8,16 @@ struct PracticeView: View {
     @AppStorage(SubtitlePreferences.captionKey) private var isCaptionVisible = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            OriginalWaveformSection(viewModel: viewModel)
+        VStack(alignment: .leading, spacing: 0) {
+            OriginalWaveformSection(viewModel: viewModel, isCaptionVisible: isCaptionVisible)
                 .padding(.horizontal, 20)
-            if isCaptionVisible {
-                SubtitleCaptionLine(viewModel: viewModel, subtitles: viewModel.subtitles)
-                    .padding(.horizontal, 20)
-            }
+                .padding(.top, 4)
+            CompareBar(viewModel: viewModel)
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
             TakesListSection(viewModel: viewModel)
+                .padding(.top, 22)
         }
-        .padding(.top, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PracticeControlBar(viewModel: viewModel)
@@ -30,7 +30,7 @@ struct PracticeView: View {
         }
         .inspector(isPresented: $isInspectorPresented) {
             SubtitlesInspector(viewModel: viewModel, subtitles: viewModel.subtitles)
-                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                .inspectorColumnWidth(min: 260, ideal: 330, max: 440)
         }
         .onAppear {
             viewModel.start()

@@ -234,7 +234,12 @@ enum SnapshotFixtures {
         )
     }
 
-    static func library(empty: Bool = false) async throws -> Library {
+    static func library(
+        empty: Bool = false,
+        entries: [Entry] = names,
+        takeLengths: [TimeInterval] = [108, 185, 252],
+        takeSpacing: TimeInterval = 30
+    ) async throws -> Library {
         let storage = InMemoryPersistence()
         guard !empty else {
             return Library(storage: storage, projects: [], takes: [:])
@@ -243,7 +248,7 @@ enum SnapshotFixtures {
         let base = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 4, hour: 21)))
         var projects: [AudioProject] = []
         var takesByProject: [UUID: [Take]] = [:]
-        for (index, entry) in names.enumerated() {
+        for (index, entry) in entries.enumerated() {
             let project = AudioProject(
                 id: UUID(),
                 sourceDisplayName: entry.name,
@@ -258,9 +263,9 @@ enum SnapshotFixtures {
             await storage.save(project: project)
             projects.append(project)
             var takes: [Take] = []
-            let durations: [TimeInterval] = [108, 185, 252]
+            let durations = takeLengths
             for sequence in stride(from: 1, through: entry.takeCount, by: 1) {
-                let start = TimeInterval(sequence - 1) * 30
+                let start = TimeInterval(sequence - 1) * takeSpacing
                 let length = durations[(sequence - 1) % durations.count]
                 let take = try Take(
                     projectID: project.id,

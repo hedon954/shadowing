@@ -12,26 +12,22 @@ struct SubtitleCaptionLine: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
-            Text(verbatim: caption?.text ?? "")
-                .font(.system(size: 15))
-                .lineSpacing(15 * 0.45 - 4)
-                .foregroundStyle(caption == nil ? .secondary : .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .overlay(alignment: .leading) {
-                    if caption == nil {
-                        Text(emptyText)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+            if let caption {
+                Text(verbatim: caption.text)
+                    .font(.system(size: 15))
+                    .lineSpacing(2.5)
+            } else {
+                Text(emptyText)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Current subtitle")
-        .animation(nil, value: caption?.text)
     }
 
     private var caption: (speaker: String?, text: String)? {

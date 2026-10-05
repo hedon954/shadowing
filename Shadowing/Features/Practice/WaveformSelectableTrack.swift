@@ -40,6 +40,8 @@ struct WaveformSelectableTrack: View {
     var playedColor: Color?
     var playheadStyle = WaveformPlayheadStyle.standard
     var barStyle: WaveformBarStyle?
+    /// False when a band drawn behind the track already marks the region (v8 card).
+    var fillsSelection = true
 
     @State private var draftRegion: PracticeRegion?
     @State private var dragKind: DragKind?
@@ -56,7 +58,7 @@ struct WaveformSelectableTrack: View {
                     viewport: viewport,
                     color: color,
                     playhead: playhead,
-                    selection: displayedRegion,
+                    selection: fillsSelection || draftRegion != nil ? displayedRegion : nil,
                     emphasized: true,
                     showsChrome: showsChrome,
                     playedColor: playedColor,

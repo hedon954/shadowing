@@ -9,6 +9,9 @@ struct PracticeToolbar: ToolbarContent {
         ToolbarItem(placement: .navigation) {
             PracticeToolbarTitle(viewModel: viewModel)
         }
+        if #available(macOS 26.0, *) {
+            ToolbarSpacer(.flexible)
+        }
         ToolbarItem(placement: .primaryAction) {
             SubtitlesToggleButton(isOn: $isCaptionVisible)
         }

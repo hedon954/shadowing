@@ -38,14 +38,13 @@ final class PracticePresentationTests: XCTestCase {
         XCTAssertFalse(viewModel.showsLiveTakeRow)
     }
 
-    func testRulerHasFiveEvenTicksAcrossTheVisibleRange() {
+    func testRulerUsesRoundTimesPlusBothEnds() {
         let ticks = WaveformRuler.ticks(
             for: TimelineViewport(start: 0, duration: 1249, sourceDuration: 1249)
         )
-        XCTAssertEqual(ticks.count, 5)
-        XCTAssertEqual(ticks.first, 0)
-        XCTAssertEqual(ticks.last, 1249)
-        XCTAssertEqual(ticks[2], 624.5, accuracy: 0.001)
+        XCTAssertEqual(ticks, [0, 300, 600, 900, 1249], "20:00 is too close to 20:49")
+        let short = WaveformRuler.ticks(for: TimelineViewport(start: 0, duration: 130, sourceDuration: 130))
+        XCTAssertEqual(short, [0, 30, 60, 90, 130], "like the v8 mockup: 0:00 0:30 1:00 1:30 2:10")
 
         let zoomed = WaveformRuler.ticks(
             for: TimelineViewport(start: 100, duration: 40, sourceDuration: 1249)

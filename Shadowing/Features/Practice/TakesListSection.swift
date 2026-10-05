@@ -14,20 +14,21 @@ struct TakesListSection: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
             }
-            List(selection: selection) {
+            List {
                 if viewModel.showsLiveTakeRow {
                     LiveTakeRow(viewModel: viewModel)
-                        .selectionDisabled()
-                        .listRowBackground(Color.red.opacity(0.14))
+                        .modifier(TakeListRowChrome())
                 }
                 ForEach(viewModel.takes) { take in
                     TakeRow(
                         take: take,
-                        waveform: viewModel.takeWaveforms[take.id],
-                        isSelected: viewModel.activeTake?.id == take.id,
-                        longestDuration: viewModel.longestTakeDuration
+                        isComparing: viewModel.compareTake?.id == take.id && !viewModel.showsLiveTakeRow,
+                        isPlaying: viewModel.playingTakeID == take.id && viewModel.isPlaying,
+                        onPlay: { viewModel.toggleTakePlayback(take) },
+                        onSelect: { viewModel.selectTake(take) },
+                        onCompare: { viewModel.compare(with: take) }
                     )
-                    .tag(take.id)
+                    .modifier(TakeListRowChrome())
                     .contextMenu {
                         contextMenu(for: take)
                     }
@@ -35,22 +36,23 @@ struct TakesListSection: View {
                 .onMove(perform: move)
                 .moveDisabled(!canReorder)
             }
-            .listStyle(.inset)
+            .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .environment(\.defaultMinListRowHeight, 1)
             .disabled(viewModel.controlsLocked)
             .accessibilityLabel("Takes")
         }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Takes")
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 12, weight: .semibold))
             Text(verbatim: "\(viewModel.takes.count + (liveRowAddsTake ? 1 : 0))")
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12).monospacedDigit())
             Spacer()
         }
+        .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
     }
 
@@ -66,29 +68,14 @@ struct TakesListSection: View {
         !viewModel.controlsLocked && viewModel.takes.count > 1
     }
 
-    private var selection: Binding<UUID?> {
-        Binding(
-            get: { viewModel.activeTake?.id },
-            set: { id in
-                guard let id else {
-                    viewModel.clearTakeSelection()
-                    return
-                }
-                guard id != viewModel.activeTake?.id,
-                      let take = viewModel.takes.first(where: { $0.id == id })
-                else {
-                    return
-                }
-                viewModel.toggleTakePlayback(take)
-            }
-        )
-    }
-
     @ViewBuilder
     private func contextMenu(for take: Take) -> some View {
         let isPlaying = viewModel.playingTakeID == take.id && viewModel.isPlaying
         Button(isPlaying ? "Pause Take \(take.sequence)" : "Play Take \(take.sequence)") {
             viewModel.toggleTakePlayback(take)
+        }
+        Button("Compare") {
+            viewModel.compare(with: take)
         }
         Divider()
         Button("Delete", role: .destructive) {
@@ -112,122 +99,149 @@ struct TakesListSection: View {
     }
 }
 
-private struct TakeRow: View {
-    let take: Take
-    let waveform: WaveformPresentation?
-    let isSelected: Bool
-    let longestDuration: TimeInterval
-
-    var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Take \(take.sequence)")
-                    .fontWeight(.semibold)
-                Text(take.createdAt, format: .practiceDayTime)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 96, alignment: .leading)
-            MiniWaveform(
-                waveform: waveform,
-                duration: take.duration,
-                longestDuration: longestDuration,
-                color: isSelected ? .accentColor : Color(nsColor: .tertiaryLabelColor)
-            )
-            Text(verbatim: ClockText.duration(take.duration))
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 44, alignment: .trailing)
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Take \(take.sequence)")
-        .accessibilityValue(
-            Text("\(take.createdAt, format: .practiceDayTime), \(ClockText.duration(take.duration))")
-        )
-        .accessibilityHint("Select to play this take.")
+/// List rows draw their own rounded background; no separators or system selection.
+private struct TakeListRowChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 
+/// ▶  第 3 遍 今天 09:12 ……… 正在对比 / 对比   1:58
+private struct TakeRow: View {
+    let take: Take
+    let isComparing: Bool
+    let isPlaying: Bool
+    let onPlay: () -> Void
+    let onSelect: () -> Void
+    let onCompare: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            TakePlayButton(isPlaying: isPlaying, sequence: take.sequence, action: onPlay)
+            TakeNameLabel(
+                name: Text("Take \(take.sequence)"),
+                detail: Text(verbatim: TakeDateText.short(take.createdAt))
+            )
+            Spacer(minLength: 8)
+            if isComparing {
+                Text("Comparing")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tint)
+            } else {
+                Button("Compare take action", action: onCompare)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .help("Compare the selected sentence with this take (C)")
+                    .accessibilityLabel("Compare with Take \(take.sequence)")
+            }
+            TakeDurationText(duration: take.duration)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background {
+            if isComparing {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.primary.opacity(0.045))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Take \(take.sequence)")
+        .accessibilityValue(
+            Text("\(TakeDateText.short(take.createdAt)), \(ClockText.duration(take.duration))")
+        )
+        .accessibilityAddTraits(isComparing ? .isSelected : [])
+    }
+}
+
+private struct TakePlayButton: View {
+    let isPlaying: Bool
+    let sequence: Int
+    var isEnabled = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 9, weight: .bold))
+                .frame(width: 26, height: 26)
+                .background(Color.primary.opacity(0.05), in: Circle())
+                .overlay(Circle().strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.45)
+        .accessibilityLabel(isPlaying ? "Pause Take \(sequence)" : "Play Take \(sequence)")
+    }
+}
+
+private struct TakeNameLabel: View {
+    let name: Text
+    let detail: Text
+    var tint: Color = .primary
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            name
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+            detail
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .frame(minWidth: 120, alignment: .leading)
+    }
+}
+
+private struct TakeDurationText: View {
+    let duration: TimeInterval
+
+    var body: some View {
+        Text(verbatim: ClockText.duration(duration))
+            .font(.system(size: 12).monospacedDigit())
+            .foregroundStyle(.secondary)
+            .frame(width: 40, alignment: .trailing)
+    }
+}
+
+/// The take being recorded, red, at the top of the list.
 private struct LiveTakeRow: View {
     @ObservedObject var viewModel: PracticeViewModel
 
     var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 6, height: 6)
-                    Text("Take \(viewModel.recordingTakeNumber)")
-                        .fontWeight(.semibold)
-                }
+        HStack(spacing: 14) {
+            TakePlayButton(isPlaying: false, sequence: viewModel.recordingTakeNumber, isEnabled: false) {}
+            TakeNameLabel(name: Text("Take \(viewModel.recordingTakeNumber)"), detail: status, tint: .red)
+            Spacer(minLength: 8)
+            Text("Recording badge")
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.red)
-                status
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 96, alignment: .leading)
-            MiniWaveform(
-                timedPoints: viewModel.liveRecordingEnvelope,
-                duration: viewModel.recordingElapsed,
-                longestDuration: viewModel.longestTakeDuration,
-                color: .red
-            )
-            Text(verbatim: ClockText.duration(viewModel.recordingElapsed))
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.red)
-                .frame(minWidth: 44, alignment: .trailing)
+            TakeDurationText(duration: viewModel.recordingElapsed)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "Recording, \(ClockText.duration(viewModel.recordingElapsed)) elapsed"
         )
     }
 
-    @ViewBuilder
-    private var status: some View {
+    private var status: Text {
         switch viewModel.recordingPresentation {
         case let .countingDown(remainingSeconds):
             Text("Recording starts in \(remainingSeconds)")
         case .finalizing:
             Text("Saving recording…")
         case .idle, .checkingPermission, .recording:
-            Text("Recording")
+            Text("Recording…")
         }
-    }
-}
-
-/// A take's waveform drawn to the same time scale as the other rows.
-private struct MiniWaveform: View {
-    var waveform: WaveformPresentation?
-    var timedPoints: [TimedWaveformEnvelopePoint] = []
-    let duration: TimeInterval
-    let longestDuration: TimeInterval
-    let color: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            let fraction = min(max(duration / max(longestDuration, 0.001), 0), 1)
-            WaveformTimelineTrack(
-                waveform: waveform,
-                timedPoints: timedPoints,
-                viewport: viewport,
-                color: color,
-                showsChrome: false,
-                barStyle: .mini
-            )
-            .frame(width: geometry.size.width * fraction)
-        }
-        .frame(height: 26)
-        .frame(maxWidth: .infinity)
-        .accessibilityHidden(true)
-    }
-
-    /// The take's own time range: recorded audio starts at zero.
-    private var viewport: TimelineViewport {
-        let length = max(waveform?.duration ?? duration, 0.25)
-        return TimelineViewport(start: 0, duration: length, sourceDuration: length)
     }
 }

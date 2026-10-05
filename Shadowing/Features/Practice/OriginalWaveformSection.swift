@@ -1,72 +1,101 @@
 import SwiftUI
 
-/// "Original" header, the source waveform with its ruler, and the selected take aligned under it.
+/// v8 card: the original waveform with the selected (or live) take on the same timeline under it,
+/// a faint band on the current sentence, one playhead through both, then the time axis.
 struct OriginalWaveformSection: View {
     @ObservedObject var viewModel: PracticeViewModel
+    var isCaptionVisible = false
     @State private var magnifyOrigin: TimelineViewport?
 
-    /// 72 pt of bars plus the playhead's 6 pt overhang above and below.
-    static let trackHeight: CGFloat = 72 + WaveformBarStyle.original.verticalInset * 2
+    static let labelWidth: CGFloat = 64
+    static let labelGap: CGFloat = 14
+    static var waveformLeading: CGFloat {
+        labelWidth + labelGap
+    }
+
+    static let originalHeight: CGFloat = 64
+    static let takeHeight: CGFloat = 52
+    static let laneGap: CGFloat = 12
 
     private var isRecording: Bool {
         viewModel.recordingPresentation.locksPracticeControls
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            originalTrack
-                .frame(height: Self.trackHeight)
-                .padding(.vertical, -WaveformBarStyle.original.verticalInset)
+        VStack(alignment: .leading, spacing: 0) {
+            lanes
             WaveformRuler(viewport: viewModel.timelineViewport)
-            if let take = selectedTake {
-                AlignedTakeLane(viewModel: viewModel, take: take)
+                .padding(.leading, Self.waveformLeading)
+                .padding(.top, 8)
+            if isCaptionVisible {
+                SubtitleCaptionLine(viewModel: viewModel, subtitles: viewModel.subtitles)
+                    .padding(.leading, Self.waveformLeading)
+                    .padding(.top, 14)
             }
             if viewModel.isTimelineZoomed {
                 zoomControls
+                    .padding(.leading, Self.waveformLeading)
+                    .padding(.top, 10)
             }
             if let warning = viewModel.waveform.warning {
                 Label(warning, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .padding(.top, 8)
                     .accessibilityLabel("Waveform warning: \(warning)")
             }
         }
+        .padding(EdgeInsets(top: 18, leading: 18, bottom: 12, trailing: 18))
+        .background(PracticeCardBackground())
         .simultaneousGesture(magnificationGesture)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Aligned original and recording waveforms")
     }
 
-    /// The take lane appears only for a selected, saved take; live recording shows in the list.
-    private var selectedTake: Take? {
-        guard let take = viewModel.activeTake, !isRecording else {
-            return nil
-        }
-        return viewModel.takes.first { $0.id == take.id }
-    }
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("Original")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            if let region = viewModel.region {
-                Label(
-                    "\(ClockText.duration(region.start)) – \(ClockText.duration(region.end))",
-                    systemImage: "selection.pin.in.out"
-                )
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .accessibilityLabel(regionAccessibilityLabel(region))
+    private var lanes: some View {
+        VStack(alignment: .leading, spacing: Self.laneGap) {
+            WaveformLaneRow(title: Text("Original"), detail: Text(verbatim: originalDuration), tint: .accentColor) {
+                originalTrack
+                    .frame(height: Self.originalHeight + WaveformBarStyle.original.verticalInset * 2)
+                    .padding(.vertical, -WaveformBarStyle.original.verticalInset)
+                    .background { pauseTicks }
+            }
+            if isRecording {
+                LiveTakeLane(viewModel: viewModel)
+            } else if let take = viewModel.compareTake {
+                AlignedTakeLane(viewModel: viewModel, take: take)
             }
         }
+        .background(alignment: .topLeading) {
+            SentenceBandOverlay(
+                viewport: viewModel.timelineViewport,
+                sentence: viewModel.currentSentence,
+                playhead: nil,
+                leading: Self.waveformLeading
+            )
+        }
+        .overlay(alignment: .topLeading) {
+            SentenceBandOverlay(
+                viewport: viewModel.timelineViewport,
+                sentence: nil,
+                playhead: viewModel.timelinePlayhead,
+                playheadColor: isRecording ? .red : .accentColor,
+                leading: Self.waveformLeading
+            )
+            .allowsHitTesting(false)
+        }
     }
 
-    private func regionAccessibilityLabel(_ region: PracticeRegion) -> Text {
-        let start = ClockText.duration(region.start)
-        let end = ClockText.duration(region.end)
-        return Text("Selected region from \(start) to \(end)")
+    private var originalDuration: String {
+        ClockText.duration(viewModel.project.duration)
+    }
+
+    /// Pause cuts, drawn only while pauses decide the sentence (no subtitles, no loop range).
+    @ViewBuilder
+    private var pauseTicks: some View {
+        if viewModel.region == nil, viewModel.timedCues.isEmpty, !viewModel.sentenceChunks.isEmpty {
+            PauseTickMarks(viewport: viewModel.timelineViewport, chunks: viewModel.sentenceChunks)
+        }
     }
 
     private var originalTrack: some View {
@@ -74,7 +103,7 @@ struct OriginalWaveformSection: View {
             waveform: viewModel.waveform,
             viewport: viewModel.timelineViewport,
             sourceDuration: viewModel.project.duration,
-            region: viewModel.region ?? (isRecording ? viewModel.recordingDisplayRegion : nil),
+            region: viewModel.region,
             playhead: viewModel.timelinePlayhead,
             isEnabled: !viewModel.controlsLocked,
             onSeek: { time in
@@ -91,8 +120,9 @@ struct OriginalWaveformSection: View {
             color: Color(nsColor: .tertiaryLabelColor),
             showsChrome: false,
             playedColor: .accentColor,
-            playheadStyle: WaveformPlayheadStyle(color: isRecording ? .red : .accentColor, width: 2),
-            barStyle: .original
+            playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
+            barStyle: .original,
+            fillsSelection: false
         )
         .help("Click to jump there. Drag across the waveform to select one sentence.")
         .contextMenu {
@@ -180,78 +210,57 @@ struct OriginalWaveformSection: View {
     }
 }
 
-/// Five evenly spaced times under the waveform: "0:00  5:00  10:00  15:00  20:49".
+/// Round times under the waveform at their true positions, plus both ends:
+/// "0:00  0:30  1:00  1:30  2:10".
 struct WaveformRuler: View {
     let viewport: TimelineViewport
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(Self.ticks(for: viewport).enumerated()), id: \.offset) { index, time in
-                Text(verbatim: ClockText.duration(time))
-                    .frame(maxWidth: .infinity, alignment: alignment(for: index))
+        GeometryReader { geometry in
+            let ticks = Self.ticks(for: viewport)
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(ticks.enumerated()), id: \.offset) { index, time in
+                    label(time, index: index, count: ticks.count, width: geometry.size.width)
+                }
             }
         }
+        .frame(height: 13)
         .font(.system(size: 10.5).monospacedDigit())
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
     }
 
-    static func ticks(for viewport: TimelineViewport, count: Int = 5) -> [TimeInterval] {
-        guard count > 1 else {
-            return [viewport.start]
-        }
-        return (0 ..< count).map { index in
-            viewport.start + viewport.duration * Double(index) / Double(count - 1)
-        }
+    private func label(_ time: TimeInterval, index: Int, count: Int, width: CGFloat) -> some View {
+        let fraction = CGFloat((time - viewport.start) / max(viewport.duration, 0.001))
+        let anchor: UnitPoint = index == 0 ? .topLeading : (index == count - 1 ? .topTrailing : .top)
+        return Text(verbatim: ClockText.duration(time))
+            .fixedSize()
+            .alignmentGuide(.leading) { dimension in
+                dimension.width * anchor.x - fraction * width
+            }
     }
 
-    private func alignment(for index: Int) -> Alignment {
-        switch index {
-        case 0:
-            .leading
-        case 4:
-            .trailing
-        default:
-            .center
-        }
-    }
-}
+    static let steps: [TimeInterval] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]
 
-/// The selected take on the Original timeline, so it lines up with what was shadowed.
-private struct AlignedTakeLane: View {
-    @ObservedObject var viewModel: PracticeViewModel
-    let take: Take
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Take \(take.sequence)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            WaveformSelectableTrack(
-                waveform: viewModel.takeWaveforms[take.id],
-                viewport: viewModel.timelineViewport,
-                sourceDuration: viewModel.project.duration,
-                region: viewModel.takeLoopSelections[take.id],
-                playhead: viewModel.timelinePlayhead,
-                isEnabled: !viewModel.controlsLocked,
-                onSeek: viewModel.seekTimeline,
-                onRegionChanged: { region in
-                    viewModel.selectTakeLoopRegion(take, region)
-                },
-                onRegionCleared: {
-                    viewModel.clearTakeLoopRegion(take)
-                },
-                onViewportChanged: viewModel.setTimelineViewport,
-                onGestureActiveChanged: viewModel.setTimelineGestureActive,
-                color: .accentColor,
-                assetTimelineStart: take.region.start,
-                selectionBounds: take.region,
-                accessibilityTitle: "Take \(take.sequence) waveform",
-                accessibilityHintText: "Drag to select a Take loop region, or click to seek.",
-                coordinateSpaceName: "takeWaveform-\(take.id.uuidString)",
-                showsChrome: false
-            )
-            .frame(height: 40)
+    /// Start, round multiples of the smallest step giving at most five intervals, and the end.
+    /// Multiples too close to either end are dropped so labels never collide.
+    static func ticks(for viewport: TimelineViewport) -> [TimeInterval] {
+        let start = viewport.start
+        let end = viewport.start + viewport.duration
+        guard viewport.duration > 0 else {
+            return [start]
         }
+        let step = steps.first { viewport.duration / $0 <= 5 } ?? viewport.duration / 4
+        let gap = viewport.duration * 0.12
+        var ticks = [start]
+        var time = (start / step).rounded(.down) * step + step
+        while time < end - 0.0001 {
+            if time - start >= gap, end - time >= gap {
+                ticks.append(time)
+            }
+            time += step
+        }
+        ticks.append(end)
+        return ticks
     }
 }

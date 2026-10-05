@@ -81,7 +81,11 @@ final class SubtitlesSnapshotTests: XCTestCase {
         _ = try SnapshotSupport.outputDirectory()
         let library = try await SnapshotFixtures.library()
         let navigation = try SnapshotFixtures.navigation(testCase: self, library: library, openFirst: true)
-        try await SnapshotSupport.render(ContentView(navigation: navigation), name: name, size: size) {
+        // The transcript inspector is closed by default; these mockups show it open.
+        let store = try XCTUnwrap(UserDefaults(suiteName: "SubtitlesSnapshotTests-\(UUID().uuidString)"))
+        store.set(true, forKey: SubtitlePreferences.transcriptKey)
+        let view = ContentView(navigation: navigation).defaultAppStorage(store)
+        try await SnapshotSupport.render(view, name: name, size: size) {
             guard let practice = await PracticeSnapshotTests.waitForPractice(navigation) else {
                 return
             }
