@@ -38,17 +38,22 @@ extension PracticeViewModel {
         }
     }
 
-    /// Undo: files back from where the Trash put them, then the same row (same id and fields).
-    /// When the Trash was emptied, shows a short error and leaves the take deleted.
+    /// Undo: in one transaction, the same row (same id and fields) goes in first, then the files
+    /// move back from where the Trash put them. A failed insert moves nothing; a failed move
+    /// rolls the row back and returns any moved file to the Trash.
     func undoDeleteTake(_ trashed: TrashedTake) async {
         guard let dependencies = recordingDependencies else {
             return
         }
         do {
-            try await Task.detached(priority: .userInitiated) {
-                try TakeTrash.restore(trashed)
-            }.value
-            try await dependencies.takes.save(trashed.take)
+            try TakeTrash.checkStillInTrash(trashed)
+            do {
+                try await dependencies.takes.restoreTake(trashed.take) {
+                    try TakeTrash.restore(trashed)
+                }
+            } catch {
+                throw TakeTrashError.couldNotRestore(sequence: trashed.take.sequence)
+            }
             await refreshTakes()
             if let restored = takes.first(where: { $0.id == trashed.take.id }) {
                 await focusTake(restored, preferExistingViewport: true)
@@ -57,6 +62,11 @@ extension PracticeViewModel {
         } catch {
             show(error)
         }
+    }
+
+    /// A new take may reuse a deleted take's number, so its Undo can no longer put it back.
+    func forgetUndoDelete() {
+        undoManager?.removeAllActions(withTarget: self)
     }
 
     private func registerUndoDelete(_ trashed: TrashedTake) {

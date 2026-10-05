@@ -356,6 +356,7 @@ extension PracticeViewModel {
                 createdAt: context.createdAt
             )
             let take = try await dependencies.committer.commit(draft, temporaryFile: url)
+            forgetUndoDelete()
             recordingContext = nil
             recordingWindow = nil
             recordingPresentation = .idle

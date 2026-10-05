@@ -14,6 +14,10 @@ protocol TakeRepository: Sendable {
     /// Persists vertical order for the given takes (already ordered top → bottom).
     func reorderTakes(_ orderedTakes: [Take]) async throws
     func deleteTake(id: UUID) async throws
+    /// Undo of a delete: inserts the row (never overwrites; a clash with another take's id,
+    /// number or position throws), then runs `moveFiles` in the same transaction.
+    /// If either throws, the row is not kept.
+    func restoreTake(_ take: Take, moveFiles: @escaping @Sendable () throws -> Void) async throws
 }
 
 protocol SettingsStore: Sendable {

@@ -50,11 +50,15 @@ struct TrashedTake: Equatable, Sendable {
 
 enum TakeTrashError: Error, Equatable, LocalizedError {
     case notInTrash(sequence: Int)
+    /// The row could not be inserted or a file could not be moved back; nothing was restored.
+    case couldNotRestore(sequence: Int)
 
     var errorDescription: String? {
         switch self {
         case let .notInTrash(sequence):
             String(localized: "Can't undo: Take \(sequence) is no longer in the Trash.")
+        case let .couldNotRestore(sequence):
+            String(localized: "Can't undo deleting Take \(sequence).")
         }
     }
 }
@@ -75,13 +79,19 @@ enum TakeTrash {
         return TrashedTake(take: take, files: moved)
     }
 
-    /// Moves every file back. Throws `notInTrash` without moving anything when a file is gone
-    /// (the Trash was emptied); the caller then must not restore the row.
-    static func restore(_ trashed: TrashedTake) throws {
+    /// Throws `notInTrash` when a file is gone (the Trash was emptied).
+    static func checkStillInTrash(_ trashed: TrashedTake) throws {
         let manager = FileManager.default
         guard trashed.files.allSatisfy({ manager.fileExists(atPath: $0.trashed.path) }) else {
             throw TakeTrashError.notInTrash(sequence: trashed.take.sequence)
         }
+    }
+
+    /// Moves every file back. Throws `notInTrash` without moving anything when a file is gone;
+    /// if a move fails, the files already moved go back to the Trash and the error is rethrown.
+    static func restore(_ trashed: TrashedTake) throws {
+        let manager = FileManager.default
+        try checkStillInTrash(trashed)
         var restored: [TrashedFile] = []
         do {
             for file in trashed.files {

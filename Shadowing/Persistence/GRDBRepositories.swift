@@ -345,6 +345,27 @@ actor GRDBTakeRepository: TakeRepository {
         }
     }
 
+    func restoreTake(_ take: Take, moveFiles: @escaping @Sendable () throws -> Void) async throws {
+        // `write` is one transaction: a failed insert moves nothing, a failed move rolls back.
+        try await database.write { database in
+            try database.execute(
+                sql: """
+                INSERT INTO takes (
+                    id, project_id, region_id, region_start, region_end,
+                    sequence, display_order, relative_audio_path, duration, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                arguments: [
+                    take.id.uuidString, take.projectID.uuidString, take.region.id.uuidString,
+                    take.region.start, take.region.end, take.sequence, take.displayOrder,
+                    take.relativeAudioPath, take.duration, take.createdAt
+                ]
+            )
+            try moveFiles()
+        }
+    }
+
     private static func makeTake(_ row: Row) throws -> Take {
         let persistedID: String = row["id"]
         let persistedProjectID: String = row["project_id"]

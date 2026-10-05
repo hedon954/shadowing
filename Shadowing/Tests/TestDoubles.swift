@@ -67,6 +67,20 @@ actor InMemoryPersistence {
         takes[id] = nil
     }
 
+    /// Mirrors the SQLite unique keys: id, (project, number), (project, position).
+    func restoreTake(_ take: Take, moveFiles: @Sendable () throws -> Void) throws {
+        let clash = takes.values.contains {
+            $0.id == take.id
+                || ($0.projectID == take.projectID && $0.sequence == take.sequence)
+                || ($0.projectID == take.projectID && $0.displayOrder == take.displayOrder)
+        }
+        guard !clash else {
+            throw TestDoubleError.uniqueConstraint
+        }
+        try moveFiles()
+        takes[take.id] = take
+    }
+
     func setting(for key: String) -> Data? {
         settings[key]
     }
@@ -118,6 +132,10 @@ struct InMemoryTakeRepository: TakeRepository {
     func deleteTake(id: UUID) async throws {
         await storage.deleteTake(id: id)
     }
+
+    func restoreTake(_ take: Take, moveFiles: @escaping @Sendable () throws -> Void) async throws {
+        try await storage.restoreTake(take, moveFiles: moveFiles)
+    }
 }
 
 struct InMemorySettingsStore: SettingsStore {
@@ -167,6 +185,10 @@ actor FailingTakeRepository: TakeRepository {
     }
 
     func deleteTake(id _: UUID) async throws {}
+
+    func restoreTake(_: Take, moveFiles _: @escaping @Sendable () throws -> Void) async throws {
+        throw TestDoubleError.forcedFailure
+    }
 }
 
 actor PracticeAudioClientSpy: PracticeAudioClient {
@@ -196,4 +218,5 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
 enum TestDoubleError: Error {
     case missingProject
     case forcedFailure
+    case uniqueConstraint
 }
