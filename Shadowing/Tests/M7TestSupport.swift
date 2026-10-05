@@ -54,6 +54,7 @@ enum M7TestSupport {
                     takeRepository: takes,
                     validator: AlwaysPlayableRecordingValidator()
                 ),
+                trash: .temporaryFolder(),
                 countdownSeconds: 0
             )
         )
@@ -105,6 +106,7 @@ enum M7TestSupport {
                     takeRepository: takes,
                     validator: AlwaysPlayableRecordingValidator()
                 ),
+                trash: .temporaryFolder(),
                 countdownSeconds: 0
             )
         )

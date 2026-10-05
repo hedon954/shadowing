@@ -84,6 +84,8 @@ final class PracticeViewModel: ObservableObject {
     @Published var sentenceChunks: [SentenceChunk] = []
     /// Measured take offsets (`RecordingAlignment`); missing means 0.
     @Published var takeOffsets: [UUID: TimeInterval] = [:]
+    /// The window's undo manager, for "Undo Delete Take N" (set by `PracticeView`).
+    weak var undoManager: UndoManager?
     /// The running "compare" playback, if any.
     @Published var comparison: ComparisonPlayback?
     @Published var compareMode = CompareMode.originalThenMine

@@ -24,7 +24,7 @@ final class PracticeShortcutTests: XCTestCase {
         let keys = [
             PracticeShortcutKeys.space, PracticeShortcutKeys.letterR, PracticeShortcutKeys.letterC,
             PracticeShortcutKeys.returnKey, PracticeShortcutKeys.letterL, PracticeShortcutKeys.leftArrow,
-            PracticeShortcutKeys.rightArrow, PracticeShortcutKeys.delete
+            PracticeShortcutKeys.rightArrow
         ]
         for key in keys {
             XCTAssertNil(action(key, typing: true), "key \(key) fired while typing")
@@ -35,6 +35,18 @@ final class PracticeShortcutTests: XCTestCase {
         XCTAssertTrue(keys.allSatisfy { PracticeShortcutGate.isMenuSingleKey(ShortcutKeystroke(keyCode: $0)) })
         XCTAssertFalse(PracticeShortcutGate.isMenuSingleKey(open))
         XCTAssertFalse(PracticeShortcutGate.isMenuSingleKey(ShortcutKeystroke(keyCode: 0)), "A is just typing")
+    }
+
+    /// Delete is ⌘⌫ like Finder's Move to Trash; bare ⌫ does nothing, and ⌘⌫ while typing
+    /// edits the text instead.
+    func testDeleteTakeNeedsCommandAndNeverFiresWhileTyping() {
+        let commandDelete = ShortcutKeystroke(keyCode: PracticeShortcutKeys.delete, command: true)
+        XCTAssertNil(action(PracticeShortcutKeys.delete))
+        XCTAssertNil(action(PracticeShortcutKeys.forwardDelete))
+        XCTAssertEqual(PracticeShortcutResolver.action(for: commandDelete, textInputFocused: false), .deleteTake)
+        XCTAssertNil(PracticeShortcutResolver.action(for: commandDelete, textInputFocused: true))
+        XCTAssertTrue(PracticeShortcutGate.isMenuSingleKey(commandDelete), "handed to the text field, not the menu")
+        XCTAssertFalse(PracticeShortcutGate.isMenuSingleKey(ShortcutKeystroke(keyCode: PracticeShortcutKeys.delete)))
     }
 
     func testModifiedKeysAreLeftToTheMenuBar() {

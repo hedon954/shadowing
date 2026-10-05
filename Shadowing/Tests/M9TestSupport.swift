@@ -83,6 +83,7 @@ enum M9TestSupport {
                 committer: committer,
                 settings: settings,
                 alignment: withAlignment ? LocalRecordingAlignmentStore(rootDirectory: root) : nil,
+                trash: .folder(root.appendingPathComponent(".TestTrash", isDirectory: true)),
                 countdownSeconds: countdownSeconds,
                 playOriginalWhileRecording: playOriginalWhileRecording,
                 now: { Date(timeIntervalSince1970: 200) }

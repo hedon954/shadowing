@@ -48,6 +48,7 @@ enum M6TestSupport {
                 fileStore: fileStore,
                 takes: takes,
                 committer: committer,
+                trash: .temporaryFolder(),
                 countdownSeconds: 0,
                 now: { Date(timeIntervalSince1970: 200) }
             )

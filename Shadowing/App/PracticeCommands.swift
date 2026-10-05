@@ -8,6 +8,8 @@ struct PracticeCommandTarget {
 
 extension FocusedValues {
     @Entry var practiceCommands: PracticeCommandTarget?
+    /// A take is selected and nothing is recording, so ⌘⌫ can move it to the Trash.
+    @Entry var practiceCanDeleteTake: Bool?
 }
 
 /// Stored choices for the subtitles: both hidden by default (listening comes first).
@@ -23,6 +25,7 @@ enum SubtitlePreferences {
 /// is being edited.
 struct PracticeCommands: Commands {
     @FocusedValue(\.practiceCommands) private var target
+    @FocusedValue(\.practiceCanDeleteTake) private var canDeleteTake
     @AppStorage(SubtitlePreferences.captionKey) private var captionVisible = false
     @AppStorage(SubtitlePreferences.transcriptKey) private var transcriptVisible = false
 
@@ -38,6 +41,12 @@ struct PracticeCommands: Commands {
             item("Loop", .toggleLoop, key: "l")
             item("Slower", .slower, key: "[", modifiers: .command)
             item("Faster", .faster, key: "]", modifiers: .command)
+            Divider()
+            Button("Delete Take") {
+                target?.perform(.deleteTake)
+            }
+            .keyboardShortcut(.delete, modifiers: .command)
+            .disabled(target == nil || canDeleteTake != true)
         }
         CommandGroup(after: .sidebar) {
             Button(captionVisible ? "Hide Subtitles" : "Show Subtitles") {

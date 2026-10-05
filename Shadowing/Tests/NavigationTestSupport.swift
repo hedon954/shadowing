@@ -37,7 +37,8 @@ enum NavigationTestSupport {
                     takeRepository: takes,
                     validator: AlwaysPlayableRecordingValidator()
                 ),
-                waveforms: waveforms
+                waveforms: waveforms,
+                trash: .temporaryFolder()
             ),
             inputDevices: FixedInputDevices(),
             recordingsStorageURL: root,

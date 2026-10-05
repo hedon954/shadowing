@@ -244,6 +244,7 @@ final class M5ViewModelTests: XCTestCase {
                 fileStore: fileStore,
                 takes: takes,
                 committer: committer,
+                trash: .temporaryFolder(),
                 countdownSeconds: countdownSeconds,
                 now: { Date(timeIntervalSince1970: 200) }
             )

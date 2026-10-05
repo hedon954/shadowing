@@ -228,16 +228,6 @@ extension PracticeViewModel {
         persistProjectImmediately()
     }
 
-    func requestDeleteTake(_ take: Take? = nil) {
-        guard let target = take ?? activeTake else {
-            return
-        }
-        pauseTakePlaybackIfNeeded()
-        Task { [weak self] in
-            await self?.deleteTake(target)
-        }
-    }
-
     /// Reorders Take tracks under Original. Labels (`sequence`) stay unchanged.
     func reorderTakes(draggedID: UUID, onto targetID: UUID) {
         guard isInteractiveForTakeReorder,
@@ -296,60 +286,6 @@ extension PracticeViewModel {
     func preloadTakeWaveforms() async {
         for take in takes where takeWaveforms[take.id] == nil {
             await loadTakeWaveform(for: take)
-        }
-    }
-
-    func deleteTake(_ take: Take) async {
-        guard let recordingDependencies else {
-            show(PracticeRecordingError.unavailable)
-            return
-        }
-        do {
-            try await recordingDependencies.takes.deleteTake(id: take.id)
-            do {
-                try recordingDependencies.fileStore.deleteAudio(
-                    relativePath: take.relativeAudioPath
-                )
-            } catch {
-                show(error)
-            }
-            recordingDependencies.alignment?.deleteOffset(for: take.id)
-            takeOffsets[take.id] = nil
-            takeWaveforms[take.id] = nil
-            takeLoopSelections[take.id] = nil
-            if project.keptTakeID == take.id {
-                project.keptTakeID = nil
-            }
-            if playingTakeID == take.id {
-                playingTakeID = nil
-                isPlaying = false
-            }
-            await refreshTakes()
-            if let next = takes.max(by: { $0.createdAt < $1.createdAt }) {
-                await focusTake(next, preferExistingViewport: true)
-                await loadTakeWaveform(for: next)
-            } else {
-                activeTake = nil
-                selectedTakePeaks = []
-                project.selectedTakeID = nil
-                recordingNotice = nil
-                playhead = min(max(project.playhead, 0), project.duration)
-                if let region {
-                    timelineViewport = .fitting(
-                        region,
-                        sourceDuration: project.duration
-                    )
-                } else {
-                    timelineViewport = .full(sourceDuration: project.duration)
-                }
-                do {
-                    try await projects.save(project)
-                } catch {
-                    show(error)
-                }
-            }
-        } catch {
-            show(error)
         }
     }
 

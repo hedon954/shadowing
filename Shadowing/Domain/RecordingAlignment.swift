@@ -49,6 +49,8 @@ protocol RecordingAlignmentStoring: Sendable {
     func offset(for takeID: UUID) -> TimeInterval
     func saveOffset(_ offset: TimeInterval, for takeID: UUID) throws
     func deleteOffset(for takeID: UUID)
+    /// The sidecar file, so deleting a take can move it to the Trash with the audio.
+    func fileURL(for takeID: UUID) -> URL?
 }
 
 /// `Recordings/<take id>.json` next to the takes, in the app's own Application Support folder.
@@ -82,5 +84,9 @@ struct LocalRecordingAlignmentStore: RecordingAlignmentStoring {
 
     func deleteOffset(for takeID: UUID) {
         try? FileManager.default.removeItem(at: url(for: takeID))
+    }
+
+    func fileURL(for takeID: UUID) -> URL? {
+        url(for: takeID)
     }
 }

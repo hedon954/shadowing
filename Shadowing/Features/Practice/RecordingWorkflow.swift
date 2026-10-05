@@ -26,6 +26,8 @@ struct RecordingDependencies: Sendable {
     let settings: (any SettingsStore)?
     let waveforms: (any WaveformPreparing)?
     let alignment: (any RecordingAlignmentStoring)?
+    /// Where deleted takes go (the Trash in the app, a temporary folder in tests).
+    let trash: FileTrasher
     /// Fallback when settings are unavailable (tests may inject a fixed value).
     let countdownSeconds: Int
     let playOriginalWhileRecording: Bool
@@ -41,6 +43,7 @@ struct RecordingDependencies: Sendable {
         settings: (any SettingsStore)? = nil,
         waveforms: (any WaveformPreparing)? = nil,
         alignment: (any RecordingAlignmentStoring)? = nil,
+        trash: FileTrasher,
         countdownSeconds: Int = 0,
         playOriginalWhileRecording: Bool = false,
         now: @escaping @Sendable () -> Date = Date.init,
@@ -54,6 +57,7 @@ struct RecordingDependencies: Sendable {
         self.settings = settings
         self.waveforms = waveforms
         self.alignment = alignment
+        self.trash = trash
         self.countdownSeconds = max(countdownSeconds, 0)
         self.playOriginalWhileRecording = playOriginalWhileRecording
         self.now = now

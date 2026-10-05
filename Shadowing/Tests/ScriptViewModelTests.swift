@@ -86,6 +86,7 @@ final class ScriptViewModelTests: XCTestCase {
                     takeRepository: takes,
                     validator: AlwaysPlayableRecordingValidator()
                 ),
+                trash: .temporaryFolder(),
                 countdownSeconds: 0
             ),
             textFileChooser: chooser

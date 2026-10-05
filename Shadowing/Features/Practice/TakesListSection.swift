@@ -73,6 +73,7 @@ struct TakesListSection: View {
         Button("Delete", role: .destructive) {
             viewModel.requestDeleteTake(take)
         }
+        .keyboardShortcut(.delete, modifiers: .command)
         .accessibilityLabel("Delete Take \(take.sequence)")
     }
 

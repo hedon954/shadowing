@@ -47,7 +47,11 @@ enum PracticeShortcutResolver {
             return nil
         }
         if keystroke.command {
-            return keystroke.shift ? nil : commandAction(for: keystroke)
+            guard !keystroke.shift, let action = commandAction(for: keystroke) else {
+                return nil
+            }
+            // ⌘⌫ in a text field deletes to the start of the line, not a take.
+            return action == .deleteTake && textInputFocused ? nil : action
         }
         if keystroke.shift || textInputFocused {
             return nil
@@ -55,8 +59,12 @@ enum PracticeShortcutResolver {
         return plainKeyAction(for: keystroke.keyCode)
     }
 
+    /// ⌘O opens audio; ⌘⌫ moves the selected take to the Trash (like Finder).
     private static func commandAction(for keystroke: ShortcutKeystroke) -> PracticeShortcutAction? {
-        keystroke.characters == "o" ? .openAudio : nil
+        if keystroke.keyCode == PracticeShortcutKeys.delete || keystroke.keyCode == PracticeShortcutKeys.forwardDelete {
+            return .deleteTake
+        }
+        return keystroke.characters == "o" ? .openAudio : nil
     }
 
     private static func plainKeyAction(for keyCode: UInt16) -> PracticeShortcutAction? {
@@ -75,8 +83,6 @@ enum PracticeShortcutResolver {
             .jumpBackward
         case PracticeShortcutKeys.rightArrow:
             .jumpForward
-        case PracticeShortcutKeys.delete, PracticeShortcutKeys.forwardDelete:
-            .deleteTake
         default:
             nil
         }
@@ -108,12 +114,14 @@ enum PracticeShortcutGate {
         return false
     }
 
-    /// A plain key the Practice menu also lists (Space, R, C, Return, L, arrows, Delete).
+    /// A key the Practice menu also lists that means something else while typing: the single
+    /// keys (Space, R, C, Return, L, arrows) and ⌘⌫ (delete to the start of the line).
     static func isMenuSingleKey(_ keystroke: ShortcutKeystroke) -> Bool {
-        guard !keystroke.command else {
-            return false
+        let action = PracticeShortcutResolver.action(for: keystroke, textInputFocused: false)
+        guard keystroke.command else {
+            return action != nil
         }
-        return PracticeShortcutResolver.action(for: keystroke, textInputFocused: false) != nil
+        return action == .deleteTake
     }
 }
 

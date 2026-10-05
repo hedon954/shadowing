@@ -160,7 +160,8 @@ final class AppDependencies {
             ),
             settings: settings,
             waveforms: waveformService,
-            alignment: LocalRecordingAlignmentStore(rootDirectory: recordingFiles.rootURL)
+            alignment: LocalRecordingAlignmentStore(rootDirectory: recordingFiles.rootURL),
+            trash: .system
         )
     }
 

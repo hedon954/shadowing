@@ -6,6 +6,7 @@ struct PracticeView: View {
     @AppStorage(SubtitlePreferences.transcriptKey) private var isInspectorPresented = false
     /// One subtitle line under the waveforms (toolbar "Subtitles" button).
     @AppStorage(SubtitlePreferences.captionKey) private var isCaptionVisible = false
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,5 +42,12 @@ struct PracticeView: View {
             }
         }
         .modifier(PracticeAlertsModifier(viewModel: viewModel))
+        .focusedSceneValue(\.practiceCanDeleteTake, viewModel.activeTake != nil && !viewModel.controlsLocked)
+        .onAppear {
+            viewModel.undoManager = undoManager
+        }
+        .onChange(of: undoManager) {
+            viewModel.undoManager = undoManager
+        }
     }
 }
