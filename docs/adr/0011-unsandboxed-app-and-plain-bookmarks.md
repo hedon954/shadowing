@@ -54,7 +54,7 @@ security-scoped bookmark 与创建它的代码签名绑定。每次无签名重�
 - `codesign -d --entitlements - Shadowing.app` 不包含 `com.apple.security.app-sandbox`。
 - `BookmarkFallbackTests` 覆盖未沙盒时只做普通解析且不重写书签、沙盒中回退解析成功并重新
   保存书签、解析失败时进入定位流程。
-- 用已有数据库副本验证旧书签都能通过回退解析打开。
+- 用已有数据库副本验证旧书签都能通过普通解析打开。
 
 ## References
 
