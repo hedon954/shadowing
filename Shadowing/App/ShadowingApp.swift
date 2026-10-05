@@ -56,6 +56,9 @@ struct ShadowingApp: App {
         }
         .defaultSize(width: 1180, height: 720)
         .windowToolbarStyle(.unified)
+        .commands {
+            PracticeCommands()
+        }
 
         Settings {
             if let settingsViewModel {

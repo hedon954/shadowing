@@ -3,14 +3,14 @@ import SwiftUI
 /// v6 toolbar: only the title and the subtitles toggle; playback lives in `PracticeControlBar`.
 struct PracticeToolbar: ToolbarContent {
     let viewModel: PracticeViewModel
-    @Binding var isInspectorPresented: Bool
+    @Binding var isCaptionVisible: Bool
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
             PracticeToolbarTitle(viewModel: viewModel)
         }
         ToolbarItem(placement: .primaryAction) {
-            InspectorToggleButton(isPresented: $isInspectorPresented)
+            SubtitlesToggleButton(isOn: $isCaptionVisible)
         }
     }
 }
@@ -66,16 +66,28 @@ enum PracticeTitleText {
     }
 }
 
-private struct InspectorToggleButton: View {
-    @Binding var isPresented: Bool
+/// The "字幕 / Subtitles" badge at the top right; shows one subtitle line under the waveforms.
+private struct SubtitlesToggleButton: View {
+    @Binding var isOn: Bool
 
     var body: some View {
         Button {
-            isPresented.toggle()
+            isOn.toggle()
         } label: {
-            Label(isPresented ? "Hide Subtitles" : "Show Subtitles", systemImage: "sidebar.right")
+            Text("Subtitles badge")
+                .font(.system(size: 10, weight: .bold))
+                .tracking(0.3)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(lineWidth: 1.3)
+                }
+                .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
         }
-        .help(isPresented ? "Hide Subtitles" : "Show Subtitles")
+        .accessibilityLabel(isOn ? "Hide Subtitles" : "Show Subtitles")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .help(isOn ? "Hide Subtitles" : "Show Subtitles")
     }
 }
 

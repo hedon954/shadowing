@@ -2,12 +2,19 @@ import SwiftUI
 
 struct PracticeView: View {
     @ObservedObject var viewModel: PracticeViewModel
-    @State private var isInspectorPresented = true
+    /// The full transcript (⌥⌘S). Hidden by default: shadowing is listening and speaking first.
+    @AppStorage(SubtitlePreferences.transcriptKey) private var isInspectorPresented = false
+    /// One subtitle line under the waveforms (toolbar "Subtitles" button).
+    @AppStorage(SubtitlePreferences.captionKey) private var isCaptionVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             OriginalWaveformSection(viewModel: viewModel)
                 .padding(.horizontal, 20)
+            if isCaptionVisible {
+                SubtitleCaptionLine(viewModel: viewModel, subtitles: viewModel.subtitles)
+                    .padding(.horizontal, 20)
+            }
             TakesListSection(viewModel: viewModel)
         }
         .padding(.top, 16)
@@ -19,7 +26,7 @@ struct PracticeView: View {
         .navigationTitle(DisplayName.cleaned(viewModel.project.sourceDisplayName))
         .toolbar(removing: .title)
         .toolbar {
-            PracticeToolbar(viewModel: viewModel, isInspectorPresented: $isInspectorPresented)
+            PracticeToolbar(viewModel: viewModel, isCaptionVisible: $isCaptionVisible)
         }
         .inspector(isPresented: $isInspectorPresented) {
             SubtitlesInspector(viewModel: viewModel, subtitles: viewModel.subtitles)

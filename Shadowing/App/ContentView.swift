@@ -44,6 +44,13 @@ struct ContentView: View {
         .practiceKeyboardShortcuts(isEnabled: true) { action in
             navigation.handleShortcut(action)
         }
+        .focusedSceneValue(
+            \.practiceCommands,
+            PracticeCommandTarget(
+                hasPractice: navigation.preparedPractice != nil,
+                perform: { navigation.handleShortcut($0) }
+            )
+        )
     }
 
     @ViewBuilder
@@ -144,6 +151,12 @@ private struct PracticeScene: View {
             viewModel.jump(by: -5)
         case .jumpForward:
             viewModel.jump(by: 5)
+        case .compare:
+            viewModel.compare()
+        case .replaySentence:
+            viewModel.replayCurrentSentence()
+        case .slower, .faster:
+            viewModel.stepRate(faster: action == .faster)
         case .openAudio:
             navigation.openAudioChooser()
         case .deleteTake:

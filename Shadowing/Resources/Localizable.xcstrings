@@ -666,6 +666,16 @@
         }
       }
     },
+    "Compare" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对比播放"
+          }
+        }
+      }
+    },
     "Continue Recording" : {
       "localizations" : {
         "zh-Hans" : {
@@ -732,6 +742,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "倒计时"
+          }
+        }
+      }
+    },
+    "Current subtitle" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前字幕"
           }
         }
       }
@@ -896,6 +916,16 @@
         }
       }
     },
+    "Faster" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加快"
+          }
+        }
+      }
+    },
     "Finishing…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -996,6 +1026,16 @@
         }
       }
     },
+    "Hide Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏全文字幕"
+          }
+        }
+      }
+    },
     "Highlighting starts when recognition finishes" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1076,6 +1116,16 @@
         }
       }
     },
+    "Loading subtitles…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在载入字幕…"
+          }
+        }
+      }
+    },
     "Locate File" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1092,6 +1142,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重新找到这个文件即可恢复访问。"
+          }
+        }
+      }
+    },
+    "Loop" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "循环"
           }
         }
       }
@@ -1396,6 +1456,16 @@
         }
       }
     },
+    "Play/Pause" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放/暂停"
+          }
+        }
+      }
+    },
     "Playback" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1466,6 +1536,16 @@
         }
       }
     },
+    "Practice" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "练习"
+          }
+        }
+      }
+    },
     "Practice Error" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1522,6 +1602,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录音（R）"
+          }
+        }
+      }
+    },
+    "Record / Stop Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音/停止录音"
           }
         }
       }
@@ -1674,6 +1764,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "替换文本文件"
+          }
+        }
+      }
+    },
+    "Replay Sentence" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重播这一句"
           }
         }
       }
@@ -1851,6 +1951,26 @@
         }
       }
     },
+    "Show Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示全文字幕"
+          }
+        }
+      }
+    },
+    "Slower" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放慢"
+          }
+        }
+      }
+    },
     "Speak into the microphone and the level should move. Recording uses the device selected here." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1957,6 +2077,32 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "字幕"
+          }
+        }
+      }
+    },
+    "Subtitles badge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtitles"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕"
+          }
+        }
+      }
+    },
+    "Subtitles have no timing yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕还没有时间信息"
           }
         }
       }

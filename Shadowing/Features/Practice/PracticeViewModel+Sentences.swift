@@ -84,3 +84,15 @@ extension PracticeViewModel {
         }
     }
 }
+
+extension PracticeViewModel {
+    /// ⌘[ / ⌘]: one step through the supported speeds.
+    func stepRate(faster: Bool) {
+        let rates = Self.supportedRates
+        guard let index = rates.firstIndex(of: rate) ?? rates.firstIndex(of: 1) else {
+            return
+        }
+        let next = min(max(index + (faster ? 1 : -1), 0), rates.count - 1)
+        setRate(rates[next])
+    }
+}
