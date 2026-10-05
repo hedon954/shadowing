@@ -257,12 +257,21 @@ private struct LiveTakeRow: View {
     }
 
     private var status: Text {
-        switch viewModel.recordingPresentation {
+        LiveTakeStatus.text(for: viewModel.recordingPresentation)
+    }
+}
+
+/// What the live take is doing, shown in one place at a time.
+enum LiveTakeStatus {
+    static func text(for presentation: RecordingPresentation) -> Text {
+        switch presentation {
+        case .checkingPermission:
+            Text("Checking microphone…")
         case let .countingDown(remainingSeconds):
             Text("Recording starts in \(remainingSeconds)")
         case .finalizing:
             Text("Saving recording…")
-        case .idle, .checkingPermission, .recording:
+        case .idle, .recording:
             Text("Recording…")
         }
     }

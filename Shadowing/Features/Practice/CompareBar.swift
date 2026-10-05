@@ -78,12 +78,17 @@ struct CompareBar: View {
 
     private var recordingStatus: some View {
         HStack(spacing: 10) {
-            Text("● Recording Take \(viewModel.recordingTakeNumber)")
-                .fontWeight(.semibold)
-                .foregroundStyle(.red)
-            Text("· Speak along with the original. It lines up above when you stop.")
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if viewModel.isCapturingAudio {
+                Text("● Recording Take \(viewModel.recordingTakeNumber)")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.red)
+                Text("· Speak along with the original. It lines up above when you stop.")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                LiveTakeStatus.text(for: viewModel.recordingPresentation)
+                    .foregroundStyle(.secondary)
+            }
             Spacer(minLength: 0)
         }
         .font(.system(size: 12))

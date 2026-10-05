@@ -61,13 +61,18 @@ extension PracticeViewModel {
         takes.isEmpty && !showsLiveTakeRow
     }
 
-    /// The red "Recording" badge on the live take; hidden while saving, so only one state
-    /// ("Saving recording…") shows at a time.
-    var showsRecordingBadge: Bool {
-        if case .finalizing = recordingPresentation {
-            return false
+    /// `true` only while the microphone is actually being recorded, not while checking access,
+    /// counting down or saving, so the window never shows two recording states at once.
+    var isCapturingAudio: Bool {
+        if case .recording = recordingPresentation {
+            return true
         }
-        return true
+        return false
+    }
+
+    /// The red "Recording" badge on the live take; only while recording.
+    var showsRecordingBadge: Bool {
+        isCapturingAudio
     }
 
     /// "Takes 0" would repeat what the empty state already says.

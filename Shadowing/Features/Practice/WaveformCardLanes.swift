@@ -91,7 +91,9 @@ struct LiveTakeLane: View {
     var body: some View {
         WaveformLaneRow(
             title: Text("Take \(viewModel.recordingTakeNumber)"),
-            detail: Text("● Recording"),
+            detail: viewModel.isCapturingAudio
+                ? Text("● Recording")
+                : LiveTakeStatus.text(for: viewModel.recordingPresentation),
             tint: .red
         ) {
             WaveformTimelineTrack(

@@ -228,6 +228,21 @@ final class M5ViewModelTests: XCTestCase {
         XCTAssertEqual(retriedCount, beginCount + 1, "Try Again starts a new take")
     }
 
+    func testOnlyAnActiveRecordingShowsRecordingLabels() async throws {
+        let fixture = try await makeFixture(permission: .authorized, countdownSeconds: 0)
+        let cases: [(RecordingPresentation, Bool)] = [
+            (.checkingPermission, false),
+            (.countingDown(remainingSeconds: 2), false),
+            (.recording(elapsed: 1), true),
+            (.finalizing, false)
+        ]
+        for (presentation, recording) in cases {
+            fixture.viewModel.recordingPresentation = presentation
+            XCTAssertEqual(fixture.viewModel.isCapturingAudio, recording, "\(presentation)")
+            XCTAssertEqual(fixture.viewModel.showsRecordingBadge, recording, "\(presentation)")
+        }
+    }
+
     func testSavingThatNeverFinishesRestoresTheControls() async throws {
         let fixture = try await makeFixture(permission: .authorized, countdownSeconds: 0)
         fixture.viewModel.savingTimeout = .milliseconds(50)
