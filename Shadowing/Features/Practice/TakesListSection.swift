@@ -14,34 +14,42 @@ struct TakesListSection: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
             }
-            List {
-                if viewModel.showsLiveTakeRow {
-                    LiveTakeRow(viewModel: viewModel)
-                        .modifier(TakeListRowChrome())
-                }
-                ForEach(viewModel.takes) { take in
-                    TakeRow(
-                        take: take,
-                        isComparing: viewModel.compareTake?.id == take.id && !viewModel.showsLiveTakeRow,
-                        isPlaying: viewModel.playingTakeID == take.id && viewModel.isPlaying,
-                        onPlay: { viewModel.toggleTakePlayback(take) },
-                        onSelect: { viewModel.selectTake(take) },
-                        onCompare: { viewModel.compare(with: take) }
-                    )
-                    .modifier(TakeListRowChrome())
-                    .contextMenu {
-                        contextMenu(for: take)
-                    }
-                }
-                .onMove(perform: move)
-                .moveDisabled(!canReorder)
+            if viewModel.showsEmptyTakesState {
+                TakesEmptyState()
+            } else {
+                takesList
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .environment(\.defaultMinListRowHeight, 1)
-            .disabled(viewModel.controlsLocked)
-            .accessibilityLabel("Takes")
         }
+    }
+
+    private var takesList: some View {
+        List {
+            if viewModel.showsLiveTakeRow {
+                LiveTakeRow(viewModel: viewModel)
+                    .modifier(TakeListRowChrome())
+            }
+            ForEach(viewModel.takes) { take in
+                TakeRow(
+                    take: take,
+                    isComparing: viewModel.compareTake?.id == take.id && !viewModel.showsLiveTakeRow,
+                    isPlaying: viewModel.playingTakeID == take.id && viewModel.isPlaying,
+                    onPlay: { viewModel.toggleTakePlayback(take) },
+                    onSelect: { viewModel.selectTake(take) },
+                    onCompare: { viewModel.compare(with: take) }
+                )
+                .modifier(TakeListRowChrome())
+                .contextMenu {
+                    contextMenu(for: take)
+                }
+            }
+            .onMove(perform: move)
+            .moveDisabled(!canReorder)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 1)
+        .disabled(viewModel.controlsLocked)
+        .accessibilityLabel("Takes")
     }
 
     private var header: some View {
@@ -89,6 +97,18 @@ struct TakesListSection: View {
             draggedID: viewModel.takes[from].id,
             onto: viewModel.takes[targetIndex].id
         )
+    }
+}
+
+/// Before the first take: a microphone, "No takes yet" and how to record.
+private struct TakesEmptyState: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label("No Takes Yet", systemImage: "mic")
+        } description: {
+            Text("Press R to record your first take")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

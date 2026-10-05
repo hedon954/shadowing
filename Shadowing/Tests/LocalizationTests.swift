@@ -29,6 +29,8 @@ final class LocalizationTests: XCTestCase {
             "Recording": "正在录音",
             "Subtitles": "字幕",
             "Transcript": "全文字幕",
+            "No Takes Yet": "还没有跟读",
+            "Press R to record your first take": "按 R 录第一遍",
             "No subtitles yet": "还没有字幕",
             "Input Device": "输入设备",
             "Input Level": "输入电平",

@@ -56,6 +56,11 @@ extension PracticeViewModel {
         }
     }
 
+    /// "No takes yet · Press R to record your first take" instead of an empty list.
+    var showsEmptyTakesState: Bool {
+        takes.isEmpty && !showsLiveTakeRow
+    }
+
     /// Longest take, so mini waveforms in the takes list share one time scale.
     var longestTakeDuration: TimeInterval {
         max(takes.map(\.duration).max() ?? 0, recordingElapsed, 1)

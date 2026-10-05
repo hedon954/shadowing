@@ -1328,6 +1328,16 @@
         }
       }
     },
+    "No Takes Yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有跟读"
+          }
+        }
+      }
+    },
     "No practice files yet" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1714,6 +1724,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "练习文本"
+          }
+        }
+      }
+    },
+    "Press R to record your first take" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 R 录第一遍"
           }
         }
       }

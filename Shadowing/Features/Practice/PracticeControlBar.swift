@@ -105,8 +105,22 @@ private struct ControlBarBackground: ViewModifier {
     }
 }
 
+/// The play button: a solid label-coloured circle with a contrasting icon (near-black with a
+/// white icon in light mode, near-white with a dark icon in dark mode). Explicit colours, so
+/// Liquid Glass can't turn the circle into a vibrant grey that looks disabled.
+enum PlayButtonPalette {
+    static func circle(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color(white: 0.96) : Color(white: 0.11)
+    }
+
+    static func icon(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color(white: 0.08) : .white
+    }
+}
+
 private struct PracticeTransportControls: View {
     @ObservedObject var viewModel: PracticeViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button {
@@ -125,9 +139,9 @@ private struct PracticeTransportControls: View {
         } label: {
             Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color(nsColor: .windowBackgroundColor))
+                .foregroundStyle(PlayButtonPalette.icon(for: colorScheme))
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(.primary))
+                .background(Circle().fill(PlayButtonPalette.circle(for: colorScheme)))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
