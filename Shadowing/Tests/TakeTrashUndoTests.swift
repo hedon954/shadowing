@@ -28,6 +28,25 @@ final class TakeTrashUndoTests: XCTestCase {
         XCTAssertNil(fixture.viewModel.failure)
     }
 
+    func testDeleteThenReorderMakesUndoUnavailable() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self, measuredOffset: 0.2)
+        let model = fixture.viewModel
+        let first = try XCTUnwrap(model.takes.first)
+        let second = try await Self.recordTake(fixture)
+        let third = try await Self.recordTake(fixture)
+        let undo = Self.makeUndoManager(for: fixture)
+        await model.deleteTake(second)
+        XCTAssertTrue(undo.canUndo)
+        XCTAssertEqual(model.takes.map(\.id), [third.id, first.id])
+
+        model.reorderTakes(draggedID: first.id, onto: third.id)
+        await M9TestSupport.waitUntil { !undo.canUndo }
+
+        XCTAssertFalse(undo.canUndo, "the Edit menu no longer offers an Undo that would fail")
+        let saved = try await fixture.takes.takes(projectID: fixture.project.id)
+        XCTAssertEqual(saved.map(\.id), [first.id, third.id], "the reorder was saved")
+    }
+
     func testUndoThatClashesWithANewerTakeShowsAShortErrorAndMovesNothing() async throws {
         let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self, measuredOffset: 0.2)
         let undo = Self.makeUndoManager(for: fixture)

@@ -255,6 +255,8 @@ extension PracticeViewModel {
         }
         do {
             try await recordingDependencies.takes.reorderTakes(orderedTakes)
+            // A deleted take's old position may now belong to another take; its Undo would fail.
+            forgetUndoDelete()
         } catch {
             show(error)
             await refreshTakes()

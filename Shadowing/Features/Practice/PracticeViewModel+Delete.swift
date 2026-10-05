@@ -64,7 +64,8 @@ extension PracticeViewModel {
         }
     }
 
-    /// A new take may reuse a deleted take's number, so its Undo can no longer put it back.
+    /// A new take may reuse a deleted take's number, and a reorder may reuse its position,
+    /// so its Undo can no longer put it back.
     func forgetUndoDelete() {
         undoManager?.removeAllActions(withTarget: self)
     }
