@@ -27,6 +27,10 @@ enum PracticeShortcutKeys {
     static let rightArrow: UInt16 = 124
     static let delete: UInt16 = 51
     static let forwardDelete: UInt16 = 117
+    /// ⌥⌘S shows the one-line subtitle, ⌥⌘I the full transcript (Practice menu).
+    static let subtitlesKey: KeyEquivalent = "s"
+    static let transcriptKey: KeyEquivalent = "i"
+    static let optionCommandMenuCharacters: Set<String> = ["s", "i"]
 }
 
 struct ShortcutKeystroke: Equatable, Sendable {
@@ -35,6 +39,8 @@ struct ShortcutKeystroke: Equatable, Sendable {
     var command = false
     var shift = false
     var hasOtherModifiers = false
+    /// Set with `hasOtherModifiers` when ⌥ (and not ⌃) is held, for the ⌥⌘ menu shortcuts.
+    var optionOnly = false
 }
 
 enum PracticeShortcutResolver {
@@ -124,9 +130,13 @@ enum PracticeShortcutGate {
         return false
     }
 
-    /// A key the Practice menu also lists that means something else while typing: the single
-    /// keys (Space, R, C, Return, L, arrows) and ⌘⌫ (delete to the start of the line).
+    /// A key the Practice menu also lists that must not act while typing: the single keys
+    /// (Space, R, C, Return, L, arrows), ⌘⌫ (delete to the start of the line) and the ⌥⌘S / ⌥⌘I
+    /// subtitle toggles.
     static func isMenuSingleKey(_ keystroke: ShortcutKeystroke) -> Bool {
+        if keystroke.command, keystroke.optionOnly, !keystroke.shift {
+            return PracticeShortcutKeys.optionCommandMenuCharacters.contains(keystroke.characters)
+        }
         let action = PracticeShortcutResolver.action(for: keystroke, textInputFocused: false)
         guard keystroke.command else {
             return action != nil
@@ -220,7 +230,8 @@ private struct PracticeKeyMonitor: NSViewRepresentable {
                 characters: event.charactersIgnoringModifiers?.lowercased() ?? "",
                 command: flags.contains(.command),
                 shift: flags.contains(.shift),
-                hasOtherModifiers: flags.contains(.option) || flags.contains(.control)
+                hasOtherModifiers: flags.contains(.option) || flags.contains(.control),
+                optionOnly: flags.contains(.option) && !flags.contains(.control)
             )
             let window = event.window ?? NSApp.keyWindow
             let textFocused = PracticeShortcutGate.isTextInputFocused(in: window)

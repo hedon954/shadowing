@@ -49,6 +49,31 @@ final class PracticeShortcutTests: XCTestCase {
         XCTAssertFalse(PracticeShortcutGate.isMenuSingleKey(ShortcutKeystroke(keyCode: PracticeShortcutKeys.delete)))
     }
 
+    /// ⌥⌘S / ⌥⌘I toggle the subtitle and the transcript from the Practice menu; while a text
+    /// field is being edited they go to the field instead, so the menu never acts.
+    func testSubtitleMenuShortcutsGoToTheTextFieldWhileTyping() {
+        let optionCommandS = ShortcutKeystroke(
+            keyCode: 1, characters: "s", command: true, hasOtherModifiers: true, optionOnly: true
+        )
+        let optionCommandI = ShortcutKeystroke(
+            keyCode: 34, characters: "i", command: true, hasOtherModifiers: true, optionOnly: true
+        )
+        let controlOptionCommandS = ShortcutKeystroke(
+            keyCode: 1, characters: "s", command: true, hasOtherModifiers: true
+        )
+        let optionCommandX = ShortcutKeystroke(
+            keyCode: 7, characters: "x", command: true, hasOtherModifiers: true, optionOnly: true
+        )
+        XCTAssertTrue(PracticeShortcutGate.isMenuSingleKey(optionCommandS))
+        XCTAssertTrue(PracticeShortcutGate.isMenuSingleKey(optionCommandI))
+        XCTAssertFalse(PracticeShortcutGate.isMenuSingleKey(controlOptionCommandS))
+        XCTAssertFalse(PracticeShortcutGate.isMenuSingleKey(optionCommandX))
+        // Outside text fields the window monitor leaves them to the menu bar.
+        XCTAssertNil(PracticeShortcutResolver.action(for: optionCommandS, textInputFocused: false))
+        XCTAssertEqual(PracticeShortcutKeys.subtitlesKey, "s")
+        XCTAssertEqual(PracticeShortcutKeys.transcriptKey, "i")
+    }
+
     func testModifiedKeysAreLeftToTheMenuBar() {
         let optionC = ShortcutKeystroke(keyCode: PracticeShortcutKeys.letterC, hasOtherModifiers: true)
         let shiftR = ShortcutKeystroke(keyCode: PracticeShortcutKeys.letterR, shift: true)

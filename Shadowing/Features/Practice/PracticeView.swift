@@ -2,17 +2,21 @@ import SwiftUI
 
 struct PracticeView: View {
     @ObservedObject var viewModel: PracticeViewModel
-    /// The full transcript (⌥⌘S). Hidden by default: shadowing is listening and speaking first.
+    /// The full transcript inspector (⌥⌘I). Hidden by default: shadowing is listening and
+    /// speaking first. Works whether or not the one-line subtitle is on.
     @AppStorage(SubtitlePreferences.transcriptKey) private var isInspectorPresented = false
-    /// One subtitle line under the waveforms (toolbar "Subtitles" button).
+    /// One subtitle line under the waveforms (⌥⌘S); hidden while the transcript is open.
     @AppStorage(SubtitlePreferences.captionKey) private var isCaptionVisible = false
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            OriginalWaveformSection(viewModel: viewModel, isCaptionVisible: isCaptionVisible)
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
+            OriginalWaveformSection(
+                viewModel: viewModel,
+                isCaptionVisible: isCaptionVisible && !isInspectorPresented
+            )
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
             CompareBar(viewModel: viewModel)
                 .padding(.horizontal, 20)
                 .padding(.top, 14)
@@ -28,9 +32,11 @@ struct PracticeView: View {
                 .frame(minWidth: 0, maxWidth: .infinity)
         }
         .navigationTitle(DisplayName.cleaned(viewModel.project.sourceDisplayName))
-        .toolbar(removing: .title)
+        .navigationSubtitle(
+            PracticeTitleText.subtitle(for: viewModel.headerStatus, duration: viewModel.project.duration)
+        )
         .toolbar {
-            PracticeToolbar(viewModel: viewModel, isCaptionVisible: $isCaptionVisible)
+            PracticeToolbar(isCaptionVisible: $isCaptionVisible, isTranscriptVisible: $isInspectorPresented)
         }
         .inspector(isPresented: $isInspectorPresented) {
             SubtitlesInspector(viewModel: viewModel, subtitles: viewModel.subtitles)

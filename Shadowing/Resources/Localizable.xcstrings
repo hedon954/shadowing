@@ -1108,12 +1108,32 @@
         }
       }
     },
+    "Hide Subtitles (⌥⌘S)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏字幕（⌥⌘S）"
+          }
+        }
+      }
+    },
     "Hide Transcript" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "隐藏全文字幕"
+          }
+        }
+      }
+    },
+    "Hide Transcript (⌥⌘I)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏全文字幕（⌥⌘I）"
           }
         }
       }
@@ -2129,12 +2149,32 @@
         }
       }
     },
+    "Show Subtitles (⌥⌘S)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示字幕（⌥⌘S）"
+          }
+        }
+      }
+    },
     "Show Transcript" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示全文字幕"
+          }
+        }
+      }
+    },
+    "Show Transcript (⌥⌘I)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示全文字幕（⌥⌘I）"
           }
         }
       }
@@ -2801,6 +2841,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今天 %@"
+          }
+        }
+      }
+    },
+    "Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全文字幕"
           }
         }
       }

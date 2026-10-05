@@ -14,15 +14,15 @@ extension FocusedValues {
 
 /// Stored choices for the subtitles: both hidden by default (listening comes first).
 enum SubtitlePreferences {
-    /// The one-line caption under the waveforms (toolbar "Subtitles" button).
+    /// The one-line caption under the waveforms (toolbar "Subtitles" toggle, ⌥⌘S).
     static let captionKey = "practice.subtitleCaptionVisible"
-    /// The full transcript inspector (⌥⌘S).
+    /// The full transcript inspector (toolbar "Transcript" toggle, ⌥⌘I).
     static let transcriptKey = "practice.subtitleTranscriptVisible"
 }
 
-/// The "Practice" menu lists every single-key shortcut, so they can be found and clicked.
-/// The window's key monitor handles the keys themselves; it skips them while a text field
-/// is being edited.
+/// The "Practice" menu lists every shortcut, so they can be found and clicked. The window's key
+/// monitor handles the single keys itself, and while a text field is being edited it hands every
+/// key the menu lists (including ⌥⌘S and ⌥⌘I) to the field, so the menu never acts.
 struct PracticeCommands: Commands {
     @FocusedValue(\.practiceCommands) private var target
     @FocusedValue(\.practiceCanDeleteTake) private var canDeleteTake
@@ -47,16 +47,13 @@ struct PracticeCommands: Commands {
             }
             .keyboardShortcut(.delete, modifiers: .command)
             .disabled(target == nil || canDeleteTake != true)
-        }
-        CommandGroup(after: .sidebar) {
-            Button(captionVisible ? "Hide Subtitles" : "Show Subtitles") {
-                captionVisible.toggle()
-            }
-            Button(transcriptVisible ? "Hide Transcript" : "Show Transcript") {
-                transcriptVisible.toggle()
-            }
-            .keyboardShortcut("s", modifiers: [.option, .command])
             Divider()
+            Toggle("Subtitles", isOn: $captionVisible)
+                .keyboardShortcut(PracticeShortcutKeys.subtitlesKey, modifiers: [.option, .command])
+                .disabled(target?.hasPractice != true)
+            Toggle("Transcript", isOn: $transcriptVisible)
+                .keyboardShortcut(PracticeShortcutKeys.transcriptKey, modifiers: [.option, .command])
+                .disabled(target?.hasPractice != true)
         }
     }
 
