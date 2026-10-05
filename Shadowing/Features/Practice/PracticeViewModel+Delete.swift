@@ -31,7 +31,10 @@ extension PracticeViewModel {
                 try? TakeTrash.restore(trashed)
                 throw error
             }
-            registerUndoDelete(trashed)
+            var undoable = trashed
+            undoable.wasKept = project.keptTakeID == take.id
+            undoable.wasSelected = activeTake?.id == take.id
+            registerUndoDelete(undoable)
             await forgetDeletedTake(take)
         } catch {
             show(error)
@@ -40,7 +43,7 @@ extension PracticeViewModel {
 
     /// Undo: in one transaction, the same row (same id and fields) goes in first, then the files
     /// move back from where the Trash put them. A failed insert moves nothing; a failed move
-    /// rolls the row back and returns any moved file to the Trash.
+    /// rolls the row back and returns any moved file to the Trash. Kept and selected come back too.
     func undoDeleteTake(_ trashed: TrashedTake) async {
         guard let dependencies = recordingDependencies else {
             return
@@ -55,10 +58,7 @@ extension PracticeViewModel {
                 throw TakeTrashError.couldNotRestore(sequence: trashed.take.sequence)
             }
             await refreshTakes()
-            if let restored = takes.first(where: { $0.id == trashed.take.id }) {
-                await focusTake(restored, preferExistingViewport: true)
-                await loadTakeWaveform(for: restored)
-            }
+            await reapplyState(of: trashed)
         } catch {
             show(error)
         }
@@ -67,6 +67,25 @@ extension PracticeViewModel {
     /// A new take may reuse a deleted take's number, so its Undo can no longer put it back.
     func forgetUndoDelete() {
         undoManager?.removeAllActions(withTarget: self)
+    }
+
+    private func reapplyState(of trashed: TrashedTake) async {
+        guard let restored = takes.first(where: { $0.id == trashed.take.id }) else {
+            return
+        }
+        if trashed.wasKept {
+            project.keptTakeID = restored.id
+        }
+        if trashed.wasSelected || activeTake == nil {
+            await focusTake(restored, preferExistingViewport: true)
+            await loadTakeWaveform(for: restored)
+            return
+        }
+        do {
+            try await projects.save(project)
+        } catch {
+            show(error)
+        }
     }
 
     private func registerUndoDelete(_ trashed: TrashedTake) {

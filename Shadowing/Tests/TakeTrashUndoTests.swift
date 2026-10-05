@@ -54,6 +54,37 @@ final class TakeTrashUndoTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path), "the audio stays in the Trash")
     }
 
+    func testUndoBringsBackTheKeptSelectedTakeInItsPlace() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self, measuredOffset: 0.2)
+        let model = fixture.viewModel
+        let first = try XCTUnwrap(model.takes.first)
+        let second = try await Self.recordTake(fixture)
+        let undo = Self.makeUndoManager(for: fixture)
+        model.selectTake(first)
+        model.keepThisTake()
+        await M9TestSupport.waitUntil { model.takes.map(\.id) == [second.id, first.id] }
+        XCTAssertEqual(model.takes.map(\.id), [second.id, first.id], "newest on top")
+
+        await model.deleteTake(first)
+        XCTAssertNil(model.project.keptTakeID)
+        XCTAssertEqual(model.activeTake?.id, second.id)
+
+        undo.undo()
+        await M9TestSupport.waitUntil { model.activeTake?.id == first.id }
+
+        XCTAssertEqual(model.takes.map(\.id), [second.id, first.id], "back in its place")
+        XCTAssertEqual(model.takes.last?.sequence, first.sequence)
+        XCTAssertEqual(model.project.keptTakeID, first.id, "kept again")
+        XCTAssertEqual(model.project.selectedTakeID, first.id, "selected again")
+        XCTAssertTrue(model.isCurrentTakeKept)
+        await M9TestSupport.waitUntilAsync {
+            await (try? fixture.projects.project(id: fixture.project.id))?.keptTakeID == first.id
+        }
+        let saved = try await fixture.projects.project(id: fixture.project.id)
+        XCTAssertEqual(saved?.keptTakeID, first.id)
+        XCTAssertEqual(saved?.selectedTakeID, first.id)
+    }
+
     // MARK: - SQLite transaction
 
     func testRestoreWithAClashingNumberInsertsNothingAndMovesNothing() async throws {

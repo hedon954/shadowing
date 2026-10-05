@@ -42,10 +42,13 @@ struct TrashedFile: Equatable, Sendable {
     let trashed: URL
 }
 
-/// A deleted take: its row as it was and its files in the Trash, enough for Undo.
+/// A deleted take: its row as it was, its files in the Trash, and whether it was the kept
+/// and the selected take, enough for Undo to put everything back.
 struct TrashedTake: Equatable, Sendable {
     let take: Take
     let files: [TrashedFile]
+    var wasKept = false
+    var wasSelected = false
 }
 
 enum TakeTrashError: Error, Equatable, LocalizedError {
