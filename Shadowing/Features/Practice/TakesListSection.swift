@@ -241,9 +241,11 @@ private struct LiveTakeRow: View {
             TakePlayButton(isPlaying: false, sequence: viewModel.recordingTakeNumber, isEnabled: false) {}
             TakeNameLabel(name: Text("Take \(viewModel.recordingTakeNumber)"), detail: status, tint: .red)
             Spacer(minLength: 8)
-            Text("Recording badge")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.red)
+            if viewModel.showsRecordingBadge {
+                Text("Recording badge")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.red)
+            }
             TakeDurationText(duration: viewModel.recordingElapsed)
         }
         .padding(.vertical, 8)

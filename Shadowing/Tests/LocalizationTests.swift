@@ -55,7 +55,10 @@ final class LocalizationTests: XCTestCase {
                 "在本机完成，不上传。识别出的文字会陆续出现在下面。",
             "Highlighting starts when recognition finishes": "识别完成后自动开始高亮",
             "Requires macOS 26": "需要 macOS 26",
-            "Can't generate subtitles.": "无法生成字幕"
+            "Can't generate subtitles.": "无法生成字幕",
+            "No sound from the microphone": "没有收到麦克风声音",
+            "Try Again": "重试",
+            "Saving the recording took too long. Nothing was saved.": "保存录音超时，没有保存任何内容。"
         ]
         for (key, value) in expected {
             XCTAssertEqual(zh.localizedString(forKey: key, value: nil, table: nil), value, key)

@@ -200,7 +200,63 @@ final class M5ViewModelTests: XCTestCase {
         )
     }
 
-    private func makeFixture(
+    func testNoMicrophoneAudioEndsTheTakeWithTryAgainAndSavesNothing() async throws {
+        let fixture = try await makeFixture(permission: .authorized, countdownSeconds: 0)
+        fixture.viewModel.startRecording()
+        let temporaryURL = await waitForBeginRecording(audio: fixture.audio)
+        try Data([1]).write(to: temporaryURL)
+        await fixture.audio.emit(.recordingStarted)
+        await fixture.audio.emit(.recordingNoAudio)
+        await waitUntil {
+            fixture.viewModel.recordingIssue == .noMicrophoneAudio
+        }
+
+        XCTAssertEqual(fixture.viewModel.recordingPresentation, .idle)
+        XCTAssertFalse(fixture.viewModel.controlsLocked)
+        XCTAssertNil(fixture.viewModel.failure)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporaryURL.path))
+        let takes = try await fixture.takes.takes(projectID: fixture.project.id)
+        XCTAssertTrue(takes.isEmpty)
+
+        let beginCount = await fixture.audio.commands.filter(\.isBeginRecording).count
+        fixture.viewModel.retryAfterRecordingIssue()
+        XCTAssertNil(fixture.viewModel.recordingIssue)
+        for _ in 0 ..< 200 where await fixture.audio.commands.filter(\.isBeginRecording).count == beginCount {
+            await Task.yield()
+        }
+        let retriedCount = await fixture.audio.commands.filter(\.isBeginRecording).count
+        XCTAssertEqual(retriedCount, beginCount + 1, "Try Again starts a new take")
+    }
+
+    func testSavingThatNeverFinishesRestoresTheControls() async throws {
+        let fixture = try await makeFixture(permission: .authorized, countdownSeconds: 0)
+        fixture.viewModel.savingTimeout = .milliseconds(50)
+        fixture.viewModel.startRecording()
+        _ = await waitForBeginRecording(audio: fixture.audio)
+        await fixture.audio.emit(.recordingStarted)
+        await waitUntil {
+            fixture.viewModel.recordingPresentation == .recording(elapsed: 0)
+        }
+        XCTAssertTrue(fixture.viewModel.showsRecordingBadge)
+
+        fixture.viewModel.stopRecording()
+        XCTAssertFalse(fixture.viewModel.showsRecordingBadge, "only \"Saving recording…\" shows while saving")
+        // The engine never reports the finished take.
+        let deadline = ContinuousClock.now + .seconds(3)
+        while fixture.viewModel.failure == nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertEqual(fixture.viewModel.failure?.message, PracticeRecordingError.savingTimedOut.errorDescription)
+        XCTAssertEqual(fixture.viewModel.recordingPresentation, .idle)
+        XCTAssertFalse(fixture.viewModel.controlsLocked)
+        let takes = try await fixture.takes.takes(projectID: fixture.project.id)
+        XCTAssertTrue(takes.isEmpty)
+    }
+}
+
+private extension M5ViewModelTests {
+    func makeFixture(
         permission: MicrophonePermissionState,
         requestedPermission: MicrophonePermissionState? = nil,
         countdownSeconds: Int = 3
@@ -263,7 +319,7 @@ final class M5ViewModelTests: XCTestCase {
         )
     }
 
-    private func makeProject() -> AudioProject {
+    func makeProject() -> AudioProject {
         AudioProject(
             id: UUID(),
             sourceDisplayName: "Speech.mp3",
@@ -277,7 +333,7 @@ final class M5ViewModelTests: XCTestCase {
         )
     }
 
-    private func makeTemporaryRoot() throws -> URL {
+    func makeTemporaryRoot() throws -> URL {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("Shadowing-M5-\(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(
@@ -287,7 +343,7 @@ final class M5ViewModelTests: XCTestCase {
         return root
     }
 
-    private func waitForBeginRecording(
+    func waitForBeginRecording(
         audio: PracticeAudioClientSpy
     ) async -> URL {
         for _ in 0 ..< 200 {
@@ -302,7 +358,7 @@ final class M5ViewModelTests: XCTestCase {
         return URL(fileURLWithPath: "/missing")
     }
 
-    private func waitForCommand(
+    func waitForCommand(
         _ expected: PracticeAudioCommand,
         audio: PracticeAudioClientSpy
     ) async {
@@ -315,7 +371,7 @@ final class M5ViewModelTests: XCTestCase {
         XCTFail("Expected command \(expected)")
     }
 
-    private func waitUntil(_ condition: @MainActor () -> Bool) async {
+    func waitUntil(_ condition: @MainActor () -> Bool) async {
         for _ in 0 ..< 200 {
             if condition() {
                 return
@@ -403,4 +459,13 @@ private actor M5SessionPreparer: PracticeSessionPreparing {
 
 private enum M5TestError: Error {
     case unexpectedPreparation
+}
+
+private extension PracticeAudioCommand {
+    var isBeginRecording: Bool {
+        if case .beginRecording = self {
+            return true
+        }
+        return false
+    }
 }

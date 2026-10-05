@@ -55,89 +55,93 @@ extension PracticeAudioEngine {
             throw PracticeAudioEngineError.sourceNotLoaded
         }
         // PracticeViewModel asks for access before recording; never prompt from the engine.
-        guard let input = inputGate.inputIfAuthorized() else {
+        // A fresh input-only engine for this take: the playback engine never gets an input.
+        guard let recorder = inputGate.recorderIfAuthorized() else {
             throw PracticeAudioEngineError.microphoneNotAuthorized
         }
         stopTakePlayback()
 
-        isArmingRecording = true
-        var installedTap = false
-        var pipeline: RecordingPipeline?
-
         let clock = RecordingAlignmentClock()
+        let inputToken = UUID()
+        let take: MicrophoneTake
         do {
-            let createdPipeline = try armRecordingPipeline(
-                input: input,
-                clock: clock,
+            take = try MicrophoneTake(
+                recorder: recorder,
                 destinationURL: destinationURL,
                 // Always cap at remaining source audio; loop selection is unrelated.
-                maximumDuration: region.duration
+                maximumDuration: region.duration,
+                clock: clock,
+                onConfigurationChange: { [weak self] in
+                    Self.hop(self) { await $0.handleRecorderConfigurationChange(inputToken: inputToken) }
+                }
             )
-            pipeline = createdPipeline
-            installedTap = true
-            recordingContext = RecordingContext(
-                pipeline: createdPipeline,
-                destinationURL: destinationURL,
-                region: region,
-                previousLoopRegion: loopRegion,
-                clock: clock
-            )
-            startPeakForwarding(from: createdPipeline)
+        } catch {
+            try? removeTemporaryRecording(at: destinationURL)
+            throw error
+        }
+        recordingContext = RecordingContext(
+            take: take,
+            inputToken: inputToken,
+            destinationURL: destinationURL,
+            region: region,
+            previousLoopRegion: loopRegion,
+            clock: clock
+        )
+        startPeakForwarding(from: take.pipeline)
+        do {
+            // The original plays on the playback engine, untouched by the microphone.
             try startRecordingPlaybackIfNeeded(
                 clock: clock,
                 playOriginal: playOriginal,
                 region: region,
                 sourceInfo: sourceInfo
             )
-            eventContinuation.yield(.recordingStarted)
-            // Allow queued configuration-change tasks to observe isArmingRecording.
-            await Task.yield()
-            isArmingRecording = false
         } catch {
-            if installedTap {
-                input.removeTap(onBus: 0)
-            }
-            recordingContext = nil
-            recordingPeakTask?.cancel()
-            recordingPeakTask = nil
-            isArmingRecording = false
-            replaceEngineAfterRecording()
-            if let pipeline {
-                try await failRecordingStart(
-                    pipeline: pipeline,
-                    destinationURL: destinationURL,
-                    startError: error
-                )
-            }
+            await abortRecording()
             throw error
+        }
+        eventContinuation.yield(.recordingStarted)
+        startFirstAudioWatchdog(for: take.pipeline)
+    }
+
+    /// If no microphone buffer arrives shortly after R, the take ends without saving anything
+    /// and the view model shows "No sound from the microphone".
+    private func startFirstAudioWatchdog(for pipeline: RecordingPipeline) {
+        firstAudioWatchdog?.cancel()
+        firstAudioWatchdog = Task { [weak self] in
+            let received = await pipeline.waitForFirstBuffer(timeout: MicrophoneTakeTiming.firstAudioTimeout)
+            guard !received, !Task.isCancelled else {
+                return
+            }
+            await self?.endRecordingWithoutAudio(pipeline: pipeline)
         }
     }
 
-    /// Stabilizes the input graph, creates the writer, and installs the mic tap.
-    private func armRecordingPipeline(
-        input: AVAudioInputNode,
-        clock: RecordingAlignmentClock,
-        destinationURL: URL,
-        maximumDuration: TimeInterval?
-    ) throws -> RecordingPipeline {
-        // Starting the engine after recordingContext is set can emit a
-        // configuration-change interrupt that immediately finalizes an empty take.
-        try prepareInputGraph(input: input)
-        let inputFormat = try resolvedInputFormat(from: input)
-        let pipeline = try RecordingPipeline(
-            destinationURL: destinationURL,
-            format: inputFormat,
-            maximumDuration: maximumDuration
-        )
-        input.installTap(
-            onBus: 0,
-            bufferSize: 4096,
-            format: nil
-        ) { buffer, when in
-            clock.noteInput(when)
-            pipeline.capture(buffer)
+    private func endRecordingWithoutAudio(pipeline: RecordingPipeline) async {
+        guard let context = recordingContext, context.take.pipeline === pipeline else {
+            return
         }
-        return pipeline
+        await abortRecording()
+        eventContinuation.yield(.recordingNoAudio)
+    }
+
+    /// The take's input engine changed configuration (device switch, sample rate): restart the
+    /// input, or end the take cleanly when it can't be restarted.
+    func handleRecorderConfigurationChange(inputToken: UUID) async {
+        guard let context = recordingContext, context.inputToken == inputToken else {
+            return
+        }
+        if context.take.restartAfterConfigurationChange() {
+            return
+        }
+        eventContinuation.yield(.interrupted(.inputDeviceRemoved))
+        do {
+            try await finishRecording(reason: .inputDeviceRemoved)
+        } catch {
+            eventContinuation.yield(
+                .failed(PracticeAudioFailure(operation: .recording, message: error.localizedDescription))
+            )
+        }
     }
 
     private func startRecordingPlaybackIfNeeded(
@@ -163,23 +167,6 @@ extension PracticeAudioEngine {
         startPlayheadUpdates()
     }
 
-    /// Prepares and starts the engine so microphone formats report usable channel counts.
-    func prepareInputGraph(input: AVAudioInputNode) throws {
-        _ = input
-        try ensureEngineRunning()
-    }
-
-    func resolvedInputFormat(from input: AVAudioInputNode) throws -> AVAudioFormat {
-        let candidates = [
-            input.outputFormat(forBus: 0),
-            input.inputFormat(forBus: 0)
-        ]
-        for format in candidates where format.channelCount > 0 && format.sampleRate > 0 {
-            return format
-        }
-        throw PracticeAudioEngineError.inputUnavailable
-    }
-
     func stopRecording() async throws {
         guard recordingContext != nil else {
             throw PracticeAudioEngineError.recordingNotActive
@@ -189,22 +176,22 @@ extension PracticeAudioEngine {
 
     /// Cancels an armed or active recording without emitting `recordingFinished`.
     func abortRecording() async {
-        isArmingRecording = false
         guard let context = recordingContext else {
             return
         }
         recordingContext = nil
-        inputGate.existingInput?.removeTap(onBus: 0)
+        firstAudioWatchdog?.cancel()
+        firstAudioWatchdog = nil
+        // The recorder is thrown away with the take.
+        context.take.stopInput()
         recordingPeakTask?.cancel()
         recordingPeakTask = nil
         player.stop()
         isPlaying = false
         playheadTask?.cancel()
-        // Before any await, so nothing can play on the engine that still has an input.
-        replaceEngineAfterRecording()
         loopRegion = context.previousLoopRegion
         do {
-            _ = try await context.pipeline.finish()
+            _ = try await context.take.pipeline.finishKeepingAudio(timeout: MicrophoneTakeTiming.finishTimeout)
         } catch {
             // Best-effort cleanup; the temporary file is removed below either way.
             _ = error
@@ -217,23 +204,24 @@ extension PracticeAudioEngine {
             return
         }
         recordingContext = nil
-        inputGate.existingInput?.removeTap(onBus: 0)
+        firstAudioWatchdog?.cancel()
+        firstAudioWatchdog = nil
+        let inputLatency = context.take.inputLatency
+        // The recorder is thrown away with the take.
+        context.take.stopInput()
         let outputLatency = engine.outputNode.presentationLatency
-        let inputLatency = inputGate.existingInput?.presentationLatency
         recordingPeakTask?.cancel()
         recordingPeakTask = nil
         player.stop()
         isPlaying = false
         playheadTask?.cancel()
-        // Before any await, so nothing can play on the engine that still has an input.
-        replaceEngineAfterRecording()
+        loopRegion = context.previousLoopRegion
 
-        let result: RecordingPipelineResult
+        let finished: RecordingPipelineResult?
         do {
-            result = try await context.pipeline.finish()
-            loopRegion = context.previousLoopRegion
+            // Never waits forever: gives up after a timeout and deletes the file.
+            finished = try await context.take.pipeline.finishKeepingAudio(timeout: MicrophoneTakeTiming.finishTimeout)
         } catch {
-            loopRegion = context.previousLoopRegion
             do {
                 try removeTemporaryRecording(at: context.destinationURL)
             } catch let cleanupError {
@@ -243,6 +231,11 @@ extension PracticeAudioEngine {
                 )
             }
             throw error
+        }
+        guard let result = finished else {
+            // No audio at all: the file is gone and no take is saved.
+            eventContinuation.yield(.recordingNoAudio)
+            return
         }
         if result.droppedBufferCount > 0 {
             try removeTemporaryRecording(at: result.url)
@@ -300,31 +293,6 @@ extension PracticeAudioEngine {
         }
     }
 
-    private func failRecordingStart(
-        pipeline: RecordingPipeline,
-        destinationURL: URL,
-        startError: Error
-    ) async throws -> Never {
-        var cleanupFailure: Error?
-        do {
-            _ = try await pipeline.finish()
-        } catch {
-            cleanupFailure = error
-        }
-        do {
-            try removeTemporaryRecording(at: destinationURL)
-        } catch {
-            cleanupFailure = cleanupFailure ?? error
-        }
-        if let cleanupFailure {
-            throw PracticeAudioEngineError.audioEngineFailed(
-                "Recording start failed: \(startError.localizedDescription); " +
-                    "cleanup failed: \(cleanupFailure.localizedDescription)"
-            )
-        }
-        throw startError
-    }
-
     private func removeTemporaryRecording(at url: URL) throws {
         guard FileManager.default.fileExists(atPath: url.path) else {
             return
@@ -333,8 +301,9 @@ extension PracticeAudioEngine {
     }
 }
 
-struct RecordingContext: Sendable {
-    let pipeline: RecordingPipeline
+struct RecordingContext {
+    let take: MicrophoneTake
+    let inputToken: UUID
     let destinationURL: URL
     let region: PracticeRegion
     let previousLoopRegion: PracticeRegion?

@@ -2,90 +2,48 @@ import Foundation
 @testable import Shadowing
 import XCTest
 
-/// Creating the audio engine's microphone input makes macOS ask for access and keeps the
-/// microphone in use on every later start of that engine. These tests use counting fakes instead
-/// of a real `AVAudioEngine`.
+/// Recording runs on a throwaway input-only engine per take, created only once access is
+/// granted. These tests use counting fakes instead of a real `AVAudioEngine`.
 final class MicrophoneInputGateTests: XCTestCase {
-    func testUndecidedAccessNeverCreatesTheInput() {
+    func testUndecidedAccessNeverCreatesARecorder() {
         let gate = makeGate(status: { .notDetermined })
 
         for _ in 0 ..< 3 {
-            XCTAssertNil(gate.inputIfAuthorized())
+            XCTAssertNil(gate.recorderIfAuthorized())
         }
 
-        XCTAssertEqual(gate.inputCreationCount, 0)
-        XCTAssertNil(gate.existingInput)
-        XCTAssertFalse(gate.engine.hasInput)
+        XCTAssertEqual(gate.recorderCreationCount, 0)
     }
 
-    func testDeniedOrRestrictedAccessNeverCreatesTheInput() {
+    func testDeniedOrRestrictedAccessNeverCreatesARecorder() {
         for permission in [MicrophonePermissionState.denied, .restricted] {
             let gate = makeGate(status: { permission })
 
-            XCTAssertNil(gate.inputIfAuthorized())
-            XCTAssertEqual(gate.inputCreationCount, 0)
-            XCTAssertFalse(gate.engine.hasInput)
+            XCTAssertNil(gate.recorderIfAuthorized())
+            XCTAssertEqual(gate.recorderCreationCount, 0)
         }
     }
 
-    func testGrantedAccessCreatesTheInputOnceAndReusesIt() throws {
+    func testEveryTakeGetsAFreshRecorder() throws {
         let gate = makeGate(status: { .authorized })
 
-        let first = try XCTUnwrap(gate.inputIfAuthorized())
-        let second = try XCTUnwrap(gate.inputIfAuthorized())
+        let first = try XCTUnwrap(gate.recorderIfAuthorized())
+        let second = try XCTUnwrap(gate.recorderIfAuthorized())
 
-        XCTAssertTrue(first === second)
-        XCTAssertEqual(gate.inputCreationCount, 1)
-        XCTAssertTrue(gate.engine.hasInput)
+        XCTAssertFalse(first === second, "a recorder is thrown away after its take, never reused")
+        XCTAssertEqual(gate.recorderCreationCount, 2)
     }
 
-    func testAccessGrantedLaterIsSeenWithoutRebuildingTheEngine() {
+    func testAccessGrantedLaterIsSeenWithoutRestarting() {
         let status = PermissionStatusBox(.notDetermined)
         let gate = makeGate(status: { status.value })
-        XCTAssertNil(gate.inputIfAuthorized())
+        XCTAssertNil(gate.recorderIfAuthorized())
 
         // R asked for access (or the user allowed it in System Settings).
         status.value = .authorized
 
-        XCTAssertNotNil(gate.inputIfAuthorized())
-        XCTAssertEqual(gate.inputCreationCount, 1)
-    }
-
-    func testPlaybackEngineHasNoInputAfterARecordingEnds() throws {
-        let gate = makeGate(status: { .authorized })
-        let recordingEngine = gate.engine
-        XCTAssertNotNil(gate.inputIfAuthorized())
-
-        let retired = try XCTUnwrap(gate.replaceEngineIfItHasInput())
-
-        XCTAssertTrue(retired === recordingEngine)
-        XCTAssertFalse(gate.engine === recordingEngine)
-        XCTAssertFalse(gate.engine.hasInput, "Playback after a take must not run on an engine with an input")
-        XCTAssertNil(gate.existingInput)
-        XCTAssertEqual(gate.engineReplacementCount, 1)
-    }
-
-    func testEngineWithoutInputIsKeptWhenNothingWasRecorded() {
-        let gate = makeGate(status: { .notDetermined })
-        let playbackEngine = gate.engine
-
-        XCTAssertNil(gate.inputIfAuthorized())
-        XCTAssertNil(gate.replaceEngineIfItHasInput())
-
-        XCTAssertTrue(gate.engine === playbackEngine)
-        XCTAssertEqual(gate.engineReplacementCount, 0)
-    }
-
-    func testEachRecordingGetsAnInputAndPlaybackAlwaysEndsWithoutOne() {
-        let gate = makeGate(status: { .authorized })
-
-        for take in 1 ... 2 {
-            XCTAssertNotNil(gate.inputIfAuthorized())
-            XCTAssertTrue(gate.engine.hasInput)
-            XCTAssertNotNil(gate.replaceEngineIfItHasInput())
-            XCTAssertFalse(gate.engine.hasInput)
-            XCTAssertEqual(gate.inputCreationCount, take)
-        }
+        XCTAssertNotNil(gate.recorderIfAuthorized())
+        XCTAssertEqual(gate.recorderCreationCount, 1)
     }
 
     func testRealAudioEngineRefusesToExistUnderXCTest() {
@@ -99,26 +57,13 @@ final class MicrophoneInputGateTests: XCTestCase {
     }
 
     private func makeGate(
-        status: @escaping MicrophoneInputGate<FakeAudioEngine, FakeInput>.StatusProvider
-    ) -> MicrophoneInputGate<FakeAudioEngine, FakeInput> {
-        MicrophoneInputGate(
-            engine: FakeAudioEngine(),
-            status: status,
-            makeEngine: FakeAudioEngine.init,
-            makeInput: { engine in
-                engine.hasInput = true
-                return FakeInput()
-            }
-        )
+        status: @escaping MicrophoneInputGate<FakeRecorderHandle>.StatusProvider
+    ) -> MicrophoneInputGate<FakeRecorderHandle> {
+        MicrophoneInputGate(status: status, makeRecorder: FakeRecorderHandle.init)
     }
 }
 
-/// Stands in for `AVAudioEngine`: records whether its input was ever created.
-private final class FakeAudioEngine {
-    var hasInput = false
-}
-
-private final class FakeInput {}
+private final class FakeRecorderHandle {}
 
 private final class PermissionStatusBox: @unchecked Sendable {
     private let lock = NSLock()

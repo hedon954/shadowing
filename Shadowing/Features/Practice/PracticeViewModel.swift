@@ -80,6 +80,8 @@ final class PracticeViewModel: ObservableObject {
     @Published var microphonePermission: MicrophonePermissionState?
     @Published var recordingNotice: String?
     @Published var failure: PracticeFailure?
+    /// A take that ended without audio; offers Try Again.
+    @Published var recordingIssue: RecordingIssue?
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
     @Published var scriptText: String?
     /// Sentences found from pauses in the original; used when there are no timed subtitles.
@@ -104,6 +106,10 @@ final class PracticeViewModel: ObservableObject {
     var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
     var finalizationTask: Task<Void, Never>?
+    /// Ends "Saving recording…" with an error if the engine doesn't close the file in time.
+    var savingWatchdogTask: Task<Void, Never>?
+    /// Tests can shorten this.
+    var savingTimeout: Duration = .seconds(3)
     var appActivationTask: Task<Void, Never>?
     var recordingContext: PendingRecordingContext?
     /// Independent of practice loop selection; spans playhead → source end while recording.

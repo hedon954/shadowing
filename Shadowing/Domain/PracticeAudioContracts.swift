@@ -70,6 +70,8 @@ enum PracticeAudioEvent: Equatable, Sendable {
     /// Seconds into the take file where the original starts (see `RecordingAlignment`).
     case recordingAlignmentMeasured(TimeInterval)
     case recordingFinished(url: URL, duration: TimeInterval, reason: RecordingStopReason)
+    /// The take ended without any microphone audio; nothing was saved.
+    case recordingNoAudio
     case interrupted(PracticeAudioInterruption)
     case failed(PracticeAudioFailure)
 }

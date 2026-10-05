@@ -7,7 +7,8 @@ extension PracticeViewModel {
              .recordingProgress,
              .recordingEnvelope,
              .recordingAlignmentMeasured,
-             .recordingFinished:
+             .recordingFinished,
+             .recordingNoAudio:
             receiveRecordingEvent(event)
         default:
             receiveTransportEvent(event)
@@ -37,7 +38,8 @@ extension PracticeViewModel {
              .recordingProgress,
              .recordingEnvelope,
              .recordingAlignmentMeasured,
-             .recordingFinished:
+             .recordingFinished,
+             .recordingNoAudio:
             break
         }
     }
@@ -57,6 +59,8 @@ extension PracticeViewModel {
             saveAlignmentOffset(offset)
         case let .recordingFinished(url, duration, reason):
             handleRecordingFinishedEvent(url: url, duration: duration, reason: reason)
+        case .recordingNoAudio:
+            handleRecordingNoAudio()
         case .sourceLoaded,
              .playheadChanged,
              .playbackFinished,
@@ -100,6 +104,9 @@ extension PracticeViewModel {
         guard recordingContext != nil else {
             return
         }
+        // The file is closed; committing the take is not bounded by the saving timeout.
+        savingWatchdogTask?.cancel()
+        savingWatchdogTask = nil
         recordingPresentation = .finalizing
         finalizationTask?.cancel()
         finalizationTask = Task { [weak self] in
@@ -131,6 +138,27 @@ extension PracticeViewModel {
         recordingTimelineRate = 1
         recordingPresentation = .idle
         interactionPhase = .practicing
+        savingWatchdogTask?.cancel()
+        savingWatchdogTask = nil
+    }
+
+    /// The microphone delivered nothing (no audio within a couple of seconds, or a take with no
+    /// frames). Nothing is saved; the controls come back with "No sound from the microphone".
+    func handleRecordingNoAudio() {
+        recordingTask?.cancel()
+        recordingTask = nil
+        discardPendingRecording()
+        recordingIssue = .noMicrophoneAudio
+        completePendingLeaveIfNeeded()
+    }
+
+    func retryAfterRecordingIssue() {
+        recordingIssue = nil
+        startRecording()
+    }
+
+    func dismissRecordingIssue() {
+        recordingIssue = nil
     }
 
     func discardPendingRecordingAbortingEngine() async {
@@ -242,5 +270,14 @@ extension PracticeViewModel {
         } else {
             show(audioFailure)
         }
+    }
+}
+
+/// A take that ended without being saved, shown with a Try Again button.
+enum RecordingIssue: Equatable, Identifiable, Sendable {
+    case noMicrophoneAudio
+
+    var id: Self {
+        self
     }
 }

@@ -7,6 +7,7 @@ enum RecordingPipelineError: Error, LocalizedError, Sendable {
     case writerCreationFailed(path: String, reason: String)
     case writerFailed(path: String, reason: String)
     case bufferQueueOverrun
+    case finishTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -18,6 +19,8 @@ enum RecordingPipelineError: Error, LocalizedError, Sendable {
             String(localized: "Cannot write the temporary recording at \(path): \(reason)")
         case .bufferQueueOverrun:
             String(localized: "The recording writer could not keep up with the microphone input.")
+        case .finishTimedOut:
+            String(localized: "Saving the recording took too long. Nothing was saved.")
         }
     }
 }
@@ -50,6 +53,7 @@ final class RecordingPipeline: @unchecked Sendable {
     private let updateContinuation: AsyncStream<RecordingPipelineUpdate>.Continuation
     private let writerTask: Task<Int64, Error>
     private let droppedBufferCount = OSAllocatedUnfairLock(initialState: 0)
+    private let receivedBufferCount = OSAllocatedUnfairLock(initialState: 0)
 
     init(
         destinationURL: URL,
@@ -94,6 +98,7 @@ final class RecordingPipeline: @unchecked Sendable {
     }
 
     func capture(_ inputBuffer: AVAudioPCMBuffer) {
+        receivedBufferCount.withLock { $0 += 1 }
         guard let packet = OwnedAudioBuffer(copying: inputBuffer) else {
             droppedBufferCount.withLock { $0 += 1 }
             return
@@ -113,6 +118,43 @@ final class RecordingPipeline: @unchecked Sendable {
             duration: Double(frameCount) / sampleRate,
             droppedBufferCount: droppedBufferCount.withLock { $0 }
         )
+    }
+
+    /// `true` once the microphone has delivered at least one buffer.
+    var hasReceivedAudio: Bool {
+        receivedBufferCount.withLock { $0 } > 0
+    }
+
+    /// Waits for the first microphone buffer; `false` when none arrived within `timeout`.
+    func waitForFirstBuffer(timeout: Duration, pollInterval: Duration = .milliseconds(50)) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while !hasReceivedAudio {
+            guard clock.now < deadline, !Task.isCancelled else {
+                return hasReceivedAudio
+            }
+            try? await Task.sleep(for: pollInterval)
+        }
+        return true
+    }
+
+    /// Closes the file, giving up after `timeout`. Returns `nil` and deletes the file when no
+    /// audio was written, so an empty take is never saved. The file is deleted on a timeout too.
+    func finishKeepingAudio(timeout: Duration) async throws -> RecordingPipelineResult? {
+        let result: RecordingPipelineResult
+        do {
+            result = try await AsyncTimeout.run(timeout) { [self] in
+                try await finish()
+            }
+        } catch is AsyncTimeout.Expired {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw RecordingPipelineError.finishTimedOut
+        }
+        guard result.duration > 0 else {
+            try? FileManager.default.removeItem(at: destinationURL)
+            return nil
+        }
+        return result
     }
 
     private static func makeWriter(

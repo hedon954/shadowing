@@ -106,6 +106,7 @@ enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
     case missingContext
     case unexpectedTemporaryFile(String)
     case tooShort(TimeInterval)
+    case savingTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -121,6 +122,8 @@ enum PracticeRecordingError: Error, Equatable, LocalizedError, Sendable {
             \(duration.formatted(.number.precision(.fractionLength(1)))) seconds. \
             Please record again.
             """)
+        case .savingTimedOut:
+            String(localized: "Saving the recording took too long. Nothing was saved.")
         }
     }
 }
@@ -195,6 +198,7 @@ extension PracticeViewModel {
         case .recording:
             recordingPresentation = .finalizing
             lastRecordingStopReason = .manual
+            startSavingWatchdog()
             recordingTask = Task { [weak self, audioClient] in
                 do {
                     try await audioClient.execute(.stopRecording)
@@ -208,6 +212,30 @@ extension PracticeViewModel {
         case .idle, .finalizing:
             return
         }
+    }
+
+    /// Saving must never hang: if the engine hasn't closed the file in time, show an error,
+    /// save nothing and give the controls back.
+    func startSavingWatchdog() {
+        savingWatchdogTask?.cancel()
+        let timeout = savingTimeout
+        savingWatchdogTask = Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled else {
+                return
+            }
+            self?.handleSavingTimedOut()
+        }
+    }
+
+    func handleSavingTimedOut() {
+        savingWatchdogTask = nil
+        guard case .finalizing = recordingPresentation, finalizationTask == nil else {
+            return
+        }
+        recordingTask?.cancel()
+        recordingTask = nil
+        handleRecordingFailure(PracticeRecordingError.savingTimedOut, reason: .writeFailure)
     }
 
     func openMicrophoneSettings() {

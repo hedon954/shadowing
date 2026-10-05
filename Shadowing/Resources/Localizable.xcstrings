@@ -1368,6 +1368,16 @@
         }
       }
     },
+    "No sound from the microphone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有收到麦克风声音"
+          }
+        }
+      }
+    },
     "No subtitles yet" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1424,6 +1434,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未生成"
+          }
+        }
+      }
+    },
+    "Nothing was recorded. Check the input device in System Settings › Sound, then try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有录到任何声音。请在“系统设置 › 声音”中检查输入设备，然后重试。"
           }
         }
       }
@@ -2022,6 +2042,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在保存录音…"
+          }
+        }
+      }
+    },
+    "Saving the recording took too long. Nothing was saved." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存录音超时，没有保存任何内容。"
           }
         }
       }

@@ -20,9 +20,11 @@ actor PracticeAudioEngine: PracticeAudioClient {
     let takePlayer = AVAudioPlayerNode()
     let timePitch = AVAudioUnitTimePitch()
     let takeURLResolver: TakeURLResolver?
-    /// Owns the engine; creates the microphone input only for recording, once access is granted,
-    /// and swaps in a fresh engine after recording (see `MicrophoneInputGate`).
-    let inputGate: MicrophoneInputGate<AVAudioEngine, AVAudioInputNode>
+    /// Playback only. It never gets a microphone input: recording runs on a separate,
+    /// throwaway input-only engine (see `MicrophoneInputGate` and `MicrophoneRecorder`).
+    let engine = AVAudioEngine()
+    /// Hands out one fresh microphone recorder per take, only once access is granted.
+    let inputGate: MicrophoneInputGate<MicrophoneRecorder>
     private let events: AsyncStream<PracticeAudioEvent>
     let eventContinuation: AsyncStream<PracticeAudioEvent>.Continuation
 
@@ -50,15 +52,15 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var playheadTask: Task<Void, Never>?
     var recordingContext: RecordingContext?
     var recordingPeakTask: Task<Void, Never>?
-    /// True while startRecording is preparing the input graph / installing the tap.
-    var isArmingRecording = false
+    /// Ends the take if the microphone delivers nothing shortly after R.
+    var firstAudioWatchdog: Task<Void, Never>?
     /// NotificationCenter tokens are only mutated during initialization and deinitialization.
     private nonisolated(unsafe) var notificationTokens: [NSObjectProtocol] = []
     private nonisolated(unsafe) var workspaceNotificationTokens: [NSObjectProtocol] = []
 
     private init(
         takeURLResolver: TakeURLResolver?,
-        microphoneStatus: @escaping MicrophoneInputGate<AVAudioEngine, AVAudioInputNode>.StatusProvider
+        microphoneStatus: @escaping MicrophoneInputGate<MicrophoneRecorder>.StatusProvider
     ) {
         self.takeURLResolver = takeURLResolver
         let pair = AsyncStream<PracticeAudioEvent>.makeStream(
@@ -66,23 +68,16 @@ actor PracticeAudioEngine: PracticeAudioClient {
         )
         events = pair.stream
         eventContinuation = pair.continuation
-        let initialEngine = AVAudioEngine()
-        inputGate = MicrophoneInputGate(
-            engine: initialEngine,
-            status: microphoneStatus,
-            makeEngine: AVAudioEngine.init,
-            makeInput: { $0.inputNode }
-        )
-        Self.connectPlaybackGraph(on: initialEngine, player: player, takePlayer: takePlayer, timePitch: timePitch)
+        inputGate = MicrophoneInputGate(status: microphoneStatus, makeRecorder: MicrophoneRecorder.init)
+        Self.connectPlaybackGraph(on: engine, player: player, takePlayer: takePlayer, timePitch: timePitch)
 
-        // Observe every engine: the current one is replaced after each recording.
+        // The playback engine only; each take's recorder watches its own input engine.
         let token = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange,
-            object: nil,
+            object: engine,
             queue: nil
-        ) { [weak self] notification in
-            let source = notification.object.map { ObjectIdentifier($0 as AnyObject) }
-            Self.hop(self) { await $0.handleEngineConfigurationChange(source: source) }
+        ) { [weak self] _ in
+            Self.hop(self) { await $0.handleEngineConfigurationChange() }
         }
         notificationTokens.append(token)
 
@@ -100,6 +95,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
     deinit {
         playheadTask?.cancel()
         recordingPeakTask?.cancel()
+        firstAudioWatchdog?.cancel()
         eventContinuation.finish()
         for token in notificationTokens {
             NotificationCenter.default.removeObserver(token)
@@ -107,11 +103,6 @@ actor PracticeAudioEngine: PracticeAudioClient {
         for token in workspaceNotificationTokens {
             NSWorkspace.shared.notificationCenter.removeObserver(token)
         }
-    }
-
-    /// The current engine (replaced after each recording; see `replaceEngineAfterRecording`).
-    var engine: AVAudioEngine {
-        inputGate.engine
     }
 
     func eventStream() async -> AsyncStream<PracticeAudioEvent> {
@@ -247,29 +238,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
         )
     }
 
-    private func handleEngineConfigurationChange(source: ObjectIdentifier?) async {
-        // Changes from a retired engine (or any other engine in the app) are not ours.
-        guard source == ObjectIdentifier(engine) else {
-            return
-        }
-        if isArmingRecording {
-            // First-time input activation often posts this while Record is arming.
-            // Restart quietly instead of treating it as a device removal.
-            do {
-                try ensureEngineRunning()
-            } catch {
-                eventContinuation.yield(
-                    .failed(
-                        PracticeAudioFailure(
-                            operation: .recording,
-                            message: error.localizedDescription
-                        )
-                    )
-                )
-            }
-            return
-        }
-
+    /// The playback engine's output changed (headphones, another output device).
+    private func handleEngineConfigurationChange() async {
         engine.stop()
         if recordingContext != nil {
             eventContinuation.yield(.interrupted(.inputDeviceRemoved))
@@ -351,7 +321,7 @@ extension PracticeAudioEngine {
     /// exist in an XCTest process; tests use `PracticeAudioClient` fakes instead.
     static func live(
         takeURLResolver: TakeURLResolver? = nil,
-        microphoneStatus: @escaping MicrophoneInputGate<AVAudioEngine, AVAudioInputNode>.StatusProvider =
+        microphoneStatus: @escaping MicrophoneInputGate<MicrophoneRecorder>.StatusProvider =
             SystemMicrophonePermissionService.currentStatus,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws -> PracticeAudioEngine {
@@ -359,26 +329,6 @@ extension PracticeAudioEngine {
             throw PracticeAudioEngineConstructionError.unavailableUnderTests
         }
         return PracticeAudioEngine(takeURLResolver: takeURLResolver, microphoneStatus: microphoneStatus)
-    }
-
-    /// Recording created the engine's input, after which that engine keeps the microphone in use
-    /// (orange indicator, possibly a new prompt) every time it starts, even for playback. Playback
-    /// continues on a fresh engine that never had an input. The player nodes move over, so the
-    /// loaded source, take, position, rate and volume are kept.
-    func replaceEngineAfterRecording() {
-        guard let retired = inputGate.replaceEngineIfItHasInput() else {
-            return
-        }
-        let playerVolume = player.volume
-        let takePlayerVolume = takePlayer.volume
-        retired.stop()
-        for node in [player, takePlayer, timePitch] as [AVAudioNode] {
-            retired.detach(node)
-        }
-        Self.connectPlaybackGraph(on: engine, player: player, takePlayer: takePlayer, timePitch: timePitch)
-        player.volume = playerVolume
-        takePlayer.volume = takePlayerVolume
-        engine.prepare()
     }
 
     /// Original → time-pitch → mixer, and the take player straight into the mixer.

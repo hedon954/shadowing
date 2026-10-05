@@ -61,6 +61,15 @@ extension PracticeViewModel {
         takes.isEmpty && !showsLiveTakeRow
     }
 
+    /// The red "Recording" badge on the live take; hidden while saving, so only one state
+    /// ("Saving recording…") shows at a time.
+    var showsRecordingBadge: Bool {
+        if case .finalizing = recordingPresentation {
+            return false
+        }
+        return true
+    }
+
     /// "Takes 0" would repeat what the empty state already says.
     var showsTakesHeader: Bool {
         !showsEmptyTakesState
