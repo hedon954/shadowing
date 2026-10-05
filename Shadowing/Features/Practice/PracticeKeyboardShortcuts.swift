@@ -99,6 +99,16 @@ enum PracticeShortcutGate {
         return window.attachedSheet != nil || window.isSheet || window is NSPanel
     }
 
+    /// Every practice window installs a monitor; only the one in the key window that the key
+    /// was typed in acts, so a second window never plays or records.
+    @MainActor
+    static func monitorOwnsEvent(in eventWindow: NSWindow?, host: NSWindow?) -> Bool {
+        guard let host, eventWindow === host else {
+            return false
+        }
+        return host.isKeyWindow
+    }
+
     /// True while the user types in a text field (renaming, search).
     @MainActor
     static func isTextInputFocused(in window: NSWindow?) -> Bool {
@@ -153,6 +163,7 @@ private struct PracticeKeyMonitor: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
+        context.coordinator.view = view
         context.coordinator.install()
         return view
     }
@@ -173,6 +184,7 @@ private struct PracticeKeyMonitor: NSViewRepresentable {
     final class Coordinator: @unchecked Sendable {
         var isEnabled: Bool
         var handler: @MainActor (PracticeShortcutAction) -> Void
+        weak var view: NSView?
         private var monitor: Any?
 
         init(
@@ -214,9 +226,13 @@ private struct PracticeKeyMonitor: NSViewRepresentable {
             let textFocused = PracticeShortcutGate.isTextInputFocused(in: window)
             if textFocused, let window, PracticeShortcutGate.isMenuSingleKey(keystroke) {
                 // The menu bar lists these single keys; hand the key straight to the field so the
-                // menu's key equivalent cannot swallow typed letters, spaces or Return.
+                // menu's key equivalent cannot swallow typed letters, spaces or Return. This also
+                // covers text fields in sheets and other windows.
                 window.sendEvent(event)
                 return true
+            }
+            guard PracticeShortcutGate.monitorOwnsEvent(in: window, host: view?.window) else {
+                return false
             }
             if PracticeShortcutGate.isModalUIActive(in: window) {
                 return false

@@ -85,6 +85,18 @@ final class PracticeShortcutTests: XCTestCase {
         XCTAssertFalse(PracticeShortcutGate.isModalUIActive(in: window))
     }
 
+    func testOnlyTheMonitorOfTheWindowThatGotTheKeyActs() {
+        let first = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        let second = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        first.isReleasedWhenClosed = false
+        second.isReleasedWhenClosed = false
+        XCTAssertFalse(PracticeShortcutGate.monitorOwnsEvent(in: first, host: second))
+        XCTAssertFalse(PracticeShortcutGate.monitorOwnsEvent(in: nil, host: first))
+        XCTAssertFalse(PracticeShortcutGate.monitorOwnsEvent(in: first, host: nil))
+        XCTAssertFalse(first.isKeyWindow)
+        XCTAssertFalse(PracticeShortcutGate.monitorOwnsEvent(in: first, host: first), "a background window")
+    }
+
     func testSpeedStepsThroughTheSupportedRates() {
         let prepared = M7TestSupport.makePreparedPractice(playhead: 0)
         let model = PracticeViewModel(
