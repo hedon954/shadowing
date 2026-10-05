@@ -47,6 +47,36 @@ final class WaveformCardTests: XCTestCase {
         XCTAssertTrue(TakeDateText.short(older, now: now, calendar: calendar, locale: english).contains("3"))
     }
 
+    /// 20:10 yesterday: 12-hour locales add PM, 24-hour locales show 20:10. Never "08:10".
+    func testTakeTimesFollowTheLocalesTwelveOrTwentyFourHourClock() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Shanghai"))
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 5, hour: 10)))
+        let evening = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 10, day: 4, hour: 20, minute: 10))
+        )
+        let morning = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 10, day: 5, hour: 8, minute: 5))
+        )
+        func text(_ date: Date, _ identifier: String) -> String {
+            TakeDateText.short(date, now: now, calendar: calendar, locale: Locale(identifier: identifier))
+        }
+
+        let american = text(evening, "en_US")
+        XCTAssertTrue(american.hasPrefix("Yesterday"), american)
+        XCTAssertTrue(american.contains("8:10"), american)
+        XCTAssertTrue(american.contains("PM"), american)
+        XCTAssertFalse(american.contains("08:10"), american)
+        XCTAssertTrue(text(morning, "en_US").contains("AM"), text(morning, "en_US"))
+
+        for identifier in ["en_GB", "zh-Hans", "zh_CN"] {
+            let shown = text(evening, identifier)
+            XCTAssertTrue(shown.hasSuffix("20:10"), "\(identifier): \(shown)")
+            XCTAssertFalse(shown.contains("PM"), "\(identifier): \(shown)")
+            XCTAssertFalse(shown.contains("下午"), "\(identifier): \(shown)")
+        }
+    }
+
     func testCompareModeTitlesCoverEveryMode() {
         XCTAssertEqual(CompareMode.allCases, [.original, .mine, .originalThenMine])
         for mode in CompareMode.allCases {

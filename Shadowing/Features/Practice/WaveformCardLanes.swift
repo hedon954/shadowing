@@ -183,7 +183,8 @@ struct PauseTickMarks: View {
     }
 }
 
-/// "今天 09:12", "昨天 21:40", "10月3日" (en: "Today 09:12", "Yesterday 21:40", "Oct 3").
+/// "今天 09:12", "昨天 21:40", "10月3日" (en_US: "Today 9:12 AM", "Yesterday 9:40 PM", "Oct 3").
+/// The time uses the system's short time style, so it follows the user's 12/24-hour setting.
 enum TakeDateText {
     static func short(
         _ date: Date,
@@ -191,7 +192,15 @@ enum TakeDateText {
         calendar: Calendar = .current,
         locale: Locale = .current
     ) -> String {
-        let time = date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().locale(locale))
+        let time = date.formatted(
+            Date.FormatStyle(
+                date: .omitted,
+                time: .shortened,
+                locale: locale,
+                calendar: calendar,
+                timeZone: calendar.timeZone
+            )
+        )
         if calendar.isDate(date, inSameDayAs: now) {
             return String(localized: "Today \(time)", locale: locale)
         }
