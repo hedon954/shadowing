@@ -12,7 +12,7 @@ struct PracticeView: View {
         }
         .padding(.top, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .navigationTitle(viewModel.project.sourceDisplayName)
+        .navigationTitle(DisplayName.cleaned(viewModel.project.sourceDisplayName))
         .toolbar(removing: .title)
         .toolbar {
             PracticeToolbar(viewModel: viewModel, isInspectorPresented: $isInspectorPresented)

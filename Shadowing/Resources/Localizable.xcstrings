@@ -1472,6 +1472,22 @@
         }
       }
     },
+    "Recording Take %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording Take %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录第 %lld 遍"
+          }
+        }
+      }
+    },
     "Recording is in progress.\n\nStop recording and close, or continue recording?" : {
       "localizations" : {
         "zh-Hans" : {

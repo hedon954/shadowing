@@ -62,17 +62,25 @@ private struct LibrarySidebarRow: View {
     let item: LibraryProjectItem
     let isRecording: Bool
 
+    private var displayName: String {
+        DisplayName.cleaned(item.project.sourceDisplayName)
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
             Image(systemName: "waveform")
-                .foregroundStyle(.tint)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(item.project.sourceDisplayName)
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: displayName)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
                     .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
                 LibraryRowSubtitle(item: item)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -80,12 +88,14 @@ private struct LibrarySidebarRow: View {
             if isRecording {
                 Circle()
                     .fill(.red)
-                    .frame(width: 6, height: 6)
+                    .frame(width: 7, height: 7)
                     .accessibilityLabel("Recording")
             }
         }
+        .padding(.vertical, 3)
+        .help(item.project.sourceDisplayName)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Open \(item.project.sourceDisplayName)")
+        .accessibilityLabel("Open \(displayName)")
         .accessibilityValue(Text(LibraryRowSubtitle.accessibilityText(for: item)))
     }
 }
