@@ -6,8 +6,10 @@ struct TakesListSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            header
-                .padding(.horizontal, 20)
+            if viewModel.showsTakesHeader {
+                header
+                    .padding(.horizontal, 20)
+            }
             if let notice = viewModel.comparisonRegionNotice ?? viewModel.recordingNotice {
                 Label(notice, systemImage: "info.circle")
                     .font(.caption)

@@ -61,6 +61,11 @@ extension PracticeViewModel {
         takes.isEmpty && !showsLiveTakeRow
     }
 
+    /// "Takes 0" would repeat what the empty state already says.
+    var showsTakesHeader: Bool {
+        !showsEmptyTakesState
+    }
+
     /// Longest take, so mini waveforms in the takes list share one time scale.
     var longestTakeDuration: TimeInterval {
         max(takes.map(\.duration).max() ?? 0, recordingElapsed, 1)

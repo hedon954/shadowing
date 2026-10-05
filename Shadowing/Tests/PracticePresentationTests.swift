@@ -20,6 +20,7 @@ final class PracticePresentationTests: XCTestCase {
     func testEmptyTakesStateShowsUntilTheFirstRecordingStarts() throws {
         let viewModel = makeViewModel()
         XCTAssertTrue(viewModel.showsEmptyTakesState)
+        XCTAssertFalse(viewModel.showsTakesHeader, "the empty state already says there are no takes")
 
         viewModel.recordingPresentation = .countingDown(remainingSeconds: 3)
         XCTAssertFalse(viewModel.showsEmptyTakesState, "the live row replaces it")
@@ -27,6 +28,7 @@ final class PracticePresentationTests: XCTestCase {
         viewModel.recordingPresentation = .idle
         viewModel.takes = try [makeTake(viewModel, sequence: 1, createdAt: 1000)]
         XCTAssertFalse(viewModel.showsEmptyTakesState)
+        XCTAssertTrue(viewModel.showsTakesHeader)
     }
 
     func testRecordingNumberIsAlwaysTheNextTakeEvenWithATakeSelected() throws {
