@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Right-hand inspector titled "Subtitles": timed subtitles that follow playback, or the
+/// Right-hand inspector titled "Full Transcript", like its toolbar button: timed subtitles that follow playback, or the
 /// attached text when it can't be timed.
 struct SubtitlesInspector: View {
     @ObservedObject var viewModel: PracticeViewModel
@@ -24,7 +24,7 @@ struct SubtitlesInspector: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Subtitles")
+            Text("Full Transcript")
                 .font(.system(size: 13, weight: .bold))
                 .layoutPriority(1)
             Spacer(minLength: 8)
@@ -139,7 +139,7 @@ private struct SubtitleSourceMenu: View {
                 Section("Subtitle Source") {
                     ForEach(subtitles.sources) { option in
                         Toggle(isOn: selection(option.kind)) {
-                            Text(verbatim: option.name)
+                            Text(verbatim: option.displayName)
                             Text(option.isReady ? option.kind.detail : "Not generated")
                         }
                         .disabled(!option.isReady && subtitles.isGenerating)
@@ -168,20 +168,27 @@ private struct SubtitleSourceMenu: View {
                 .disabled(subtitles.exportableCues == nil)
                 .accessibilityLabel("Export subtitles as SRT file")
         } label: {
-            Group {
-                if let name = subtitles.activeSourceName {
-                    Text(verbatim: name)
-                } else {
-                    Text("None")
-                }
-            }
-            .lineLimit(1)
-            .truncationMode(.middle)
+            label
         }
         .menuStyle(.borderlessButton)
         .foregroundStyle(.secondary)
         .disabled(viewModel.controlsLocked)
         .accessibilityLabel("Subtitle Source")
+        .help("Subtitle Options")
+    }
+
+    /// The cleaned source name when there is more than one source to pick from; otherwise only
+    /// an icon, so a single file's name isn't repeated under the title.
+    @ViewBuilder
+    private var label: some View {
+        if let name = SubtitleSourcePicker.shownName(sources: subtitles.sources, active: subtitles.activeSource) {
+            Text(verbatim: name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        } else {
+            Image(systemName: "ellipsis.circle")
+                .accessibilityLabel("Subtitle Options")
+        }
     }
 
     private func selection(_ kind: SubtitleSourceKind) -> Binding<Bool> {

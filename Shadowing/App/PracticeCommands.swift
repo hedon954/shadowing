@@ -16,7 +16,7 @@ extension FocusedValues {
 enum SubtitlePreferences {
     /// The one-line caption under the waveforms (toolbar "Subtitles" toggle, ⌥⌘S).
     static let captionKey = "practice.subtitleCaptionVisible"
-    /// The full transcript inspector (toolbar "Transcript" toggle, ⌥⌘I).
+    /// The full transcript inspector (toolbar "Full Transcript" toggle, ⌥⌘I).
     static let transcriptKey = "practice.subtitleTranscriptVisible"
 }
 
@@ -51,7 +51,7 @@ struct PracticeCommands: Commands {
             Toggle("Subtitles", isOn: $captionVisible)
                 .keyboardShortcut(PracticeShortcutKeys.subtitlesKey, modifiers: [.option, .command])
                 .disabled(target?.hasPractice != true)
-            Toggle("Transcript", isOn: $transcriptVisible)
+            Toggle("Full Transcript", isOn: $transcriptVisible)
                 .keyboardShortcut(PracticeShortcutKeys.transcriptKey, modifiers: [.option, .command])
                 .disabled(target?.hasPractice != true)
         }

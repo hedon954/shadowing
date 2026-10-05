@@ -4,8 +4,9 @@ import SwiftUI
 import XCTest
 
 /// Draws the timed transcript in a real window (light and dark) with `cacheDisplay` and reads
-/// the pixels: played sentences must be a lighter grey than upcoming ones, and neither may
-/// draw black in dark mode. No screen capture, so no permission prompt.
+/// the pixels: only the current sentence uses the primary label color, played and upcoming
+/// ones are the same lighter secondary color, and nothing draws black in dark mode. No screen
+/// capture, so no permission prompt.
 @MainActor
 final class SubtitleTranscriptAppearanceTests: XCTestCase {
     private let cues = [
@@ -14,23 +15,25 @@ final class SubtitleTranscriptAppearanceTests: XCTestCase {
         SubtitleCue(start: 20, end: 22, text: "Coming up next.")
     ]
 
-    func testDarkModeSentencesAreLightAndPlayedOnesAreDimmer() async throws {
+    func testDarkModeOnlyTheCurrentSentenceIsPrimary() async throws {
         let bands = try await textBands(dark: true)
         XCTAssertEqual(bands.count, 3, "One line per sentence")
-        let played = try XCTUnwrap(bands.first).brightest
-        let upcoming = try XCTUnwrap(bands.last).brightest
-        XCTAssertGreaterThan(upcoming, 0.75, "Upcoming sentences use the primary label color")
-        XCTAssertGreaterThan(played, 0.35, "Played sentences must not draw black")
-        XCTAssertLessThan(played, upcoming - 0.1, "Played sentences use the secondary label color")
+        let played = bands[0].brightest, current = bands[1].brightest, upcoming = bands[2].brightest
+        XCTAssertGreaterThan(current, 0.75, "The current sentence uses the primary label color")
+        XCTAssertGreaterThan(played, 0.35, "Other sentences must not draw black")
+        XCTAssertLessThan(played, current - 0.1, "Played sentences use the secondary label color")
+        XCTAssertLessThan(upcoming, current - 0.1, "Upcoming sentences use the secondary label color")
+        XCTAssertEqual(played, upcoming, accuracy: 0.05)
     }
 
-    func testLightModePlayedSentencesAreGrey() async throws {
+    func testLightModeOnlyTheCurrentSentenceIsPrimary() async throws {
         let bands = try await textBands(dark: false)
         XCTAssertEqual(bands.count, 3, "One line per sentence")
-        let played = try XCTUnwrap(bands.first).darkest
-        let upcoming = try XCTUnwrap(bands.last).darkest
-        XCTAssertLessThan(upcoming, 0.3, "Upcoming sentences use the primary label color")
-        XCTAssertGreaterThan(played, upcoming + 0.1, "Played sentences use the secondary label color")
+        let played = bands[0].darkest, current = bands[1].darkest, upcoming = bands[2].darkest
+        XCTAssertLessThan(current, 0.3, "The current sentence uses the primary label color")
+        XCTAssertGreaterThan(played, current + 0.1, "Played sentences use the secondary label color")
+        XCTAssertGreaterThan(upcoming, current + 0.1, "Upcoming sentences use the secondary label color")
+        XCTAssertEqual(played, upcoming, accuracy: 0.05)
         XCTAssertLessThan(played, 0.75)
     }
 

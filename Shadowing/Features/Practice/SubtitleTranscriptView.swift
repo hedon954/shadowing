@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// Timed subtitles that follow the playhead. Played sentences are secondary, the current one
-/// sits on an accent tint, upcoming ones are primary. The weight never changes, so lines
-/// don't reflow. Clicking a sentence seeks to it.
+/// Timed subtitles that follow the playhead, Music-lyrics style: the current sentence is
+/// primary, every other sentence secondary, with no band or marker. Size and weight never
+/// change, so lines don't reflow. Clicking a sentence seeks to it.
 struct SubtitleTranscriptView: View {
     /// Auto-scroll waits this long after the user scrolls by hand.
     static let manualScrollPause: TimeInterval = 4
@@ -14,7 +14,6 @@ struct SubtitleTranscriptView: View {
     let playhead: TimeInterval
     let onSeek: (TimeInterval) -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var lastManualScroll: Date?
 
     var body: some View {
@@ -29,8 +28,7 @@ struct SubtitleTranscriptView: View {
                         SubtitleParagraph(
                             cues: Array(transcript.cues[range]),
                             firstIndex: range.lowerBound,
-                            progress: ParagraphProgress(range: range, current: current),
-                            highlightOpacity: colorScheme == .dark ? 0.22 : 0.12,
+                            current: current.flatMap { range.contains($0) ? $0 : nil },
                             onSeek: onSeek
                         )
                         .equatable()
@@ -68,32 +66,7 @@ struct SubtitleTranscriptView: View {
     }
 }
 
-enum ParagraphProgress: Equatable {
-    case upcoming
-    case played
-    case current(Int)
-
-    init(range: Range<Int>, current: Int?) {
-        guard let current, current >= range.lowerBound else {
-            self = .upcoming
-            return
-        }
-        self = current >= range.upperBound ? .played : .current(current)
-    }
-
-    func isPlayed(_ index: Int) -> Bool {
-        switch self {
-        case .upcoming:
-            false
-        case .played:
-            true
-        case let .current(current):
-            index < current
-        }
-    }
-}
-
-/// Marks which cue a run of text belongs to, for highlighting and hit testing.
+/// Marks which cue a run of text belongs to, for hit testing.
 private struct CueRun: TextAttribute {
     let index: Int
 }
@@ -101,32 +74,21 @@ private struct CueRun: TextAttribute {
 private struct SubtitleParagraph: View, Equatable {
     let cues: [SubtitleCue]
     let firstIndex: Int
-    let progress: ParagraphProgress
-    let highlightOpacity: Double
+    /// The current cue when it is in this paragraph.
+    let current: Int?
     let onSeek: (TimeInterval) -> Void
 
     nonisolated static func == (lhs: SubtitleParagraph, rhs: SubtitleParagraph) -> Bool {
         lhs.firstIndex == rhs.firstIndex
-            && lhs.progress == rhs.progress
-            && lhs.highlightOpacity == rhs.highlightOpacity
+            && lhs.current == rhs.current
             && lhs.cues == rhs.cues
     }
 
     var body: some View {
         paragraphText
-            .font(.system(size: 13))
-            .lineSpacing(13 * 0.65)
+            .font(.system(size: TranscriptLineEmphasis.fontSize))
+            .lineSpacing(TranscriptLineEmphasis.fontSize * 0.65)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .backgroundPreferenceValue(Text.LayoutKey.self) { layouts in
-                GeometryReader { proxy in
-                    ForEach(Array(highlightRects(layouts, proxy: proxy).enumerated()), id: \.offset) { _, rect in
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.accentColor.opacity(highlightOpacity))
-                            .frame(width: rect.width, height: rect.height)
-                            .position(x: rect.midX, y: rect.midY)
-                    }
-                }
-            }
             .overlayPreferenceValue(Text.LayoutKey.self) { layouts in
                 GeometryReader { proxy in
                     Color.clear
@@ -152,38 +114,21 @@ private struct SubtitleParagraph: View, Equatable {
             }
     }
 
+    /// Each cue's runs share its color; a speaker change starts a new line (display only).
     private var paragraphText: Text {
-        cues.enumerated().reduce(Text(verbatim: "")) { text, item in
-            let index = firstIndex + item.offset
-            let sentence = Text(verbatim: item.element.text)
+        SpeakerLines.runs(for: cues, firstIndex: firstIndex).enumerated().reduce(Text(verbatim: "")) { text, item in
+            let run = item.element
+            let emphasis = TranscriptLineEmphasis(cueIndex: run.cueIndex, current: current)
+            let piece = Text(verbatim: run.text)
                 // Explicit system label colors on each joined `Text` run, so a run never
                 // depends on how a hierarchical style resolves inside the inspector.
-                .foregroundStyle(Color(nsColor: progress.isPlayed(index) ? .secondaryLabelColor : .labelColor))
-                .customAttribute(CueRun(index: index))
-            return item.offset == 0 ? sentence : text + Text(verbatim: " ") + sentence
-        }
-    }
-
-    /// One rounded rectangle per line the current cue occupies.
-    private func highlightRects(_ layouts: Text.LayoutKey.Value, proxy: GeometryProxy) -> [CGRect] {
-        guard case let .current(current) = progress else {
-            return []
-        }
-        var rects: [CGRect] = []
-        for anchored in layouts {
-            let origin = proxy[anchored.origin]
-            for line in anchored.layout {
-                let bounds = line
-                    .filter { $0[CueRun.self]?.index == current }
-                    .map(\.typographicBounds.rect)
-                guard let first = bounds.first else {
-                    continue
-                }
-                let union = bounds.dropFirst().reduce(first) { $0.union($1) }
-                rects.append(union.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: -3, dy: -1))
+                .foregroundStyle(Color(nsColor: emphasis.color))
+                .customAttribute(CueRun(index: run.cueIndex))
+            guard item.offset > 0 else {
+                return piece
             }
+            return text + Text(verbatim: run.startsLine ? "\n" : " ") + piece
         }
-        return rects
     }
 
     /// The cue under the pointer, or the nearest one on the clicked line.

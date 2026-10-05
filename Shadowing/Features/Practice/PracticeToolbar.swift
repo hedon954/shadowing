@@ -15,10 +15,10 @@ struct PracticeToolbar: ToolbarContent {
             .toggleStyle(.button)
             .help(isCaptionVisible ? "Hide Subtitles (⌥⌘S)" : "Show Subtitles (⌥⌘S)")
             Toggle(isOn: $isTranscriptVisible) {
-                Label("Transcript", systemImage: "sidebar.right")
+                Label("Full Transcript", systemImage: "sidebar.right")
             }
             .toggleStyle(.button)
-            .help(isTranscriptVisible ? "Hide Transcript (⌥⌘I)" : "Show Transcript (⌥⌘I)")
+            .help(isTranscriptVisible ? "Hide Full Transcript (⌥⌘I)" : "Show Full Transcript (⌥⌘I)")
         }
     }
 }

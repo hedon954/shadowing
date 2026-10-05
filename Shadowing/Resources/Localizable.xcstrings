@@ -1058,6 +1058,16 @@
         }
       }
     },
+    "Full Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全文字幕"
+          }
+        }
+      }
+    },
     "Full audio waveform overview" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1098,6 +1108,16 @@
         }
       }
     },
+    "Hide Full Transcript (⌥⌘I)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏全文字幕（⌥⌘I）"
+          }
+        }
+      }
+    },
     "Hide Subtitles" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1124,16 +1144,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "隐藏全文字幕"
-          }
-        }
-      }
-    },
-    "Hide Transcript (⌥⌘I)" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "隐藏全文字幕（⌥⌘I）"
           }
         }
       }
@@ -2149,6 +2159,16 @@
         }
       }
     },
+    "Show Full Transcript (⌥⌘I)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示全文字幕（⌥⌘I）"
+          }
+        }
+      }
+    },
     "Show Full Waveform" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2185,16 +2205,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示全文字幕"
-          }
-        }
-      }
-    },
-    "Show Transcript (⌥⌘I)" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示全文字幕（⌥⌘I）"
           }
         }
       }
@@ -2295,6 +2305,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "存储"
+          }
+        }
+      }
+    },
+    "Subtitle Options" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕选项"
           }
         }
       }
@@ -2861,16 +2881,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今天 %@"
-          }
-        }
-      }
-    },
-    "Transcript" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全文字幕"
           }
         }
       }
