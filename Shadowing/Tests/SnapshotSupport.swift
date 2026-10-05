@@ -173,6 +173,39 @@ enum SnapshotFixtures {
         practice.subtitles.display = .timed(SubtitleTranscript(cues: sampleCues))
     }
 
+    /// A long subtitle file name, like real downloads; the inspector must truncate it.
+    static let longSourceName = "04-second-hand-marketplace-trust-and-pricing-conversation.txt"
+
+    /// A long made-up dialogue, so the transcript fills a narrow inspector.
+    static let longCues: [SubtitleCue] = {
+        let paragraph = """
+        A: Why is buying something used online still so hard? B: Mostly because every listing is \
+        different. The photos, the description and the condition never quite match. A: So the buyer \
+        keeps asking questions. B: Exactly, and the seller has to answer the same things again and \
+        again, which is where a good assistant can save everyone time.
+        """
+        let sentences = ScriptSentences.split(paragraph)
+        var cues: [SubtitleCue] = []
+        var time: TimeInterval = 0
+        for _ in 0 ..< 4 {
+            for sentence in sentences {
+                let length = Double(sentence.split(separator: " ").count) * 0.45
+                cues.append(SubtitleCue(start: time, end: time + length, text: sentence))
+                time += length + 0.3
+            }
+            time += 2
+        }
+        return cues
+    }()
+
+    /// Shows `longCues` under `longSourceName`, with the playhead on a later sentence.
+    static func showLongTimedSubtitles(in practice: PracticeViewModel) {
+        practice.subtitles.sources = [SubtitleSourceOption(kind: .alignedText, name: longSourceName)]
+        practice.subtitles.activeSource = .alignedText
+        practice.subtitles.display = .timed(SubtitleTranscript(cues: longCues))
+        practice.playhead = longCues[longCues.count / 2].start + 0.1
+    }
+
     static let names: [Entry] = [
         Entry(name: "TED: The power of vulnerability", duration: 1249, takeCount: 3),
         Entry(name: "BBC 6 Minute English: Why do we procrastinate?", duration: 372, takeCount: 1),

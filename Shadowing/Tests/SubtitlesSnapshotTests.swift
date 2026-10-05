@@ -61,6 +61,13 @@ final class SubtitlesSnapshotTests: XCTestCase {
         }
     }
 
+    /// Hedon's window size with a long file name: the inspector text must not be clipped.
+    func testLongSourceNameInNarrowWindow() async throws {
+        try await renderPractice(name: "sub-timed-narrow", size: CGSize(width: 1024, height: 590)) { practice in
+            SnapshotFixtures.showLongTimedSubtitles(in: practice)
+        }
+    }
+
     static func showText(in practice: PracticeViewModel) {
         practice.subtitles.sources = [SubtitleSourceOption(kind: .alignedText, name: "vulnerability.txt")]
         practice.subtitles.activeSource = .alignedText
@@ -68,12 +75,13 @@ final class SubtitlesSnapshotTests: XCTestCase {
 
     private func renderPractice(
         name: String,
+        size: CGSize = SnapshotSupport.windowSize,
         configure: @escaping @MainActor (PracticeViewModel) -> Void
     ) async throws {
         _ = try SnapshotSupport.outputDirectory()
         let library = try await SnapshotFixtures.library()
         let navigation = try SnapshotFixtures.navigation(testCase: self, library: library, openFirst: true)
-        try await SnapshotSupport.render(ContentView(navigation: navigation), name: name) {
+        try await SnapshotSupport.render(ContentView(navigation: navigation), name: name, size: size) {
             guard let practice = await PracticeSnapshotTests.waitForPractice(navigation) else {
                 return
             }

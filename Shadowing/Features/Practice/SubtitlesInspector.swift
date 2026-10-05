@@ -26,6 +26,7 @@ struct SubtitlesInspector: View {
         HStack(spacing: 8) {
             Text("Subtitles")
                 .font(.system(size: 13, weight: .bold))
+                .layoutPriority(1)
             Spacer(minLength: 8)
             SubtitleSourceMenu(viewModel: viewModel, subtitles: subtitles)
         }
@@ -91,7 +92,8 @@ struct SubtitlesInspector: View {
                 Text(hint)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
@@ -121,6 +123,17 @@ private struct SubtitleSourceMenu: View {
     @ObservedObject var subtitles: SubtitlesViewModel
 
     var body: some View {
+        // Natural width when the source name fits. A long name truncates instead: a fixed-size
+        // menu wider than the column made the whole inspector wider, so it was centred and
+        // every line was clipped on both sides.
+        ViewThatFits(in: .horizontal) {
+            menu
+                .fixedSize()
+            menu
+        }
+    }
+
+    private var menu: some View {
         Menu {
             if !subtitles.sources.isEmpty {
                 Section("Subtitle Source") {
@@ -166,7 +179,6 @@ private struct SubtitleSourceMenu: View {
             .truncationMode(.middle)
         }
         .menuStyle(.borderlessButton)
-        .fixedSize()
         .foregroundStyle(.secondary)
         .disabled(viewModel.controlsLocked)
         .accessibilityLabel("Subtitle Source")
