@@ -66,6 +66,8 @@ extension PracticeViewModel {
         playheadPersistTask = nil
         recordingTask?.cancel()
         finalizationTask?.cancel()
+        appActivationTask?.cancel()
+        appActivationTask = nil
         playingTakeID = nil
         var closeError: Error?
         if case .countingDown = recordingPresentation {

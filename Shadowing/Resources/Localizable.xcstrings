@@ -2079,6 +2079,16 @@
         }
       }
     },
+    "Shadowing doesn't have access to the microphone." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadowing 没有麦克风访问权限。"
+          }
+        }
+      }
+    },
     "Shadowing no longer has permission to read this audio file." : {
       "localizations" : {
         "zh-Hans" : {

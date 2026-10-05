@@ -59,12 +59,12 @@ final class AppDependencies {
         Self.cleanupOrphanedTemporaryTakes(using: recordingFiles)
         let waveformDirectory = applicationSupport.appendingPathComponent("Waveforms", isDirectory: true)
         let waveformService = CachedWaveformService(cache: WaveformFileCache(directory: waveformDirectory))
-        let audioClient = PracticeAudioEngine { takeID in
+        let audioClient = try PracticeAudioEngine.live(takeURLResolver: { takeID in
             guard let take = try await takes.take(id: takeID) else {
                 throw PracticeAudioEngineError.takeResolutionUnavailable(takeID)
             }
             return try recordingFiles.audioURL(relativePath: take.relativeAudioPath)
-        }
+        })
         let sessionPreparer = Self.makeSessionPreparer(
             projects: projects,
             settings: settings,

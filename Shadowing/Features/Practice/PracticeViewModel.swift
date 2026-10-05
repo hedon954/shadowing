@@ -76,6 +76,8 @@ final class PracticeViewModel: ObservableObject {
     var suspendPlayheadFollow = false
     @Published var lastRecordingStopReason: RecordingStopReason?
     @Published var microphonePermissionPrompt: MicrophonePermissionState?
+    /// Last microphone access read (refreshed whenever the app becomes active); `nil` until read.
+    @Published var microphonePermission: MicrophonePermissionState?
     @Published var recordingNotice: String?
     @Published var failure: PracticeFailure?
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
@@ -102,6 +104,7 @@ final class PracticeViewModel: ObservableObject {
     var commandTask: Task<Void, Never>?
     var recordingTask: Task<Void, Never>?
     var finalizationTask: Task<Void, Never>?
+    var appActivationTask: Task<Void, Never>?
     var recordingContext: PendingRecordingContext?
     /// Independent of practice loop selection; spans playhead → source end while recording.
     @Published var recordingWindow: PracticeRegion?
@@ -201,6 +204,7 @@ final class PracticeViewModel: ObservableObject {
         commandTask?.cancel()
         recordingTask?.cancel()
         finalizationTask?.cancel()
+        appActivationTask?.cancel()
         playheadPersistTask?.cancel()
     }
 
@@ -224,6 +228,7 @@ final class PracticeViewModel: ObservableObject {
             await self?.hydrateRestoredSession()
         }
         loadSentenceChunks()
+        observeAppActivation()
     }
 
     func send(_ intent: PracticeIntent) {

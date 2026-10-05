@@ -33,6 +33,8 @@ struct RecordingDependencies: Sendable {
     let playOriginalWhileRecording: Bool
     let now: @Sendable () -> Date
     let makeID: @Sendable () -> UUID
+    /// Posts `NSApplication.didBecomeActiveNotification`; tests inject their own center.
+    let appActivationCenter: NotificationCenter
 
     init(
         permissions: any MicrophonePermissionService,
@@ -47,7 +49,8 @@ struct RecordingDependencies: Sendable {
         countdownSeconds: Int = 0,
         playOriginalWhileRecording: Bool = false,
         now: @escaping @Sendable () -> Date = Date.init,
-        makeID: @escaping @Sendable () -> UUID = UUID.init
+        makeID: @escaping @Sendable () -> UUID = UUID.init,
+        appActivationCenter: NotificationCenter = .default
     ) {
         self.permissions = permissions
         self.countdownClock = countdownClock
@@ -62,6 +65,7 @@ struct RecordingDependencies: Sendable {
         self.playOriginalWhileRecording = playOriginalWhileRecording
         self.now = now
         self.makeID = makeID
+        self.appActivationCenter = appActivationCenter
     }
 
     func resolvedSettings() async -> AppSettings {

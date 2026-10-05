@@ -60,9 +60,8 @@ extension PracticeAudioEngine {
         pausedFrame = 0
         loopRegion = nil
         playbackTarget = .original
-        // Warm the input node while loading so the first Record is less likely
-        // to race a configuration-change interrupt.
-        _ = engine.inputNode
+        // Never touch the microphone here, even with access granted: an engine with an input
+        // keeps the microphone in use on every start. Only `startRecording` creates the input.
         engine.prepare()
         eventContinuation.yield(.sourceLoaded(info))
         eventContinuation.yield(.playheadChanged(0))

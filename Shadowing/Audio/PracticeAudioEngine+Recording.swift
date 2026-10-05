@@ -10,6 +10,7 @@ enum PracticeAudioEngineError: Error, Equatable, LocalizedError, Sendable {
     case recordingAlreadyActive
     case recordingNotActive
     case inputUnavailable
+    case microphoneNotAuthorized
     case takeResolutionUnavailable(UUID)
     case audioEngineFailed(String)
 
@@ -31,6 +32,8 @@ enum PracticeAudioEngineError: Error, Equatable, LocalizedError, Sendable {
             String(localized: "There is no active microphone recording to stop.")
         case .inputUnavailable:
             String(localized: "No usable microphone input format is available.")
+        case .microphoneNotAuthorized:
+            String(localized: "Shadowing doesn't have access to the microphone.")
         case let .takeResolutionUnavailable(takeID):
             String(localized: "No recording URL resolver is configured for take \(takeID.uuidString).")
         case let .audioEngineFailed(reason):
@@ -51,10 +54,13 @@ extension PracticeAudioEngine {
         guard sourceFile != nil, let sourceInfo else {
             throw PracticeAudioEngineError.sourceNotLoaded
         }
+        // PracticeViewModel asks for access before recording; never prompt from the engine.
+        guard let input = inputGate.inputIfAuthorized() else {
+            throw PracticeAudioEngineError.microphoneNotAuthorized
+        }
         stopTakePlayback()
 
         isArmingRecording = true
-        let input = engine.inputNode
         var installedTap = false
         var pipeline: RecordingPipeline?
 
@@ -95,6 +101,7 @@ extension PracticeAudioEngine {
             recordingPeakTask?.cancel()
             recordingPeakTask = nil
             isArmingRecording = false
+            replaceEngineAfterRecording()
             if let pipeline {
                 try await failRecordingStart(
                     pipeline: pipeline,
@@ -187,12 +194,14 @@ extension PracticeAudioEngine {
             return
         }
         recordingContext = nil
-        engine.inputNode.removeTap(onBus: 0)
+        inputGate.existingInput?.removeTap(onBus: 0)
         recordingPeakTask?.cancel()
         recordingPeakTask = nil
         player.stop()
         isPlaying = false
         playheadTask?.cancel()
+        // Before any await, so nothing can play on the engine that still has an input.
+        replaceEngineAfterRecording()
         loopRegion = context.previousLoopRegion
         do {
             _ = try await context.pipeline.finish()
@@ -208,12 +217,16 @@ extension PracticeAudioEngine {
             return
         }
         recordingContext = nil
-        engine.inputNode.removeTap(onBus: 0)
+        inputGate.existingInput?.removeTap(onBus: 0)
+        let outputLatency = engine.outputNode.presentationLatency
+        let inputLatency = inputGate.existingInput?.presentationLatency
         recordingPeakTask?.cancel()
         recordingPeakTask = nil
         player.stop()
         isPlaying = false
         playheadTask?.cancel()
+        // Before any await, so nothing can play on the engine that still has an input.
+        replaceEngineAfterRecording()
 
         let result: RecordingPipelineResult
         do {
@@ -235,10 +248,10 @@ extension PracticeAudioEngine {
             try removeTemporaryRecording(at: result.url)
             throw RecordingPipelineError.bufferQueueOverrun
         }
-        if let offset = context.clock.offset(
-            outputLatency: engine.outputNode.presentationLatency,
-            inputLatency: engine.inputNode.presentationLatency
-        ) {
+        let offset = inputLatency.flatMap { inputLatency in
+            context.clock.offset(outputLatency: outputLatency, inputLatency: inputLatency)
+        }
+        if let offset {
             eventContinuation.yield(.recordingAlignmentMeasured(offset))
         }
         eventContinuation.yield(

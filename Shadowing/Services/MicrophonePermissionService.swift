@@ -3,8 +3,14 @@
 import Foundation
 
 actor SystemMicrophonePermissionService: MicrophonePermissionService {
+    /// Reads the current access without ever showing the system prompt.
+    @Sendable
+    static func currentStatus() -> MicrophonePermissionState {
+        permissionState(for: AVCaptureDevice.authorizationStatus(for: .audio))
+    }
+
     func authorizationStatus() -> MicrophonePermissionState {
-        Self.permissionState(for: AVCaptureDevice.authorizationStatus(for: .audio))
+        Self.currentStatus()
     }
 
     func requestAuthorization() async -> MicrophonePermissionState {
