@@ -188,7 +188,8 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
             selectedTakeID: existing?.selectedTakeID,
             keptTakeID: existing?.keptTakeID,
             lastOpenedAt: now(),
-            playbackRate: defaultRate
+            playbackRate: defaultRate,
+            scriptDisplayName: existing?.scriptDisplayName
         )
     }
 
