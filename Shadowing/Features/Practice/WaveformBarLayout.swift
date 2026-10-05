@@ -31,7 +31,15 @@ struct WaveformBar: Equatable {
 }
 
 enum WaveformBarLayout {
-    /// Places one bar per slot across `size`. `samples` carry 0...1 loudness.
+    /// Bar heights are relative to this percentile of the bar levels, so one loud spike can't
+    /// flatten everything else.
+    static let referencePercentile: CGFloat = 0.95
+    /// Levels below this never fill the track: near-silence (or the first second of a recording)
+    /// stays small instead of being scaled up to full height.
+    static let minimumReference: CGFloat = 0.1
+
+    /// Places one bar per slot across `size`. `samples` carry 0...1 loudness. Each bar is the RMS
+    /// of its samples, normalized to the 95th percentile of all bars (louder bars are clamped).
     /// Slots without samples get no bar; bars whose centre is left of `playedX` are played.
     static func bars(
         samples: [WaveformBarSample],
@@ -45,20 +53,26 @@ enum WaveformBarLayout {
             return []
         }
         let count = max(Int((size.width + style.gap) / step), 1)
-        var peaks = [CGFloat?](repeating: nil, count: count)
+        var sumsOfSquares = [CGFloat](repeating: 0, count: count)
+        var sampleCounts = [Int](repeating: 0, count: count)
         for sample in samples {
             let index = Int(sample.position / step)
             guard index >= 0, index < count else {
                 continue
             }
-            peaks[index] = max(peaks[index] ?? 0, sample.value)
+            sumsOfSquares[index] += sample.value * sample.value
+            sampleCounts[index] += 1
         }
+        let levels: [CGFloat?] = (0 ..< count).map { index in
+            sampleCounts[index] > 0 ? (sumsOfSquares[index] / CGFloat(sampleCounts[index])).squareRoot() : nil
+        }
+        let normalized = normalizedLevels(levels)
         let maxHeight = barArea * style.heightFraction
-        return peaks.enumerated().compactMap { index, peak in
-            guard let peak else {
+        return normalized.enumerated().compactMap { index, level in
+            guard let level else {
                 return nil
             }
-            let height = min(max(peak * maxHeight, style.minimumHeight), barArea)
+            let height = min(max(level * maxHeight, style.minimumHeight), barArea)
             let originX = CGFloat(index) * step
             let rect = CGRect(
                 x: originX,
@@ -68,6 +82,20 @@ enum WaveformBarLayout {
             )
             let isPlayed = playedX.map { rect.midX <= $0 } ?? false
             return WaveformBar(rect: rect, isPlayed: isPlayed)
+        }
+    }
+
+    /// Divides by the 95th percentile of the present levels (at least `minimumReference`) and
+    /// clamps to 0...1. `nil` slots stay `nil`.
+    static func normalizedLevels(_ levels: [CGFloat?]) -> [CGFloat?] {
+        let present = levels.compactMap(\.self).sorted()
+        guard !present.isEmpty else {
+            return levels
+        }
+        let rank = Int((CGFloat(present.count - 1) * referencePercentile).rounded(.up))
+        let reference = max(present[min(rank, present.count - 1)], minimumReference)
+        return levels.map { level in
+            level.map { min(max($0 / reference, 0), 1) }
         }
     }
 

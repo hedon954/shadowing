@@ -2,7 +2,8 @@ import CoreGraphics
 @testable import Shadowing
 import XCTest
 
-/// v6 waveform: discrete 2 pt bars with 1.5 pt gaps, mirrored, accent once played.
+/// v6 waveform: discrete 2 pt bars with 1.5 pt gaps, mirrored, accent once played; heights are
+/// per-bar RMS normalized to the 95th percentile.
 final class WaveformBarLayoutTests: XCTestCase {
     private func samples(count: Int, width: CGFloat, value: CGFloat = 0.5) -> [WaveformBarSample] {
         (0 ..< count).map { index in
@@ -25,7 +26,43 @@ final class WaveformBarLayoutTests: XCTestCase {
             XCTAssertEqual(bar.rect.midY, size.height / 2, accuracy: 0.001, "bars are mirrored")
             XCTAssertFalse(bar.isPlayed)
         }
+        // Even loudness is the 95th percentile itself, so every bar reaches the full height.
+        XCTAssertTrue(bars.allSatisfy { abs($0.rect.height - 72 * 0.92) < 0.001 })
+    }
+
+    /// One loud spike (a cough, a clap) among normal speech: dividing by the peak squashes the
+    /// speech to a tenth of the height, dividing by the 95th percentile keeps it readable.
+    func testOneLoudSpikeDoesNotFlattenTheRest() throws {
+        var levels = [CGFloat](repeating: 0.1, count: 99)
+        levels.insert(1, at: 50)
+
+        let peak = try XCTUnwrap(levels.max())
+        let peakNormalized = levels.map { $0 / peak }
+        let normalized = WaveformBarLayout.normalizedLevels(levels).compactMap(\.self)
+
+        XCTAssertLessThan(median(peakNormalized), 0.15, "plain peak normalization flattens the speech")
+        XCTAssertGreaterThan(median(normalized), 0.9, "95th percentile keeps it readable")
+        XCTAssertEqual(normalized[50], 1, "the spike is clamped, not taller than the track")
+    }
+
+    func testEachBarIsTheRMSOfItsSamplesNotTheLoudestOne() {
+        // One slot (3.5 pt) with a single click and three silent samples: RMS 0.5, peak 1.
+        let samples = [1, 0, 0, 0].enumerated().map { index, value in
+            WaveformBarSample(position: CGFloat(index) * 0.5, value: CGFloat(value))
+        } + [WaveformBarSample(position: 4, value: 1)]
+        let bars = WaveformBarLayout.bars(
+            samples: samples,
+            size: CGSize(width: 7, height: 84),
+            style: .original,
+            playedX: nil
+        )
+        XCTAssertEqual(bars.count, 2)
         XCTAssertEqual(bars[0].rect.height, 72 * 0.92 * 0.5, accuracy: 0.001)
+        XCTAssertEqual(bars[1].rect.height, 72 * 0.92, accuracy: 0.001)
+    }
+
+    private func median(_ values: [CGFloat]) -> CGFloat {
+        values.sorted()[values.count / 2]
     }
 
     func testBarsStayInsideTheSeventyTwoPointBandAndKeepAMinimumHeight() {
