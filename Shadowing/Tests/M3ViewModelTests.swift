@@ -111,9 +111,7 @@ final class M3ViewModelTests: XCTestCase {
         )
 
         viewModel.togglePlayback()
-        for _ in 0 ..< 20 where viewModel.failure == nil {
-            await Task.yield()
-        }
+        await M6TestSupport.waitUntil { viewModel.failure != nil }
 
         XCTAssertEqual(viewModel.failure?.message, StubM3ViewModelError.failed.localizedDescription)
         XCTAssertFalse(viewModel.isPlaying)
