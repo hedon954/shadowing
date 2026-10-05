@@ -22,9 +22,11 @@ security-scoped bookmark 与创建它的代码签名绑定。每次无签名重�
 - 保留 `com.apple.security.device.audio-input` 和
   `com.apple.security.files.user-selected.read-write` 声明，便于以后重新启用沙盒；未沙盒时
   它们不起作用。
-- 未沙盒时新书签不带 `.withSecurityScope` 创建。
-- 解析时先尝试带作用域，失败后回退为普通解析；回退成功即按当前方式重新保存该项目的书签。
-  两种解析都失败时抛出原始错误，继续进入“定位文件”流程。
+- 未沙盒时书签的创建和解析都不带 `.withSecurityScope`；普通解析同样能打开旧的带作用域
+  书签，`isStale` 以系统返回为准，打开项目不会每次都重写书签。
+- 只有沙盒中才带作用域创建和解析书签；带作用域解析失败时回退为普通解析，回退成功即按
+  当前方式重新保存该项目的书签。
+- 解析失败时抛出原始错误（沙盒中为带作用域解析的错误），继续进入“定位文件”流程。
 - `startAccessingSecurityScopedResource()` 返回 false 不视为无权限，只有文件存在但不可读
   时才报告无权访问。
 - ADR-0007 其余决定（只读源文件、stale 与重新定位流程、作用域成对管理）继续有效。
@@ -50,8 +52,8 @@ security-scoped bookmark 与创建它的代码签名绑定。每次无签名重�
 ## Verification
 
 - `codesign -d --entitlements - Shadowing.app` 不包含 `com.apple.security.app-sandbox`。
-- `BookmarkFallbackTests` 覆盖回退解析成功、两种解析都失败时进入定位流程，以及重新保存的
-  书签在下次打开时被使用。
+- `BookmarkFallbackTests` 覆盖未沙盒时只做普通解析且不重写书签、沙盒中回退解析成功并重新
+  保存书签、解析失败时进入定位流程。
 - 用已有数据库副本验证旧书签都能通过回退解析打开。
 
 ## References

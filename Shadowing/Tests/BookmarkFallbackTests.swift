@@ -4,7 +4,8 @@ import Synchronization
 import XCTest
 
 /// Bookmarks saved by an older, differently signed build cannot be resolved with
-/// `.withSecurityScope`. These tests cover the plain-resolve fallback with temporary fixtures.
+/// `.withSecurityScope`. Unsandboxed, bookmarks are resolved plainly; sandboxed, a failed scoped
+/// resolve falls back to a plain one. All fixtures live in temporary directories.
 final class BookmarkFallbackTests: XCTestCase {
     private var fixtureDirectory: URL!
 
@@ -18,12 +19,64 @@ final class BookmarkFallbackTests: XCTestCase {
         try FileManager.default.removeItem(at: fixtureDirectory)
     }
 
-    func testScopedResolveFailureFallsBackToPlainResolveAndMarksStale() async throws {
+    // MARK: - Unsandboxed
+
+    func testUnsandboxedResolvesLegacyScopedBookmarkWithPlainOptionsOnly() async throws {
         let source = try makeSource()
         let legacy = try makeLegacyScopedBookmark(for: source)
         let log = ResolveLog()
         let store = SecurityScopedBookmarkStore(
-            createsSecurityScopedBookmarks: false,
+            usesSecurityScope: false,
+            resolver: log.resolver(rejectingScopedResolveOf: legacy)
+        )
+
+        let resolved = try await store.withAccess(to: legacy) { $0 }
+
+        XCTAssertEqual(resolved.url.standardizedFileURL.path, source.standardizedFileURL.path)
+        XCTAssertFalse(resolved.isStale, "isStale must be what macOS reports")
+        XCTAssertEqual(log.calls.map(\.scoped), [false])
+    }
+
+    func testUnsandboxedOpeningDoesNotReSaveBookmark() async throws {
+        let source = try makeSource()
+        let legacy = try makeLegacyScopedBookmark(for: source)
+        let log = ResolveLog()
+        let store = SecurityScopedBookmarkStore(
+            usesSecurityScope: false,
+            resolver: log.resolver(rejectingScopedResolveOf: legacy)
+        )
+        let harness = makeLoader(store: store)
+        let project = makeProject(bookmark: legacy)
+        await harness.storage.save(project: project)
+
+        for _ in 0 ..< 2 {
+            _ = try await harness.loader.prepareExistingProject(id: project.id)
+            await harness.loader.endSession()
+        }
+
+        let saved = await harness.storage.project(id: project.id)
+        XCTAssertEqual(saved?.sourceBookmark, legacy)
+        XCTAssertEqual(log.calls.map(\.scoped), [false, false])
+    }
+
+    func testUnsandboxedResolveFailureThrowsOriginalErrorAndOffersRelocate() async {
+        let store = SecurityScopedBookmarkStore(
+            usesSecurityScope: false,
+            resolver: { _, _ in throw FixtureError.plain }
+        )
+
+        await assertResolutionFails(store, reason: FixtureError.plain.localizedDescription)
+        await assertLibraryOffersRelocate(store)
+    }
+
+    // MARK: - Sandboxed
+
+    func testSandboxedScopedResolveFailureFallsBackToPlainResolveAndMarksStale() async throws {
+        let source = try makeSource()
+        let legacy = try makeLegacyScopedBookmark(for: source)
+        let log = ResolveLog()
+        let store = SecurityScopedBookmarkStore(
+            usesSecurityScope: true,
             resolver: log.resolver(rejectingScopedResolveOf: legacy)
         )
 
@@ -34,34 +87,26 @@ final class BookmarkFallbackTests: XCTestCase {
         XCTAssertEqual(log.calls.map(\.scoped), [true, false])
     }
 
-    func testBothResolvesFailingThrowsOriginalErrorAndOffersRelocate() async throws {
+    func testSandboxedBothResolvesFailingThrowsOriginalErrorAndOffersRelocate() async {
         let store = SecurityScopedBookmarkStore(
-            createsSecurityScopedBookmarks: false,
+            usesSecurityScope: true,
             resolver: { _, options in
                 throw options.contains(.withSecurityScope) ? FixtureError.scoped : FixtureError.plain
             }
         )
 
-        do {
-            _ = try await store.beginAccess(to: Data([1, 2, 3]))
-            XCTFail("Expected both resolves to fail")
-        } catch let error as BookmarkStoreError {
-            XCTAssertEqual(error, .resolutionFailed(reason: FixtureError.scoped.localizedDescription))
-        }
-
-        let harness = makeLoader(store: store)
-        let project = makeProject(bookmark: Data([1, 2, 3]))
-        await harness.storage.save(project: project)
-        let failure = await Self.openThroughLibrary(project, harness: harness)
-        XCTAssertEqual(failure?.action, .relocate(project.id))
+        await assertResolutionFails(store, reason: FixtureError.scoped.localizedDescription)
+        await assertLibraryOffersRelocate(store)
     }
 
-    func testFallbackReSavesBookmarkAndNextOpenUsesIt() async throws {
+    func testSandboxedFallbackReSavesBookmarkAndNextOpenUsesIt() async throws {
         let source = try makeSource()
-        let legacy = try makeLegacyScopedBookmark(for: source)
+        // Any bookmark the scoped resolve rejects; a minimal plain one keeps it distinct from the
+        // scoped bookmark the store re-creates.
+        let legacy = try source.bookmarkData(options: [.minimalBookmark])
         let log = ResolveLog()
         let store = SecurityScopedBookmarkStore(
-            createsSecurityScopedBookmarks: false,
+            usesSecurityScope: true,
             resolver: log.resolver(rejectingScopedResolveOf: legacy)
         )
         let harness = makeLoader(store: store)
@@ -73,20 +118,21 @@ final class BookmarkFallbackTests: XCTestCase {
         let saved = await harness.storage.project(id: project.id)
         let resaved = try XCTUnwrap(saved?.sourceBookmark)
         XCTAssertNotEqual(resaved, legacy)
-        XCTAssertEqual(resaved, try store.createBookmark(for: source))
 
         log.reset()
         let reopened = try await harness.loader.prepareExistingProject(id: project.id)
         await harness.loader.endSession()
 
-        XCTAssertFalse(log.calls.isEmpty)
-        XCTAssertTrue(log.calls.allSatisfy { $0.data == resaved })
+        XCTAssertEqual(log.calls.map(\.data), [resaved])
+        XCTAssertEqual(log.calls.map(\.scoped), [true])
         XCTAssertEqual(reopened.project.sourceBookmark, resaved)
     }
 
+    // MARK: - Access
+
     func testPlainBookmarkIsReadableWithoutSecurityScope() async throws {
         let source = try makeSource()
-        let store = SecurityScopedBookmarkStore(createsSecurityScopedBookmarks: false)
+        let store = SecurityScopedBookmarkStore(usesSecurityScope: false)
 
         let bookmark = try store.createBookmark(for: source)
         let path = try await store.withAccess(to: bookmark) { $0.url.standardizedFileURL.path }
@@ -97,7 +143,7 @@ final class BookmarkFallbackTests: XCTestCase {
     func testUnreadableFileIsReportedAsAccessDenied() async throws {
         let source = try makeSource()
         let store = SecurityScopedBookmarkStore(
-            createsSecurityScopedBookmarks: false,
+            usesSecurityScope: false,
             isReadable: { _ in false }
         )
         let bookmark = try store.createBookmark(for: source)
@@ -114,6 +160,34 @@ final class BookmarkFallbackTests: XCTestCase {
     }
 
     // MARK: - Fixtures
+
+    private func assertResolutionFails(
+        _ store: SecurityScopedBookmarkStore,
+        reason: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        do {
+            _ = try await store.beginAccess(to: Data([1, 2, 3]))
+            XCTFail("Expected the bookmark to fail to resolve", file: file, line: line)
+        } catch let error as BookmarkStoreError {
+            XCTAssertEqual(error, .resolutionFailed(reason: reason), file: file, line: line)
+        } catch {
+            XCTFail("Unexpected error: \(error)", file: file, line: line)
+        }
+    }
+
+    private func assertLibraryOffersRelocate(
+        _ store: SecurityScopedBookmarkStore,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let harness = makeLoader(store: store)
+        let project = makeProject(bookmark: Data([1, 2, 3]))
+        await harness.storage.save(project: project)
+        let failure = await Self.openThroughLibrary(project, harness: harness)
+        XCTAssertEqual(failure?.action, .relocate(project.id), file: file, line: line)
+    }
 
     private func makeSource() throws -> URL {
         let url = fixtureDirectory.appendingPathComponent("source.mp3")

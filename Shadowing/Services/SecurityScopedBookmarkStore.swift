@@ -20,12 +20,13 @@ enum BookmarkStoreError: Error, Equatable, LocalizedError, Sendable {
 /// Saves and restores access to user-selected files.
 ///
 /// The app currently runs without App Sandbox (ADR-0011), so:
-/// - new bookmarks are created without `.withSecurityScope`. A security-scoped bookmark is tied to
-///   the code signature that created it, so every unsigned rebuild would otherwise break it;
-/// - bookmarks saved by older builds may be security-scoped. If resolving them with the scope
-///   fails, they are resolved again without it and reported as stale so the caller re-saves them
-///   in the current format. Plain bookmarks also take this path, because a scoped resolve rejects
-///   them; re-saving recreates the same bytes and opening a project saves it anyway;
+/// - bookmarks are created and resolved without `.withSecurityScope`. A security-scoped bookmark
+///   is tied to the code signature that created it, so every unsigned rebuild would otherwise
+///   break it. A plain resolve also opens security-scoped bookmarks saved by older builds, and
+///   `isStale` is whatever macOS reports;
+/// - only when sandboxed are bookmarks created and resolved with `.withSecurityScope`. If that
+///   resolve fails, the bookmark is resolved again without it and reported as stale so the caller
+///   re-saves it in the current format;
 /// - `startAccessingSecurityScopedResource()` returning `false` is not treated as denial. Access
 ///   only fails when the file exists but cannot be read; a missing file is left to the validator,
 ///   which reports it as missing.
@@ -33,16 +34,16 @@ struct SecurityScopedBookmarkStore: BookmarkStore {
     typealias Resolver = @Sendable (Data, URL.BookmarkResolutionOptions) throws -> ResolvedBookmark
     typealias ReadabilityCheck = @Sendable (URL) -> Bool
 
-    private let createsSecurityScopedBookmarks: Bool
+    private let usesSecurityScope: Bool
     private let resolver: Resolver
     private let isReadable: ReadabilityCheck
 
     init(
-        createsSecurityScopedBookmarks: Bool = Self.isSandboxed,
+        usesSecurityScope: Bool = Self.isSandboxed,
         resolver: @escaping Resolver = Self.systemResolve,
         isReadable: @escaping ReadabilityCheck = Self.isReadableOrMissing
     ) {
-        self.createsSecurityScopedBookmarks = createsSecurityScopedBookmarks
+        self.usesSecurityScope = usesSecurityScope
         self.resolver = resolver
         self.isReadable = isReadable
     }
@@ -53,7 +54,7 @@ struct SecurityScopedBookmarkStore: BookmarkStore {
     }
 
     func createBookmark(for url: URL) throws -> Data {
-        let options: URL.BookmarkCreationOptions = createsSecurityScopedBookmarks
+        let options: URL.BookmarkCreationOptions = usesSecurityScope
             ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess]
             : []
         do {
@@ -88,6 +89,15 @@ struct SecurityScopedBookmarkStore: BookmarkStore {
     }
 
     private func resolve(_ data: Data) throws -> ResolvedBookmark {
+        guard usesSecurityScope else {
+            do {
+                return try resolver(data, [.withoutUI])
+            } catch {
+                // Callers map this to the relocate-file flow.
+                throw BookmarkStoreError.resolutionFailed(reason: error.localizedDescription)
+            }
+        }
+
         let scopedError: Error
         do {
             return try resolver(data, [.withSecurityScope, .withoutUI])
