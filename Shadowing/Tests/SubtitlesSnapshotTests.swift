@@ -68,6 +68,13 @@ final class SubtitlesSnapshotTests: XCTestCase {
         }
     }
 
+    /// The minimum window with the transcript open: the compare hint drops, nothing is clipped.
+    func testTranscriptInTheMinimumWindow() async throws {
+        try await renderPractice(name: "sub-timed-900", size: CGSize(width: 900, height: 590)) { practice in
+            SnapshotFixtures.showLongTimedSubtitles(in: practice)
+        }
+    }
+
     static func showText(in practice: PracticeViewModel) {
         practice.subtitles.sources = [SubtitleSourceOption(kind: .alignedText, name: "vulnerability.txt")]
         practice.subtitles.activeSource = .alignedText

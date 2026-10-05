@@ -14,23 +14,42 @@ struct CompareBar: View {
             if isRecording {
                 recordingStatus
             } else {
-                // Fixed size: in a narrow column the hint truncates; the segments never wrap.
-                CompareModePicker(mode: viewModel.compareMode, onSelect: viewModel.setCompareMode)
-                    .fixedSize()
-                    .disabled(viewModel.controlsLocked)
-                if let hint = sentenceHint {
-                    Text(hint)
-                        .font(.system(size: 12).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                // In a narrow column the gray hint drops first; the segments and the button stay.
+                ViewThatFits(in: .horizontal) {
+                    controls(showsHint: true)
+                    controls(showsHint: false)
+                    // The minimum window with the transcript open: tighter segments, no key cap.
+                    controls(showsHint: false, compact: true)
+                    // Longer languages (English) at that width: the button keeps only its icon.
+                    controls(showsHint: false, compact: true, iconOnly: true)
                 }
-                Spacer(minLength: 8)
-                CompareButton(isComparing: viewModel.comparison != nil, action: viewModel.compare)
-                    .fixedSize()
-                    .disabled(!canCompare)
             }
         }
         .frame(minHeight: 30)
+    }
+
+    private func controls(showsHint: Bool, compact: Bool = false, iconOnly: Bool = false) -> some View {
+        HStack(spacing: compact ? 6 : 12) {
+            CompareModePicker(mode: viewModel.compareMode, onSelect: viewModel.setCompareMode, compact: compact)
+                .fixedSize()
+                .disabled(viewModel.controlsLocked)
+            if showsHint, let hint = sentenceHint {
+                Text(hint)
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            Spacer(minLength: 8)
+            CompareButton(
+                isComparing: viewModel.comparison != nil,
+                showsKey: !compact,
+                showsTitle: !iconOnly,
+                action: viewModel.compare
+            )
+            .fixedSize()
+            .disabled(!canCompare)
+        }
     }
 
     private var canCompare: Bool {
@@ -64,6 +83,7 @@ struct CompareBar: View {
 struct CompareModePicker: View {
     let mode: CompareMode
     let onSelect: (CompareMode) -> Void
+    var compact = false
 
     var body: some View {
         HStack(spacing: 2) {
@@ -74,7 +94,7 @@ struct CompareModePicker: View {
                     Text(Self.title(for: option))
                         .font(.system(size: 12, weight: option == mode ? .semibold : .medium))
                         .foregroundStyle(option == mode ? .primary : .secondary)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, compact ? 6 : 12)
                         .padding(.vertical, 5)
                         .background {
                             if option == mode {
@@ -110,6 +130,8 @@ struct CompareModePicker: View {
 /// The accent "▶ 对比播放  C" capsule. The gray C is the single-key shortcut.
 struct CompareButton: View {
     let isComparing: Bool
+    var showsKey = true
+    var showsTitle = true
     let action: () -> Void
 
     var body: some View {
@@ -117,13 +139,18 @@ struct CompareButton: View {
             HStack(spacing: 7) {
                 Image(systemName: isComparing ? "stop.fill" : "play.fill")
                     .font(.system(size: 9, weight: .bold))
-                Text(isComparing ? "Stop Comparing" : "Compare")
-                    .font(.system(size: 12.5, weight: .semibold))
-                ShortcutKeyHint(key: "C", onAccent: true)
+                if showsTitle {
+                    Text(isComparing ? "Stop Comparing" : "Compare")
+                        .font(.system(size: 12.5, weight: .semibold))
+                }
+                if showsKey {
+                    ShortcutKeyHint(key: "C", onAccent: true)
+                }
             }
+            .frame(minHeight: 16)
             .foregroundStyle(.white)
-            .padding(.leading, 14)
-            .padding(.trailing, 8)
+            .padding(.leading, showsKey ? 14 : 10)
+            .padding(.trailing, showsKey ? 8 : 10)
             .padding(.vertical, 6)
             .background(Color.accentColor, in: Capsule())
             .contentShape(Capsule())

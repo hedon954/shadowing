@@ -9,11 +9,40 @@ import XCTest
 @MainActor
 final class PracticeWindowFitTests: XCTestCase {
     func testSplitViewFitsTheWindowWithTheInspectorOpen() async throws {
+        // 900 is the app's minimum: with the transcript open the practice column is ~322 pt.
         for width in [CGFloat(900), 1024, 1180] {
             let split = try await splitFrame(windowSize: CGSize(width: width, height: 590))
             XCTAssertGreaterThanOrEqual(split.minX, -0.5, "Split starts left of a \(width)pt window")
             XCTAssertLessThanOrEqual(split.maxX, width + 0.5, "Split ends right of a \(width)pt window")
         }
+    }
+
+    /// At the practice column of a 900 pt window with the transcript open (~322 pt, 282 pt inside
+    /// the 20 pt margins) the gray "Plays only the selected sentence" hint must drop, and the
+    /// segments and Compare must still fit on one line.
+    func testCompareBarDropsTheHintInTheMinimumWindow() throws {
+        let practice = makePractice()
+        SnapshotFixtures.showTimedSubtitles(in: practice)
+        practice.playhead = try XCTUnwrap(SnapshotFixtures.sampleCues.first).start + 0.1
+        XCTAssertNotNil(practice.currentSentence, "the hint needs a current sentence")
+        let inside: CGFloat = 900 - 248 - 330 - 40
+        let bar = NSHostingView(rootView: CompareBar(viewModel: practice))
+        let withHint = bar.fittingSize.width
+        let controller = NSHostingController(rootView: CompareBar(viewModel: practice))
+        let narrowest = controller.sizeThatFits(in: CGSize(width: 0, height: 40))
+        XCTAssertGreaterThan(withHint, inside, "with the hint the bar would not fit, so the hint drops")
+        XCTAssertLessThanOrEqual(narrowest.width, inside, "segments + Compare fit without the hint")
+        XCTAssertEqual(narrowest.height, 30, accuracy: 1, "still one line")
+    }
+
+    private func makePractice() -> PracticeViewModel {
+        let prepared = M7TestSupport.makePreparedPractice(playhead: 192)
+        return PracticeViewModel(
+            prepared: prepared,
+            audioClient: PracticeAudioClientSpy(),
+            projects: InMemoryProjectRepository(storage: InMemoryPersistence()),
+            sessionPreparer: FixedSessionPreparer(prepared: prepared)
+        )
     }
 
     /// Frame of the outermost split view in window content coordinates, after layout settles.

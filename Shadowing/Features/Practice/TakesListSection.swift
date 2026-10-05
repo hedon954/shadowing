@@ -123,9 +123,11 @@ private struct TakeRow: View {
                 Text("Comparing")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.tint)
+                    .fixedSize()
             } else {
                 Button("Compare take action", action: onCompare)
                     .buttonStyle(.plain)
+                    .fixedSize()
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .help("Compare the selected sentence with this take (C)")
@@ -180,17 +182,20 @@ private struct TakeNameLabel: View {
     var tint: Color = .primary
 
     var body: some View {
+        // In a narrow column the date truncates; the take name never does.
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             name
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
+                .fixedSize()
             detail
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+                .truncationMode(.tail)
         }
         .lineLimit(1)
-        .fixedSize()
-        .frame(minWidth: 120, alignment: .leading)
+        .frame(idealWidth: 120, alignment: .leading)
+        .layoutPriority(-1)
     }
 }
 
