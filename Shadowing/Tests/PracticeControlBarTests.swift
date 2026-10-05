@@ -18,8 +18,8 @@ final class PracticeControlBarTests: XCTestCase {
 
     func testBarIsSixtyPointsTallAndFitsNarrowAndWideColumns() {
         let practice = makePractice()
-        // Practice column with the inspector open at the minimum window, up to a wide window.
-        for width in [CGFloat(420), 520, 640, 800, 1000] {
+        // Practice column with the inspector open at the minimum window (900 - 248 - 330), up to a wide window.
+        for width in [CGFloat(322), 420, 520, 640, 800, 1000] {
             let available = width - PracticeControlBar.inset * 2
             let controller = NSHostingController(rootView: PracticeControlBar(viewModel: practice))
             let fitting = controller.sizeThatFits(in: CGSize(width: available, height: 200))

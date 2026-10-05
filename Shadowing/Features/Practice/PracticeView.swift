@@ -19,10 +19,13 @@ struct PracticeView: View {
             TakesListSection(viewModel: viewModel)
                 .padding(.top, 22)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // minWidth 0: the split view adds the floating sidebar's width to the detail's minimum,
+        // so any content minimum here pushes the inspector past the window's right edge.
+        .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PracticeControlBar(viewModel: viewModel)
                 .padding(PracticeControlBar.inset)
+                .frame(minWidth: 0, maxWidth: .infinity)
         }
         .navigationTitle(DisplayName.cleaned(viewModel.project.sourceDisplayName))
         .toolbar(removing: .title)

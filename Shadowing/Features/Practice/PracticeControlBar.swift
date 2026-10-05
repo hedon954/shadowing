@@ -16,6 +16,8 @@ struct PracticeControlBar: View {
             layout(sideWidth: 110, spacing: 18)
             layout(sideWidth: 84, spacing: 12)
             layout(sideWidth: nil, spacing: 8)
+            // Smallest window with the inspector open: the position is dropped, controls stay.
+            layout(sideWidth: nil, spacing: 4, showsTime: false)
         }
         .padding(.leading, 22)
         .padding(.trailing, 10)
@@ -25,10 +27,12 @@ struct PracticeControlBar: View {
         .accessibilityLabel("Playback controls")
     }
 
-    private func layout(sideWidth: CGFloat?, spacing: CGFloat) -> some View {
+    private func layout(sideWidth: CGFloat?, spacing: CGFloat, showsTime: Bool = true) -> some View {
         HStack(spacing: 0) {
-            timeText
-                .frame(width: sideWidth, alignment: .leading)
+            if showsTime {
+                timeText
+                    .frame(width: sideWidth, alignment: .leading)
+            }
             Spacer(minLength: 8)
             HStack(spacing: spacing) {
                 PracticeLoopButton(viewModel: viewModel)

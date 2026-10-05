@@ -14,7 +14,9 @@ struct CompareBar: View {
             if isRecording {
                 recordingStatus
             } else {
+                // Fixed size: in a narrow column the hint truncates; the segments never wrap.
                 CompareModePicker(mode: viewModel.compareMode, onSelect: viewModel.setCompareMode)
+                    .fixedSize()
                     .disabled(viewModel.controlsLocked)
                 if let hint = sentenceHint {
                     Text(hint)
@@ -24,6 +26,7 @@ struct CompareBar: View {
                 }
                 Spacer(minLength: 8)
                 CompareButton(isComparing: viewModel.comparison != nil, action: viewModel.compare)
+                    .fixedSize()
                     .disabled(!canCompare)
             }
         }
