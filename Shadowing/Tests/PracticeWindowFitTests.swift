@@ -35,6 +35,31 @@ final class PracticeWindowFitTests: XCTestCase {
         XCTAssertEqual(narrowest.height, 30, accuracy: 1, "still one line")
     }
 
+    /// English at that width: "Original · Mine · Both" lets the Compare text stay; the icon-only
+    /// fallback is a filled 28 pt circle. zh-Hans keeps 先原音再我的.
+    func testShortLabelsKeepTheCompareTextAndIconOnlyIsACircle() throws {
+        let inside: CGFloat = 900 - 248 - 330 - 40
+        func width(_ view: some View) -> CGFloat {
+            NSHostingController(rootView: view).sizeThatFits(in: CGSize(width: 2000, height: 100)).width
+        }
+        let picker = width(
+            CompareModePicker(mode: .originalThenMine, onSelect: { _ in }, compact: true, shortLabels: true)
+        )
+        let button = width(CompareButton(isComparing: false, showsKey: false, action: {}))
+        // Row spacing 6 on both sides of an 8 pt minimum spacer.
+        XCTAssertLessThanOrEqual(picker + 6 + 8 + 6 + button, inside, "short labels + Compare text fit")
+
+        let circle = NSHostingController(rootView: CompareButton(isComparing: false, showsTitle: false, action: {}))
+            .sizeThatFits(in: CGSize(width: 200, height: 100))
+        XCTAssertEqual(circle.width, 28, accuracy: 0.5)
+        XCTAssertEqual(circle.height, 28, accuracy: 0.5)
+
+        let zh = try XCTUnwrap(Bundle.main.path(forResource: "zh-Hans", ofType: "lproj").flatMap(Bundle.init(path:)))
+        XCTAssertEqual(zh.localizedString(forKey: "Compare mode both short", value: nil, table: nil), "先原音再我的")
+        let en = try XCTUnwrap(Bundle.main.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:)))
+        XCTAssertEqual(en.localizedString(forKey: "Compare mode both short", value: nil, table: nil), "Both")
+    }
+
     private func makePractice() -> PracticeViewModel {
         let prepared = M7TestSupport.makePreparedPractice(playhead: 192)
         return PracticeViewModel(

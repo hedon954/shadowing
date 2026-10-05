@@ -20,19 +20,31 @@ struct CompareBar: View {
                     controls(showsHint: false)
                     // The minimum window with the transcript open: tighter segments, no key cap.
                     controls(showsHint: false, compact: true)
-                    // Longer languages (English) at that width: the button keeps only its icon.
-                    controls(showsHint: false, compact: true, iconOnly: true)
+                    // Longer languages (English) at that width: Original / Mine / Both first...
+                    controls(showsHint: false, compact: true, shortLabels: true)
+                    // ...and only then does the button keep just its icon.
+                    controls(showsHint: false, compact: true, shortLabels: true, iconOnly: true)
                 }
             }
         }
         .frame(minHeight: 30)
     }
 
-    private func controls(showsHint: Bool, compact: Bool = false, iconOnly: Bool = false) -> some View {
+    private func controls(
+        showsHint: Bool,
+        compact: Bool = false,
+        shortLabels: Bool = false,
+        iconOnly: Bool = false
+    ) -> some View {
         HStack(spacing: compact ? 6 : 12) {
-            CompareModePicker(mode: viewModel.compareMode, onSelect: viewModel.setCompareMode, compact: compact)
-                .fixedSize()
-                .disabled(viewModel.controlsLocked)
+            CompareModePicker(
+                mode: viewModel.compareMode,
+                onSelect: viewModel.setCompareMode,
+                compact: compact,
+                shortLabels: shortLabels
+            )
+            .fixedSize()
+            .disabled(viewModel.controlsLocked)
             if showsHint, let hint = sentenceHint {
                 Text(hint)
                     .font(.system(size: 12).monospacedDigit())
@@ -84,6 +96,8 @@ struct CompareModePicker: View {
     let mode: CompareMode
     let onSelect: (CompareMode) -> Void
     var compact = false
+    /// "Both" for "Original then mine" in English; zh-Hans keeps 先原音再我的.
+    var shortLabels = false
 
     var body: some View {
         HStack(spacing: 2) {
@@ -91,7 +105,7 @@ struct CompareModePicker: View {
                 Button {
                     onSelect(option)
                 } label: {
-                    Text(Self.title(for: option))
+                    Text(shortLabels ? Self.shortTitle(for: option) : Self.title(for: option))
                         .font(.system(size: 12, weight: option == mode ? .semibold : .medium))
                         .foregroundStyle(option == mode ? .primary : .secondary)
                         .padding(.horizontal, compact ? 6 : 12)
@@ -106,6 +120,7 @@ struct CompareModePicker: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text(Self.title(for: option)))
                 .accessibilityAddTraits(option == mode ? .isSelected : [])
             }
         }
@@ -125,6 +140,10 @@ struct CompareModePicker: View {
             "Original then mine"
         }
     }
+
+    static func shortTitle(for mode: CompareMode) -> LocalizedStringKey {
+        mode == .originalThenMine ? "Compare mode both short" : title(for: mode)
+    }
 }
 
 /// The accent "▶ 对比播放  C" capsule. The gray C is the single-key shortcut.
@@ -136,29 +155,44 @@ struct CompareButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: isComparing ? "stop.fill" : "play.fill")
-                    .font(.system(size: 9, weight: .bold))
-                if showsTitle {
-                    Text(isComparing ? "Stop Comparing" : "Compare")
-                        .font(.system(size: 12.5, weight: .semibold))
-                }
-                if showsKey {
-                    ShortcutKeyHint(key: "C", onAccent: true)
-                }
+            if showsTitle {
+                titled
+            } else {
+                // Icon only: a filled accent circle the height of the titled capsule.
+                icon
+                    .frame(width: 28, height: 28)
+                    .background(Color.accentColor, in: Circle())
+                    .contentShape(Circle())
             }
-            .frame(minHeight: 16)
-            .foregroundStyle(.white)
-            .padding(.leading, showsKey ? 14 : 10)
-            .padding(.trailing, showsKey ? 8 : 10)
-            .padding(.vertical, 6)
-            .background(Color.accentColor, in: Capsule())
-            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .help("Play the selected sentence: the original, your take, or both (C)")
         .accessibilityLabel(isComparing ? "Stop Comparing" : "Compare")
         .accessibilityHint("Shortcut: C")
+    }
+
+    private var icon: some View {
+        Image(systemName: isComparing ? "stop.fill" : "play.fill")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.white)
+    }
+
+    private var titled: some View {
+        HStack(spacing: 7) {
+            icon
+            Text(isComparing ? "Stop Comparing" : "Compare")
+                .font(.system(size: 12.5, weight: .semibold))
+            if showsKey {
+                ShortcutKeyHint(key: "C", onAccent: true)
+            }
+        }
+        .frame(minHeight: 16)
+        .foregroundStyle(.white)
+        .padding(.leading, showsKey ? 14 : 10)
+        .padding(.trailing, showsKey ? 8 : 10)
+        .padding(.vertical, 6)
+        .background(Color.accentColor, in: Capsule())
+        .contentShape(Capsule())
     }
 }
 

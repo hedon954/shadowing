@@ -686,6 +686,22 @@
         }
       }
     },
+    "Compare mode both short" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Both"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先原音再我的"
+          }
+        }
+      }
+    },
     "Compare take action" : {
       "localizations" : {
         "en" : {
