@@ -126,6 +126,12 @@ if [ ! -d "$APP_PATH" ]; then
 fi
 echo "   ✓ .app: $APP_PATH"
 
+if [ -z "$TEAM_ID" ]; then
+  # 不签名导出的 .app 只有链接器签名，TCC 记不住麦克风授权；完整 ad-hoc 重签（见脚本说明）。
+  # 之后用 ditto 复制到 /Applications 会保留这个签名。
+  "$SCRIPT_DIR/adhoc-resign.sh" "$APP_PATH"
+fi
+
 echo "→ [4/4] 制作 DMG..."
 rm -rf "$DMG_STAGING"
 mkdir -p "$DMG_STAGING"

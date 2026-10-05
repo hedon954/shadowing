@@ -32,5 +32,8 @@ if pids="$(pgrep -x "$process_name")"; then
   fi
 fi
 
+# Unsigned builds are only linker-signed, so macOS would forget the microphone grant.
+"$root_dir/scripts/adhoc-resign.sh" "$app_path"
+
 echo "Opening $app_path"
 open "$app_path"
