@@ -158,14 +158,14 @@ enum M9TestSupport {
         audio: PracticeAudioClientSpy,
         afterCommandCount: Int = 0
     ) async -> URL {
-        for _ in 0 ..< 200 {
+        var attempt = 0
+        while await pause(after: &attempt) {
             let commands = await audio.commands
             for command in commands.suffix(from: min(afterCommandCount, commands.count)) {
                 if case let .beginRecording(_, url, _) = command {
                     return url
                 }
             }
-            await Task.yield()
         }
         XCTFail("Expected beginRecording command")
         return URL(fileURLWithPath: "/missing")

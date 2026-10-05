@@ -87,6 +87,14 @@ private struct SubtitlesToggleButton: View {
                         .strokeBorder(lineWidth: 1.3)
                 }
                 .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .frame(minWidth: 40, minHeight: 24)
+                .padding(.horizontal, 2)
+                .background {
+                    // Light accent tint behind the badge while subtitles are on.
+                    Capsule()
+                        .fill(Color.accentColor.opacity(isOn ? 0.14 : 0))
+                }
+                .contentShape(Capsule())
         }
         .accessibilityLabel(isOn ? "Hide Subtitles" : "Show Subtitles")
         .accessibilityAddTraits(isOn ? .isSelected : [])

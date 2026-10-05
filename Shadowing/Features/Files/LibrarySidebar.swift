@@ -61,6 +61,15 @@ struct LibrarySidebar: View {
 private struct LibrarySidebarRow: View {
     let item: LibraryProjectItem
     let isRecording: Bool
+    @Environment(\.backgroundProminence) private var prominence
+
+    /// Gray icon and second line on every row, in light and dark. `.secondary` in a sidebar is
+    /// vibrant, and vibrancy drops out of window captures (icons vanished, text turned black),
+    /// so this uses the same gray as a plain color. On the accent selection it follows the
+    /// selected text instead.
+    private var secondaryTint: Color {
+        prominence == .increased ? Color.white.opacity(0.75) : Color(nsColor: .secondaryLabelColor)
+    }
 
     private var displayName: String {
         DisplayName.cleaned(item.project.sourceDisplayName)
@@ -70,7 +79,7 @@ private struct LibrarySidebarRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 9) {
             Image(systemName: "waveform")
                 .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(secondaryTint)
                 .frame(width: 16)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
@@ -81,7 +90,7 @@ private struct LibrarySidebarRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                 LibraryRowSubtitle(item: item)
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(secondaryTint)
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
