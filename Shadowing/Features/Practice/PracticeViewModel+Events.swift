@@ -276,6 +276,7 @@ extension PracticeViewModel {
 
     /// A one-shot segment outside Compare (Return replays the sentence) ended: stop in place.
     private func handleSegmentFinished() {
+        settleTakePlayheadsAfterPlaybackStopped()
         isPlaying = false
         playingTakeID = nil
         persistProjectImmediately()
@@ -285,10 +286,14 @@ extension PracticeViewModel {
         isPlaying = false
         playingTakeID = nil
         playhead = project.duration
+        settleTakePlayheadsAfterPlaybackStopped()
         persistProjectImmediately()
     }
 
     private func handleInterruption(_ interruption: PracticeAudioInterruption) {
+        if isPlaying {
+            settleTakePlayheadsAfterPlaybackStopped()
+        }
         playingTakeID = nil
         isPlaying = false
         if recordingPresentation.locksPracticeControls {

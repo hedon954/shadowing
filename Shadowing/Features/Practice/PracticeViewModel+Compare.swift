@@ -178,6 +178,7 @@ extension PracticeViewModel {
         let restored = playback.restoredPlayhead
         playhead = restored
         project.playhead = restored
+        syncTakePlayheads(toSourceTime: restored)
         restoringPlayheadAfterComparison = restored
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.seek(restored))

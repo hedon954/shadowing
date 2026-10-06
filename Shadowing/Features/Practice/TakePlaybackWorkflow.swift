@@ -113,7 +113,9 @@ extension PracticeViewModel {
         if let take = currentlyPlayingTake() {
             playhead = take.region.end
             project.playhead = playhead
-            // Reached the end: its next play starts again from its loop start (or 0).
+            // Other takes follow the playhead; this one reached its end, so its next play
+            // starts again from its loop start (or 0).
+            syncTakePlayheads(toSourceTime: playhead)
             takePlayheads[take.id] = nil
         }
         playingTakeID = nil
@@ -137,6 +139,20 @@ extension PracticeViewModel {
         for take in takes {
             let inside = take.region.start ... take.region.end ~= sourceTime
             takePlayheads[take.id] = inside ? takeTime(take, forSourceTime: sourceTime) : nil
+        }
+    }
+
+    /// Playback stopped (pause, Space, the end, a sentence replay ending, Compare restoring,
+    /// an interruption), the original's or a take's: every take's playhead follows where it
+    /// settled, so any take's play button starts at the paused playhead on screen. Call it
+    /// once per stop and before `playingTakeID` is cleared; a pending seek's target wins
+    /// over any engine position. The take that played keeps its own exact spot.
+    func settleTakePlayheadsAfterPlaybackStopped() {
+        let stopped = currentlyPlayingTake()
+        let own = stopped.flatMap { takePlayheads[$0.id] }
+        syncTakePlayheads(toSourceTime: pendingLocalSeek ?? playhead)
+        if let stopped {
+            takePlayheads[stopped.id] = own
         }
     }
 

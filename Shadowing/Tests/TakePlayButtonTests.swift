@@ -266,4 +266,98 @@ final class TakePlayButtonTests: XCTestCase {
         let withLoop = await pressPlay(fixture, take)
         XCTAssertEqual(withLoop?.from ?? -1, 0.5, accuracy: 1e-9, "with a loop: from its start")
     }
+
+    // MARK: - The original paused: no matter how the playhead got there
+
+    /// Plays the original from `start`, lets the engine report `reached`, then pauses.
+    private func playOriginalThenPause(_ fixture: M9Fixture, from start: TimeInterval, reached: TimeInterval) async {
+        let model = fixture.viewModel
+        model.seek(to: start)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        model.togglePlayback()
+        await M9TestSupport.waitUntil { model.isPlaying && model.playingTakeID == nil }
+        await fixture.audio.emit(.playheadChanged(reached))
+        await M9TestSupport.waitUntil { abs(model.playhead - reached) < 1e-9 }
+        model.togglePlayback() // pause (Space)
+        await M9TestSupport.waitUntil { !model.isPlaying }
+    }
+
+    func testPausingTheOriginalInsideTheTakeMakesPlayStartThere() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        model.takeOffsets[take.id] = 0.2
+        await playOriginalThenPause(fixture, from: 1, reached: take.region.start + 0.9)
+
+        let sent = await pressPlay(fixture, take)
+
+        XCTAssertEqual(sent?.from ?? -1, 1.1, accuracy: 1e-9, "the paused spot, with the offset")
+        XCTAssertEqual(model.playhead, take.region.start + 0.9, accuracy: 1e-9, "no jump")
+    }
+
+    func testPausingTheOriginalPastTheTakeMakesPlayStartAtItsLoopStartOrZero() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        await click(fixture, take, at: take.region.start + 1) // an older spot on the take
+        await playOriginalThenPause(fixture, from: take.region.start + 1, reached: 12)
+        XCTAssertNil(model.takePlayheads[take.id])
+
+        let noLoop = await pressPlay(fixture, take)
+        XCTAssertEqual(noLoop?.from ?? -1, 0, accuracy: 1e-9, "no loop: from 0")
+
+        model.toggleTakePlayback(take) // pause the take
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        model.takeLoopSelections[take.id] = try loop(take)
+        await playOriginalThenPause(fixture, from: take.region.start + 1, reached: 12)
+        let withLoop = await pressPlay(fixture, take)
+        XCTAssertEqual(withLoop?.from ?? -1, 0.5, accuracy: 1e-9, "with a loop: from its start")
+    }
+
+    func testPressingTheTakesPlayWhileTheOriginalPlaysInsideItStartsThere() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        model.seek(to: 1)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        model.togglePlayback()
+        await M9TestSupport.waitUntil { model.isPlaying }
+        await fixture.audio.emit(.playheadChanged(take.region.start + 0.7))
+        await M9TestSupport.waitUntil { abs(model.playhead - (take.region.start + 0.7)) < 1e-9 }
+
+        let sent = await pressPlay(fixture, take)
+
+        XCTAssertEqual(sent?.from ?? -1, 0.7, accuracy: 1e-9)
+    }
+
+    // MARK: - A take paused or ended: the other takes follow the playhead on screen
+
+    func testPausingATakeInsideAnotherTakeMakesItsPlayStartThere() async throws {
+        let (fixture, takeA) = try await takeFixture() // 4…5.5 s
+        let model = fixture.viewModel
+        let takeB = try await M9TestSupport.commitAdditionalTake(
+            fixture: fixture,
+            region: PracticeRegion(start: 4.5, end: 6, sourceDuration: 30),
+            sequence: takeA.sequence + 1,
+            createdAt: Date()
+        )
+        await model.refreshTakes()
+        model.takeOffsets[takeB.id] = 0.1
+        await pressPlay(fixture, takeA)
+        await fixture.audio.emit(.playheadChanged(1.2)) // take A at 5.2 s on screen
+        await M9TestSupport.waitUntil { abs(model.playhead - 5.2) < 1e-9 }
+        model.toggleTakePlayback(takeA) // pause A
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        XCTAssertEqual(model.takePlayheads[takeA.id] ?? -1, 1.2, accuracy: 1e-9, "A keeps its own spot")
+
+        let fromPause = await pressPlay(fixture, takeB)
+        XCTAssertEqual(fromPause?.from ?? -1, 0.8, accuracy: 1e-9, "5.2 s in B's time, with B's offset")
+        XCTAssertEqual(model.playhead, 5.2, accuracy: 1e-9, "no jump")
+
+        model.toggleTakePlayback(takeB) // pause B, then let A play to its end
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        await pressPlay(fixture, takeA)
+        await fixture.audio.emit(.playbackFinished)
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        XCTAssertNil(model.takePlayheads[takeA.id], "A reached its end: it restarts from 0")
+        let fromEnd = await pressPlay(fixture, takeB)
+        XCTAssertEqual(fromEnd?.from ?? -1, 1.1, accuracy: 1e-9, "A's end (5.5 s) in B's time")
+    }
 }

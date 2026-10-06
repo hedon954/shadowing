@@ -368,6 +368,7 @@ extension PracticeViewModel {
         } completion: { [weak self] playing in
             self?.isPlaying = playing
             if !playing {
+                self?.settleTakePlayheadsAfterPlaybackStopped()
                 self?.persistProjectImmediately()
             }
         }
@@ -382,6 +383,7 @@ extension PracticeViewModel {
             try await audioClient.execute(.pause)
         } completion: { [weak self] in
             self?.isPlaying = false
+            self?.settleTakePlayheadsAfterPlaybackStopped()
             self?.persistProjectImmediately()
         }
     }

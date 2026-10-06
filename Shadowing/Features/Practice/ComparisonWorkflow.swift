@@ -182,6 +182,7 @@ extension PracticeViewModel {
         guard playingTakeID != nil || isPlaying else {
             return
         }
+        settleTakePlayheadsAfterPlaybackStopped() // the playback stops here, on screen
         let wasTake = playingTakeID != nil
         playingTakeID = nil
         guard isPlaying || wasTake else {
