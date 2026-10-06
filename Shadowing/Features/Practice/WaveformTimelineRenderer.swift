@@ -9,7 +9,8 @@ struct WaveformPlayheadStyle: Equatable {
 }
 
 /// A waveform with an optional played color and playhead cursor. The waveform is drawn once
-/// (`WaveformEnvelopeLayer`); a playhead tick only moves the played mask and the cursor.
+/// (`WaveformEnvelopeLayer`); a playhead tick only moves the played mask and the cursor, which
+/// read the clock inside a mask (`playheadMask`), so the track itself is never re-evaluated.
 struct WaveformTimelineTrack: View {
     let waveform: WaveformPresentation?
     var timedPoints: [TimedWaveformEnvelopePoint] = []
@@ -17,6 +18,9 @@ struct WaveformTimelineTrack: View {
     let viewport: TimelineViewport
     let color: Color
     var playhead: TimeInterval?
+    /// The live playhead. When set it replaces `playhead`, and only the played mask and the
+    /// cursor read it, so a tick never re-evaluates (or re-lays-out) the track itself.
+    var clock: PlayheadClock?
     var selection: PracticeRegion?
     var emphasized = true
     /// When false, draws only the envelope/playhead so layers can stack (overview).
@@ -44,7 +48,7 @@ struct WaveformTimelineTrack: View {
                 barStyle: barStyle
             )
             .equatable()
-            if let playedColor, let playhead {
+            if let playedColor, hasPlayhead {
                 WaveformEnvelopeLayer(
                     waveform: waveform,
                     timedPoints: timedPoints,
@@ -56,12 +60,24 @@ struct WaveformTimelineTrack: View {
                     barStyle: barStyle
                 )
                 .equatable()
-                .mask {
-                    WaveformPlayedMask(playhead: playhead, viewport: viewport, barStyle: barStyle)
+                .playheadMask(fixed: playhead, clock: clock) { position, width in
+                    WaveformPlayedMask(playhead: position, viewport: viewport, width: width, barStyle: barStyle)
                 }
             }
-            if let playhead, playheadStyle.width > 0 {
-                WaveformPlayheadLine(playhead: playhead, viewport: viewport, style: playheadStyle)
+        }
+        .overlay {
+            if hasPlayhead, playheadStyle.width > 0 {
+                Rectangle()
+                    .fill(playheadStyle.color)
+                    .playheadMask(fixed: playhead, clock: clock) { position, width in
+                        WaveformPlayheadLine(
+                            playhead: position,
+                            viewport: viewport,
+                            trackWidth: width,
+                            lineWidth: playheadStyle.width
+                        )
+                    }
+                    .allowsHitTesting(false)
             }
         }
         .background {
@@ -75,7 +91,11 @@ struct WaveformTimelineTrack: View {
 
     /// Unplayed envelope: full color under a played copy, otherwise dimmed by emphasis.
     private var envelopeColor: Color {
-        playedColor != nil && playhead != nil ? color : color.opacity(emphasized ? 0.82 : 0.3)
+        playedColor != nil && hasPlayhead ? color : color.opacity(emphasized ? 0.82 : 0.3)
+    }
+
+    private var hasPlayhead: Bool {
+        clock != nil || playhead != nil
     }
 
     private var barColor: Color {

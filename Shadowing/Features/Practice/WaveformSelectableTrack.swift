@@ -22,6 +22,8 @@ struct WaveformSelectableTrack: View {
     let sourceDuration: TimeInterval
     let region: PracticeRegion?
     let playhead: TimeInterval?
+    /// The live playhead; only the played mask and cursor inside the track read it.
+    var clock: PlayheadClock?
     let isEnabled: Bool
     let onSeek: (TimeInterval) -> Void
     let onRegionChanged: (PracticeRegion) -> Void
@@ -58,6 +60,7 @@ struct WaveformSelectableTrack: View {
                     viewport: viewport,
                     color: color,
                     playhead: playhead,
+                    clock: clock,
                     selection: fillsSelection || draftRegion != nil ? displayedRegion : nil,
                     emphasized: true,
                     showsChrome: showsChrome,

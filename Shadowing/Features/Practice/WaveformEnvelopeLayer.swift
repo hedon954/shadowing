@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The waveform itself: chrome, selection tint and the envelope or bars. It never depends on
 /// the playhead, so `.equatable()` keeps SwiftUI from redrawing it on every playhead tick; the
-/// played color and the cursor are cheap layers on top (`WaveformPlayedMask`, `WaveformPlayheadLine`).
+/// played color and the cursor are cheap masks on top (see `WaveformPlayheadLayers.swift`).
 struct WaveformEnvelopeLayer: View, Equatable {
     let waveform: WaveformPresentation?
     var timedPoints: [TimedWaveformEnvelopePoint] = []
@@ -186,56 +186,5 @@ struct WaveformEnvelopeLayer: View, Equatable {
             return 0
         }
         return width * CGFloat((time - viewport.start) / viewport.duration)
-    }
-}
-
-/// Shows the played copy of the waveform only left of the playhead. Bars change color whole
-/// (a bar counts as played once the playhead passes its centre), so the edge snaps to the bar grid.
-struct WaveformPlayedMask: View {
-    let playhead: TimeInterval
-    let viewport: TimelineViewport
-    var barStyle: WaveformBarStyle?
-
-    var body: some View {
-        Canvas { context, size in
-            let edge = Self.edge(playhead: playhead, viewport: viewport, width: size.width, barStyle: barStyle)
-            context.fill(Path(CGRect(x: 0, y: 0, width: edge, height: size.height)), with: .color(.black))
-        }
-    }
-
-    static func edge(
-        playhead: TimeInterval,
-        viewport: TimelineViewport,
-        width: CGFloat,
-        barStyle: WaveformBarStyle?
-    ) -> CGFloat {
-        guard viewport.duration > 0 else {
-            return 0
-        }
-        let playedX = width * CGFloat((playhead - viewport.start) / viewport.duration)
-        guard let barStyle else {
-            return min(max(playedX, 0), width)
-        }
-        return WaveformBarLayout.playedEdge(playedX: playedX, style: barStyle, width: width)
-    }
-}
-
-/// The thin cursor line at the playhead.
-struct WaveformPlayheadLine: View {
-    let playhead: TimeInterval
-    let viewport: TimelineViewport
-    let style: WaveformPlayheadStyle
-
-    var body: some View {
-        Canvas { context, size in
-            guard viewport.contains(playhead), viewport.duration > 0 else {
-                return
-            }
-            let xPosition = size.width * CGFloat((playhead - viewport.start) / viewport.duration)
-            var cursor = Path()
-            cursor.move(to: CGPoint(x: xPosition, y: 0))
-            cursor.addLine(to: CGPoint(x: xPosition, y: size.height))
-            context.stroke(cursor, with: .color(style.color), lineWidth: style.width)
-        }
     }
 }

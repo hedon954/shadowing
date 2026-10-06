@@ -21,7 +21,10 @@ struct WaveformTimelineOverview: View {
     let sourceDuration: TimeInterval
     let viewport: TimelineViewport
     let region: PracticeRegion?
-    let playhead: TimeInterval
+    var playhead: TimeInterval?
+    /// The live playhead; only the cursor layer reads it, so a tick moves the cursor and
+    /// leaves the strip, the window box, and the thumbnails alone.
+    var clock: PlayheadClock?
     let isInteractive: Bool
     let onViewportChanged: (TimelineViewport) -> Void
     var onBackgroundTap: (() -> Void)?
@@ -68,6 +71,7 @@ struct WaveformTimelineOverview: View {
                     viewport: .full(sourceDuration: sourceDuration),
                     color: .clear,
                     playhead: playhead,
+                    clock: clock,
                     selection: nil,
                     showsChrome: false
                 )

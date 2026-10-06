@@ -51,35 +51,34 @@ struct AlignedTakeLane: View {
             title: Text("Take \(take.sequence)"),
             detail: Text(verbatim: TakeDateText.short(take.createdAt))
         ) {
-            PlayheadReader(clock: viewModel.playheadClock) { playhead in
-                WaveformSelectableTrack(
-                    waveform: viewModel.takeWaveforms[take.id],
-                    viewport: viewModel.timelineViewport,
-                    sourceDuration: viewModel.project.duration,
-                    region: viewModel.takeLoopSelections[take.id],
-                    playhead: playhead,
-                    isEnabled: !viewModel.controlsLocked,
-                    onSeek: viewModel.seekTimeline,
-                    onRegionChanged: { region in
-                        viewModel.selectTakeLoopRegion(take, region)
-                    },
-                    onRegionCleared: {
-                        viewModel.clearTakeLoopRegion(take)
-                    },
-                    onViewportChanged: viewModel.setTimelineViewport,
-                    onGestureActiveChanged: viewModel.setTimelineGestureActive,
-                    color: Color(nsColor: .tertiaryLabelColor),
-                    assetTimelineStart: take.region.start - viewModel.alignmentOffset(for: take.id),
-                    selectionBounds: take.region,
-                    accessibilityTitle: "Take \(take.sequence) waveform",
-                    accessibilityHintText: "Drag to select a Take loop region, or click to seek.",
-                    coordinateSpaceName: "takeWaveform-\(take.id.uuidString)",
-                    showsChrome: false,
-                    playedColor: .primary,
-                    playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
-                    barStyle: .original
-                )
-            }
+            WaveformSelectableTrack(
+                waveform: viewModel.takeWaveforms[take.id],
+                viewport: viewModel.timelineViewport,
+                sourceDuration: viewModel.project.duration,
+                region: viewModel.takeLoopSelections[take.id],
+                playhead: nil,
+                clock: viewModel.playheadClock,
+                isEnabled: !viewModel.controlsLocked,
+                onSeek: viewModel.seekTimeline,
+                onRegionChanged: { region in
+                    viewModel.selectTakeLoopRegion(take, region)
+                },
+                onRegionCleared: {
+                    viewModel.clearTakeLoopRegion(take)
+                },
+                onViewportChanged: viewModel.setTimelineViewport,
+                onGestureActiveChanged: viewModel.setTimelineGestureActive,
+                color: Color(nsColor: .tertiaryLabelColor),
+                assetTimelineStart: take.region.start - viewModel.alignmentOffset(for: take.id),
+                selectionBounds: take.region,
+                accessibilityTitle: "Take \(take.sequence) waveform",
+                accessibilityHintText: "Drag to select a Take loop region, or click to seek.",
+                coordinateSpaceName: "takeWaveform-\(take.id.uuidString)",
+                showsChrome: false,
+                playedColor: .primary,
+                playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
+                barStyle: .original
+            )
             .frame(height: OriginalWaveformSection.takeHeight + WaveformBarStyle.original.verticalInset * 2)
             .padding(.vertical, -WaveformBarStyle.original.verticalInset)
         }
@@ -119,6 +118,8 @@ struct SentenceBandOverlay: View {
     let viewport: TimelineViewport
     let sentence: SentenceChunk?
     let playhead: TimeInterval?
+    /// The live playhead; when set only the cursor reads it, so a tick moves the cursor alone.
+    var clock: PlayheadClock?
     var playheadColor: Color = .accentColor
     let leading: CGFloat
 
@@ -134,12 +135,15 @@ struct SentenceBandOverlay: View {
                     .frame(width: frame.width, height: geometry.size.height + Self.bandOverhang * 2)
                     .offset(x: leading + frame.minX, y: -Self.bandOverhang)
             }
-            if let playhead, viewport.contains(playhead) {
-                RoundedRectangle(cornerRadius: 1)
+        }
+        .overlay(alignment: .topLeading) {
+            if clock != nil || playhead != nil {
+                Rectangle()
                     .fill(playheadColor)
-                    .frame(width: 2, height: geometry.size.height + Self.playheadOverhang * 2)
-                    .offset(x: leading + Self.x(for: playhead, viewport: viewport, width: width) - 1,
-                            y: -Self.playheadOverhang)
+                    .playheadMask(fixed: playhead, clock: clock) { position, width in
+                        SentencePlayheadCursor(playhead: position, viewport: viewport, leading: leading, width: width)
+                    }
+                    .padding(.vertical, -Self.playheadOverhang)
             }
         }
         .accessibilityHidden(true)

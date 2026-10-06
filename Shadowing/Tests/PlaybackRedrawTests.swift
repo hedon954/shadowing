@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Observation
 @testable import Shadowing
 import SwiftUI
 import XCTest
@@ -66,8 +67,9 @@ final class PlaybackRedrawTests: XCTestCase {
     }
 
     /// The real practice screen with the transcript open: per playback tick inside a sentence
-    /// none of the views watching the view model re-evaluate and the waveform bars are not
-    /// redrawn; only the playhead layers (track wrapper, played mask, cursor) update.
+    /// none of the views watching the view model re-evaluate, the waveform tracks and bars are
+    /// not redrawn, only the playhead masks update, and the window is never laid out again
+    /// (each layout pass recomputed `NSHostingView.minSize`, ~10% of the main thread).
     func testPlaybackTicksRedrawOnlyThePlayheadViews() async throws {
         let key = SubtitlePreferences.transcriptKey
         UserDefaults.standard.set(true, forKey: key)
@@ -75,7 +77,7 @@ final class PlaybackRedrawTests: XCTestCase {
         let fixture = try await playingFixture()
         let model = fixture.viewModel
         let size = CGSize(width: 1300, height: 820)
-        let hosting = NSHostingView(
+        let hosting = LayoutCountingHostingView(
             rootView: NavigationStack { PracticeView(viewModel: model) }.frame(width: size.width, height: size.height)
         )
         hosting.frame = CGRect(origin: .zero, size: size)
@@ -94,6 +96,7 @@ final class PlaybackRedrawTests: XCTestCase {
         }
         try await Task.sleep(for: .milliseconds(500))
         RenderProbe.counts = [:]
+        hosting.layoutPasses = 0
         for tick in 1 ... 30 {
             await fixture.audio.emit(.playheadChanged(15.01 + Double(tick) * 0.003))
             try await Task.sleep(for: .milliseconds(20))
@@ -103,11 +106,32 @@ final class PlaybackRedrawTests: XCTestCase {
         for name in [
             "PracticeView", "OriginalWaveformSection", "CompareBar", "TakesListSection",
             "PracticeControlBar", "PracticeTransportControls", "SubtitlesInspector",
-            "SubtitleTranscriptView", "TranscriptSentenceRow", "WaveformEnvelopeLayer"
+            "SubtitleTranscriptView", "TranscriptSentenceRow", "WaveformEnvelopeLayer", "WaveformTimelineTrack"
         ] {
             XCTAssertEqual(counts[name, default: 0], 0, "\(name) must not redraw per tick")
         }
-        XCTAssertGreaterThan(counts["WaveformTimelineTrack", default: 0], 0, "the waveform cursor still moves")
+        XCTAssertGreaterThan(counts["WaveformPlayedMask", default: 0], 0, "the played color still follows the playhead")
+        XCTAssertLessThanOrEqual(hosting.layoutPasses, 3, "playback ticks must not lay out the window")
+    }
+
+    /// The time label shows whole seconds, so ticks inside one second must not touch it.
+    func testClockNotifiesTheTimeLabelOnlyWhenTheSecondChanges() {
+        let clock = PlayheadClock(position: 3.2)
+        let notified = ObservationFlag()
+        withObservationTracking {
+            _ = clock.wholeSecond
+        } onChange: {
+            notified.isSet = true
+        }
+        clock.position = 3.5
+        clock.position = 3.98
+        XCTAssertFalse(notified.isSet, "ticks inside 0:03 leave the label alone")
+        XCTAssertEqual(clock.wholeSecond, 3)
+        clock.position = 4.01
+        XCTAssertTrue(notified.isSet)
+        XCTAssertEqual(clock.wholeSecond, 4)
+        XCTAssertEqual(PlayheadClock.wholeSecond(of: 2.9999999), 3, "floors like ClockText, float noise included")
+        XCTAssertEqual(PlayheadClock.wholeSecond(of: -1), 0)
     }
 
     /// The played copy of the bars is masked at `playedEdge`: every bar `bars(playedX:)` marks
@@ -133,6 +157,21 @@ final class PlaybackRedrawTests: XCTestCase {
         XCTAssertEqual(WaveformPlayedMask.edge(playhead: 20, viewport: viewport, width: 200, barStyle: nil), 100)
         XCTAssertEqual(WaveformPlayedMask.edge(playhead: 5, viewport: viewport, width: 200, barStyle: nil), 0)
         XCTAssertEqual(WaveformPlayedMask.edge(playhead: 50, viewport: viewport, width: 200, barStyle: nil), 200)
+    }
+}
+
+/// Set from an observation callback (which runs synchronously on the mutating thread here).
+private final class ObservationFlag: @unchecked Sendable {
+    var isSet = false
+}
+
+/// Counts the window's constraint passes (each one recomputes the hosting view's minimum size).
+private final class LayoutCountingHostingView<Content: View>: NSHostingView<Content> {
+    var layoutPasses = 0
+
+    override func updateConstraints() {
+        layoutPasses += 1
+        super.updateConstraints()
     }
 }
 
