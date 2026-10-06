@@ -30,10 +30,12 @@ extension PracticeViewModel {
         if !preferExistingViewport {
             playhead = take.region.start
             project.playhead = take.region.start
-            timelineViewport = .fitting(
-                take.region,
-                sourceDuration: project.duration
-            )
+            if !deferTimelineMoveDuringGesture(focus: take.region) {
+                timelineViewport = .fitting(
+                    take.region,
+                    sourceDuration: project.duration
+                )
+            }
             revealPlayhead(focus: take.region)
         }
         await refreshTakes()

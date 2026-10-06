@@ -89,6 +89,9 @@ extension PracticeViewModel {
     /// Moves the overview window onto a Take (or its loop selection) when it is off-screen.
     func focusTimelineForTakePlayback(_ take: Take) {
         let focus = takeLoopSelections[take.id] ?? take.region
+        guard !deferTimelineMoveDuringGesture(focus: focus) else {
+            return
+        }
         let overlapStart = max(focus.start, timelineViewport.start)
         let overlapEnd = min(focus.end, timelineViewport.end)
         let meaningfulOverlap = overlapEnd > overlapStart
@@ -100,16 +103,10 @@ extension PracticeViewModel {
         followPlayheadInTimeline(at: playhead)
     }
 
-    func setTimelineGestureActive(_ active: Bool) {
-        guard suspendPlayheadFollow != active else {
-            return
-        }
-        suspendPlayheadFollow = active
-    }
-
-    /// Pans the viewport so the playhead stays visible during playback.
+    /// Pans the viewport so the playhead stays visible during playback; during a waveform
+    /// drag the pan waits for release (`deferTimelineMoveDuringGesture`).
     func followPlayheadInTimeline(at position: TimeInterval) {
-        guard !suspendPlayheadFollow,
+        guard !deferTimelineMoveDuringGesture(),
               timelineViewport.duration > 0,
               !timelineViewport.contains(position)
         else {

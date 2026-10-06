@@ -88,6 +88,10 @@ struct WaveformSelectableTrack: View {
             }
             .coordinateSpace(name: coordinateSpaceName)
         }
+        // A drag cut short by the track going away must not leave the waveform frozen.
+        .onDisappear {
+            markGestureActive(false)
+        }
     }
 
     private var displayedRegion: PracticeRegion? {

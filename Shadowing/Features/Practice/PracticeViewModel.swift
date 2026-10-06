@@ -72,8 +72,10 @@ final class PracticeViewModel: ObservableObject {
     @Published var takeLoopSelections: [UUID: PracticeRegion] = [:]
     @Published var playingTakeID: UUID?
     @Published var timelineViewport: TimelineViewport
-    /// When true, playhead follow must not pan the viewport (e.g. mid selection drag).
+    /// True while the user drags on the waveform: no automatic pan or zoom until release.
     var suspendPlayheadFollow = false
+    /// The reveal held back during that drag, applied once on release.
+    var deferredTimelineReveal: DeferredTimelineReveal?
     /// Active-jump signal for the waveform and transcript (see `JumpReveal`).
     @Published var jumpReveal = JumpReveal()
     @Published var lastRecordingStopReason: RecordingStopReason?
