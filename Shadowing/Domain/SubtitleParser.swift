@@ -185,6 +185,16 @@ enum SubtitleTimeline {
         return low == 0 ? nil : low - 1
     }
 
+    /// The row an active jump scrolls the transcript to: the sentence under the playhead (or the
+    /// nearest earlier one), else the first sentence when the playhead is before it. Never past
+    /// the last row, never "nothing" while there are cues.
+    static func revealIndex(current: Int?, cueCount: Int) -> Int? {
+        guard cueCount > 0 else {
+            return nil
+        }
+        return min(max(current ?? 0, 0), cueCount - 1)
+    }
+
     static let paragraphPause: TimeInterval = 1.5
     static let preferredParagraphLength = 4
     static let maximumParagraphLength = 6

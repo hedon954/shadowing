@@ -78,7 +78,7 @@ struct SubtitlesInspector: View {
         case let .timed(transcript):
             SubtitleTranscriptView(
                 transcript: transcript,
-                current: SubtitleTimeline.cueIndex(at: viewModel.playhead, in: transcript.cues),
+                current: viewModel.currentCueIndex,
                 revealToken: viewModel.revealToken,
                 autoFollows: { viewModel.transcriptAutoFollows() },
                 onUserScroll: { viewModel.noteTranscriptUserScroll() },

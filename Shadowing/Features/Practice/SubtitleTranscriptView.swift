@@ -17,7 +17,7 @@ import SwiftUI
 /// only reports outward (`onUserScroll` never changes what this view draws).
 struct SubtitleTranscriptView: View {
     /// Keeps the current sentence about a third of the way down.
-    static let scrollAnchor = UnitPoint(x: 0, y: 0.33)
+    static let scrollAnchor = UnitPoint(x: 0.5, y: 0.33)
 
     let transcript: SubtitleTranscript
     let current: Int?
@@ -65,8 +65,8 @@ struct SubtitleTranscriptView: View {
             // paused or not. Runs after the rows are laid out, so the scroll lands.
             .task(id: RevealRequest(token: revealToken, cueCount: transcript.cues.count)) {
                 await Task.yield()
-                if let current {
-                    proxy.scrollTo(current, anchor: Self.scrollAnchor)
+                if let target = SubtitleTimeline.revealIndex(current: current, cueCount: transcript.cues.count) {
+                    proxy.scrollTo(target, anchor: Self.scrollAnchor)
                 }
             }
             .onChange(of: current) { _, index in

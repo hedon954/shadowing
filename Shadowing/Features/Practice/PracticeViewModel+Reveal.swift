@@ -51,6 +51,11 @@ extension PracticeViewModel {
         return SubtitleTimeline.cueIndex(at: playhead, in: cues)
     }
 
+    /// The transcript row an active jump scrolls to, derived from the playhead (paused or not).
+    var transcriptRevealIndex: Int? {
+        SubtitleTimeline.revealIndex(current: currentCueIndex, cueCount: timedCues.count)
+    }
+
     /// An active jump: show the playhead (and `focus`, e.g. a clicked take) in the zoomed
     /// waveform, and tell the transcript to scroll to the current sentence right away.
     func revealPlayhead(focus: PracticeRegion? = nil) {
