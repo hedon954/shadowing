@@ -26,11 +26,18 @@ extension PracticeAudioEngine {
         case .take:
             isPlaying = false
             playheadTask?.cancel()
-            if let takeInfo {
-                takePausedFrame = takeInfo.frameCount
-                eventContinuation.yield(.playheadChanged(takeInfo.duration))
+            if let takeEndFrame {
+                // A Compare take segment: take-local time must never reach the main playhead.
+                takePausedFrame = takeEndFrame
+                eventContinuation.yield(.segmentFinished)
+            } else {
+                if let takeInfo {
+                    takePausedFrame = takeInfo.frameCount
+                    eventContinuation.yield(.playheadChanged(takeInfo.duration))
+                }
+                eventContinuation.yield(.playbackFinished)
             }
-            eventContinuation.yield(.playbackFinished)
+            takeEndFrame = nil
             // Return to the original timeline so later seeks use source time,
             // not take-local time (and so paused seekTake does not re-fire completion).
             takeScheduleGeneration &+= 1
@@ -74,6 +81,16 @@ extension PracticeAudioEngine {
                     )
                 )
             }
+            return
+        }
+        if let segmentEnd = originalSegmentEndFrame {
+            // A one-shot segment ended inside the track: stay at its end, not the track's end.
+            originalSegmentEndFrame = nil
+            pausedFrame = segmentEnd
+            if let sourceInfo, sourceInfo.sampleRate > 0 {
+                eventContinuation.yield(.playheadChanged(Double(segmentEnd) / sourceInfo.sampleRate))
+            }
+            eventContinuation.yield(.segmentFinished)
             return
         }
         if let sourceInfo {

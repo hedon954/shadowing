@@ -37,6 +37,7 @@ extension PracticeAudioEngine {
         }
         scheduledStartFrame = plan.initial.startFrame
         firstScheduledFrameCount = plan.initial.frameCount
+        originalSegmentEndFrame = forcedEndFrame
         try scheduleSegment(
             file: sourceFile,
             startFrame: plan.initial.startFrame,

@@ -40,6 +40,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var takeLoopRegion: PracticeRegion?
     /// Stops take playback here (frames) instead of at the end of the file; used by Compare.
     var takeEndFrame: Int64?
+    /// Set while the original plays a one-shot segment, so its end is not reported as track end.
+    var originalSegmentEndFrame: Int64?
     var scheduledStartFrame: Int64 = 0
     var firstScheduledFrameCount: Int64 = 0
     var scheduleGeneration: UInt64 = 0

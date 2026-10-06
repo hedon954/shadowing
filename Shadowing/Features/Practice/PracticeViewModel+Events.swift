@@ -21,15 +21,12 @@ extension PracticeViewModel {
             break
         case let .playheadChanged(position):
             updatePlayhead(from: position)
+        case .segmentFinished:
+            if !handleCompareSegmentFinished() {
+                handleSegmentFinished()
+            }
         case .playbackFinished:
-            if handleComparePlaybackFinished() {
-                return
-            }
-            if playingTakeID != nil {
-                handleTakePlaybackFinished()
-            } else {
-                handlePlaybackFinished()
-            }
+            handleTrackPlaybackFinished()
         case let .interrupted(interruption):
             handleInterruption(interruption)
         case let .failed(audioFailure):
@@ -64,6 +61,7 @@ extension PracticeViewModel {
         case .sourceLoaded,
              .playheadChanged,
              .playbackFinished,
+             .segmentFinished,
              .interrupted,
              .failed:
             break
@@ -219,7 +217,8 @@ extension PracticeViewModel {
     }
 
     private func updatePlayhead(from position: TimeInterval) {
-        if restoringPlayheadAfterComparison != nil {
+        // Compare owns the transport: the main playhead stays frozen until it is restored.
+        if comparison != nil || restoringPlayheadAfterComparison != nil {
             return
         }
         if let take = currentlyPlayingTake() {
@@ -238,6 +237,26 @@ extension PracticeViewModel {
             schedulePlayheadPersist()
             followPlayheadInTimeline(at: playhead)
         }
+    }
+
+    /// Only a real end of the main track (or a plain take playback) ends playback;
+    /// never while Compare runs, whose items report `segmentFinished`.
+    private func handleTrackPlaybackFinished() {
+        guard comparison == nil else {
+            return
+        }
+        if playingTakeID != nil {
+            handleTakePlaybackFinished()
+        } else {
+            handlePlaybackFinished()
+        }
+    }
+
+    /// A one-shot segment outside Compare (Return replays the sentence) ended: stop in place.
+    private func handleSegmentFinished() {
+        isPlaying = false
+        playingTakeID = nil
+        persistProjectImmediately()
     }
 
     private func handlePlaybackFinished() {

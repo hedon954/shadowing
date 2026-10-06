@@ -33,8 +33,8 @@ extension PracticeViewModel {
     }
 
     /// C: play the current sentence as the original, mine, or the original then mine.
-    /// Pressing C again while comparing stops. Does not change selection, playhead, or loop;
-    /// playhead is restored when Compare ends.
+    /// Pressing C again while comparing stops. Does not change selection, playhead, or loop:
+    /// while `comparison != nil` engine playhead/end events never reach the main playhead.
     func compare() {
         if comparison != nil {
             stopComparison()
@@ -97,15 +97,14 @@ extension PracticeViewModel {
         let step = playback.remaining.removeFirst()
         playback.current = step
         comparison = playback
+        // The main playhead is not touched here: it stays frozen for the whole Compare.
         let command: PracticeAudioCommand
         switch step {
         case let .original(region):
             playingTakeID = nil
-            playhead = region.start
             command = .playOriginalSegment(region: region, from: region.start, rate: rate)
         case let .take(id, region):
             playingTakeID = id
-            playhead = playback.sentence.start
             command = .playTakeSegment(takeID: id, region: region)
         }
         performCommand { [audioClient] in
@@ -116,12 +115,12 @@ extension PracticeViewModel {
         }
     }
 
-    /// Called for `playbackFinished`; returns false when no comparison is running.
-    func handleComparePlaybackFinished() -> Bool {
+    /// Called for `segmentFinished`; returns false when no comparison is running.
+    /// `isPlaying` stays true across the gap between steps: Compare is still playing.
+    func handleCompareSegmentFinished() -> Bool {
         guard let playback = comparison else {
             return false
         }
-        isPlaying = false
         guard !playback.remaining.isEmpty else {
             finishComparison()
             return true

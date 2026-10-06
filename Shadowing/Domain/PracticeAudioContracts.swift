@@ -3,10 +3,10 @@ import Foundation
 enum PracticeAudioCommand: Equatable, Sendable {
     case loadSource(URL)
     case playOriginal(region: PracticeRegion?, from: TimeInterval, rate: Double)
-    /// Plays the region once without looping; used by A/B comparison.
+    /// Plays the region once without looping, then reports `segmentFinished`.
     case playOriginalSegment(region: PracticeRegion, from: TimeInterval, rate: Double)
     case playTake(takeID: UUID, from: TimeInterval, loop: PracticeRegion?)
-    /// Plays part of a take once (take-file time), then reports `playbackFinished`.
+    /// Plays part of a take once (take-file time), then reports `segmentFinished`.
     case playTakeSegment(takeID: UUID, region: PracticeRegion)
     case playTogether(region: PracticeRegion, takeID: UUID, rate: Double)
     case pause
@@ -63,7 +63,11 @@ enum RecordingStopReason: Equatable, Sendable {
 enum PracticeAudioEvent: Equatable, Sendable {
     case sourceLoaded(LoadedAudioSource)
     case playheadChanged(TimeInterval)
+    /// The main track (or a looping/plain take playback) reached its end.
     case playbackFinished
+    /// A one-shot segment (`playOriginalSegment` / `playTakeSegment`) finished.
+    /// The main track did not end; never handle this as end-of-track.
+    case segmentFinished
     case recordingStarted
     case recordingProgress(TimeInterval)
     case recordingEnvelope([TimedWaveformEnvelopePoint])

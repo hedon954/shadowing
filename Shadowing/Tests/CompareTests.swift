@@ -88,7 +88,7 @@ final class CompareViewModelTests: XCTestCase {
                 return false
             }
         }
-        await fixture.audio.emit(.playbackFinished)
+        await fixture.audio.emit(.segmentFinished)
         // The take is 1.5 s long, shorter than the 3 s sentence: play 0.2–1.5 of the take file.
         let expected = try PracticeRegion.takeAlignment(start: 0.2, end: 1.5, sourceDuration: take.duration)
         await M9TestSupport.waitUntilAsync {
@@ -102,7 +102,7 @@ final class CompareViewModelTests: XCTestCase {
         }
         XCTAssertEqual(model.playingTakeID, take.id)
         let commandsBeforeFinish = await fixture.audio.commands.count
-        await fixture.audio.emit(.playbackFinished)
+        await fixture.audio.emit(.segmentFinished)
         await M9TestSupport.waitUntil { model.comparison == nil }
         XCTAssertNil(model.playingTakeID)
         XCTAssertEqual(model.playhead, fixture.region.start, accuracy: 1e-9)
@@ -165,7 +165,7 @@ final class CompareViewModelTests: XCTestCase {
         XCTAssertEqual(model.activeTake?.id, selectedBefore, "Compare must not change selection")
         XCTAssertEqual(model.region, regionBefore, "Compare must not change selection region")
         XCTAssertEqual(model.loopEnabled, loopBefore, "Compare must not touch loop")
-        // Playhead may move for the compare step itself; stop restores the prior playhead.
+        XCTAssertEqual(model.playhead, playheadBefore, accuracy: 1e-9, "Compare freezes the playhead")
         let commandsBeforeStop = await fixture.audio.commands.count
         model.compare() // stop
         XCTAssertNil(model.comparison)
@@ -218,7 +218,7 @@ final class CompareViewModelTests: XCTestCase {
         model.compare()
         XCTAssertNotNil(model.comparison)
         let commandsBeforeFinish = await fixture.audio.commands.count
-        await fixture.audio.emit(.playbackFinished)
+        await fixture.audio.emit(.segmentFinished)
         await M9TestSupport.waitUntil { model.comparison == nil }
         XCTAssertEqual(model.playhead, 7.25, accuracy: 1e-9)
         await M9TestSupport.waitUntilAsync {
@@ -318,7 +318,7 @@ final class CompareViewModelTests: XCTestCase {
         await M9TestSupport.waitUntil { model.isPlaying }
 
         // Finish synchronously on MainActor so restore gating is still active before any await.
-        model.receive(.playbackFinished)
+        model.receive(.segmentFinished)
         XCTAssertNil(model.comparison)
         XCTAssertEqual(model.playhead, 7.25, accuracy: 1e-9)
         model.receive(.playheadChanged(take.duration))
