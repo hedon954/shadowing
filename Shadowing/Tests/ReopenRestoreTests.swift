@@ -118,4 +118,80 @@ final class ReopenRestoreTests: XCTestCase {
         XCTAssertEqual(reopened.timelineViewport, TimelineViewport(start: 60, duration: 10, sourceDuration: 129))
         await reopened.close()
     }
+
+    // MARK: - Loop (no take): restored exactly as left, never turned on, never moves the playhead
+
+    /// Drag-selected 0:36–0:44, then clicked at 1:20 (which turned the loop off).
+    func testLoopLeftOffWithThePlayheadOutsideTheSelectionComesBackThere() async throws {
+        let fixture = try await M7TestSupport.makeHydrateFixture(
+            testCase: self, duration: 129, region: 36 ... 44, playhead: 80, visibleRange: 70 ... 90,
+            selectsTake: false, loopEnabled: false
+        )
+        let model = fixture.viewModel
+        model.start()
+        await M7TestSupport.waitForCommand(.seek(80), audio: fixture.audio)
+
+        XCTAssertEqual(model.playhead, 80, accuracy: 1e-9, "not moved to the selection start")
+        XCTAssertFalse(model.loopEnabled, "opening never turns the loop on")
+        XCTAssertEqual(model.region, fixture.region, "the selection stays")
+        XCTAssertEqual(model.timelineViewport, TimelineViewport(start: 70, duration: 20, sourceDuration: 129))
+        let commands = await fixture.audio.commands
+        XCTAssertFalse(commands.contains {
+            if case .setLoop = $0 {
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    func testLoopLeftOffInsideTheSelectionStaysOff() async throws {
+        let fixture = try await M7TestSupport.makeHydrateFixture(
+            testCase: self, duration: 129, region: 36 ... 44, playhead: 40, selectsTake: false, loopEnabled: false
+        )
+        let model = fixture.viewModel
+        model.start()
+        await M7TestSupport.waitForCommand(.seek(40), audio: fixture.audio)
+        XCTAssertFalse(model.loopEnabled)
+        XCTAssertEqual(model.playhead, 40, accuracy: 1e-9)
+    }
+
+    func testLoopLeftOnComesBackOnAtTheSavedPlayhead() async throws {
+        let fixture = try await M7TestSupport.makeHydrateFixture(
+            testCase: self, duration: 129, region: 36 ... 44, playhead: 41, selectsTake: false, loopEnabled: true
+        )
+        let model = fixture.viewModel
+        model.start()
+        await M7TestSupport.waitForCommand(.seek(41), audio: fixture.audio)
+        XCTAssertTrue(model.loopEnabled)
+        XCTAssertEqual(model.playhead, 41, accuracy: 1e-9)
+        let commands = await fixture.audio.commands
+        XCTAssertEqual(Array(commands.suffix(2)), [.setLoop(fixture.region), .seek(41)])
+    }
+
+    /// Only old data can say "loop on" with the playhead outside: the playhead wins.
+    func testLoopSavedOnButPlayheadOutsideKeepsThePlayheadAndLeavesLoopOff() async throws {
+        let fixture = try await M7TestSupport.makeHydrateFixture(
+            testCase: self, duration: 129, region: 36 ... 44, playhead: 80, selectsTake: false, loopEnabled: true
+        )
+        let model = fixture.viewModel
+        model.start()
+        await M7TestSupport.waitForCommand(.seek(80), audio: fixture.audio)
+        XCTAssertEqual(model.playhead, 80, accuracy: 1e-9)
+        XCTAssertFalse(model.loopEnabled)
+    }
+
+    /// The loop state is saved with the project, so the next open sees it.
+    func testLoopStateIsSavedOnClose() async throws {
+        let fixture = try await M7TestSupport.makeHydrateFixture(
+            testCase: self, duration: 129, region: 36 ... 44, playhead: 40, selectsTake: false, loopEnabled: true
+        )
+        let model = fixture.viewModel
+        model.start()
+        await M7TestSupport.waitForCommand(.seek(40), audio: fixture.audio)
+        model.setLoopEnabled(false)
+        await model.close()
+        let saved = try await fixture.projects.project(id: fixture.projectID)
+        XCTAssertEqual(saved?.loopEnabled, false)
+    }
 }

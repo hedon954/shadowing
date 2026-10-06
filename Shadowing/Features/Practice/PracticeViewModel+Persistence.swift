@@ -117,8 +117,8 @@ extension PracticeViewModel {
     func syncProjectSnapshot() {
         project.playhead = min(max(playhead, 0), project.duration)
         project.playbackRate = rate
-        project.loopEnabled = loopEnabled
-        if restoredTimelineViewport {
+        if restoredSession {
+            project.loopEnabled = loopEnabled
             project.saveTimelineViewport(timelineViewport)
         }
     }
@@ -126,7 +126,7 @@ extension PracticeViewModel {
     /// Zoom and pan are saved (debounced, with the playhead) so a reopened project shows the
     /// same part of the waveform. Before hydrate has restored the saved range nothing is saved.
     func timelineViewportDidChange(from oldValue: TimelineViewport) {
-        guard restoredTimelineViewport, !hasClosed, timelineViewport != oldValue else {
+        guard restoredSession, !hasClosed, timelineViewport != oldValue else {
             return
         }
         schedulePlayheadPersist()
@@ -172,9 +172,9 @@ extension PracticeViewModel {
         subtitles.load(script: subtitleScript)
         await refreshTakes()
         await preloadTakeWaveforms()
-        // Reopening puts back where the user was: the saved playhead (`playhead` starts there;
-        // a seek made while hydrating wins) and visible range. A selected take stays selected
-        // (and its region), but does not move the playhead.
+        // Reopening puts back exactly what the user left: the saved playhead (`playhead` starts
+        // there; a seek made while hydrating wins), loop on/off, and the visible range. A
+        // selected take stays selected (and its region) but does not move the playhead.
         let position = min(max(playhead, 0), project.duration)
         playhead = position
         let take = restoredSelectedTake()
@@ -182,16 +182,27 @@ extension PracticeViewModel {
             activeTake = take
             project.selectedTakeID = take.id
             updateRegionNoticeForHydratedTake(take)
-        } else if project.currentRegion != nil {
-            loopEnabled = true
         }
+        let loopRegion = Self.restoredLoopRegion(for: project, playhead: position)
+        loopEnabled = loopRegion != nil
         restoreTimelineViewport(focus: take?.region)
-        performVoidCommand { [audioClient, region = take == nil ? project.currentRegion : nil] in
-            if let region {
-                try await audioClient.execute(.setLoop(region))
+        performVoidCommand { [audioClient] in
+            if let loopRegion {
+                try await audioClient.execute(.setLoop(loopRegion))
             }
             try await audioClient.execute(.seek(position))
         }
+    }
+
+    /// The loop to restore: the saved one, never one turned on by opening. The engine keeps a
+    /// looping playhead inside the region, so a loop saved on with the playhead outside it
+    /// (only possible from old data) stays off: the playhead never moves for the loop, the same
+    /// as clicking outside the selection turns the loop off.
+    static func restoredLoopRegion(for project: AudioProject, playhead: TimeInterval) -> PracticeRegion? {
+        guard project.loopEnabled, let region = project.currentRegion, region.start ..< region.end ~= playhead else {
+            return nil
+        }
+        return region
     }
 
     /// The saved visible range, exactly; without one (older projects) the selected take's
@@ -213,7 +224,7 @@ extension PracticeViewModel {
         } else {
             revealPlayhead()
         }
-        restoredTimelineViewport = true
+        restoredSession = true
     }
 
     func attachScript() {

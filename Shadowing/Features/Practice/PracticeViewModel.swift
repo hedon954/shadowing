@@ -172,8 +172,8 @@ final class PracticeViewModel: ObservableObject {
     var recordingTimelineRate: Double = 1
     private var hasStarted = false
     var hasClosed = false
-    /// Set once hydrate applied the saved visible range; from then on changes to it are saved.
-    var restoredTimelineViewport = false
+    /// Set once hydrate restored the saved loop state and visible range; only then are they saved.
+    var restoredSession = false
     var playheadPersistTask: Task<Void, Never>?
     var leaveAfterFinalize: (@MainActor () -> Void)?
     /// Tests can shorten this; production uses a short debounce for playhead writes.

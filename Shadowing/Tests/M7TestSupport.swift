@@ -10,7 +10,8 @@ enum M7TestSupport {
         region range: ClosedRange<TimeInterval> = 3 ... 8,
         playhead: TimeInterval = 12,
         visibleRange: ClosedRange<TimeInterval>? = nil,
-        selectsTake: Bool = true
+        selectsTake: Bool = true,
+        loopEnabled: Bool = false
     ) async throws -> M7HydrateFixture {
         let storage = InMemoryPersistence()
         let projects = InMemoryProjectRepository(storage: storage)
@@ -21,7 +22,8 @@ enum M7TestSupport {
             region: region,
             playhead: playhead,
             visibleRange: visibleRange,
-            selectsTake: selectsTake
+            selectsTake: selectsTake,
+            loopEnabled: loopEnabled
         )
         let projectID = project.id
         let audio = PracticeAudioClientSpy()
@@ -67,7 +69,8 @@ enum M7TestSupport {
         region: PracticeRegion,
         playhead: TimeInterval,
         visibleRange: ClosedRange<TimeInterval>?,
-        selectsTake: Bool
+        selectsTake: Bool,
+        loopEnabled: Bool = false
     ) throws -> (AudioProject, Take) {
         let projectID = UUID()
         let take = try Take(
@@ -90,6 +93,7 @@ enum M7TestSupport {
             keptTakeID: nil,
             lastOpenedAt: Date(timeIntervalSince1970: 100),
             playbackRate: 0.75,
+            loopEnabled: loopEnabled,
             viewportStart: visibleRange?.lowerBound,
             viewportDuration: visibleRange.map { $0.upperBound - $0.lowerBound }
         )
