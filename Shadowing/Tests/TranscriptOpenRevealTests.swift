@@ -65,13 +65,40 @@ final class TranscriptOpenRevealTests: XCTestCase {
         XCTAssertFalse(model.isPlaying)
     }
 
+    func testScrollIDsAreUniqueAndTyped() {
+        let transcript = SubtitleTranscript(cues: cues)
+        let ids = transcript.scrollIDs
+        XCTAssertEqual(Set(ids).count, ids.count, "no two rows share a scroll id")
+        XCTAssertEqual(ids.compactMap(\.sentenceIndex), Array(cues.indices))
+        XCTAssertGreaterThan(transcript.paragraphs.count, 8, "paragraph indices overlap sentence indices")
+        XCTAssertNotEqual(TranscriptRowID.paragraph(8), TranscriptRowID.sentence(8))
+    }
+
     /// Real window: the highlighted band of a sentence far down the list ends up on screen,
     /// in the upper half, instead of the panel showing the end (or the start) of the list.
     func testAppearingScrollsTheCurrentSentenceIntoTheUpperThird() async throws {
+        let middle = try await renderedBandMiddle(current: 17)
+        XCTAssertGreaterThan(middle, 0.1)
+        XCTAssertLessThan(middle, 0.6, "the current sentence sits about a third from the top")
+    }
+
+    /// Sentence 8 shares its number with paragraph 8 near the end. Opening twice in a row
+    /// must land on the sentence both times.
+    func testSentenceWhoseIndexIsAlsoAParagraphIndexLandsOnTheSentenceEveryOpen() async throws {
+        for _ in 0 ..< 2 {
+            let middle = try await renderedBandMiddle(current: 8)
+            XCTAssertGreaterThan(middle, 0.1)
+            XCTAssertLessThan(middle, 0.6, "the current sentence sits about a third from the top")
+        }
+    }
+
+    /// Opens the transcript in a fresh off-screen window and returns where the current band's
+    /// middle is, as a fraction of the height from the top.
+    private func renderedBandMiddle(current: Int) async throws -> Double {
         let size = CGSize(width: 300, height: 240)
         let view = SubtitleTranscriptView(
             transcript: SubtitleTranscript(cues: cues),
-            current: 17,
+            current: current,
             revealToken: 1,
             autoFollows: { true },
             onUserScroll: {},
@@ -99,11 +126,8 @@ final class TranscriptOpenRevealTests: XCTestCase {
         hosting.layoutSubtreeIfNeeded()
         let rep = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
         hosting.cacheDisplay(in: hosting.bounds, to: rep)
-
         let rows = try XCTUnwrap(Self.accentRows(in: XCTUnwrap(rep.cgImage)), "the current band is visible")
-        let middle = Double(rows.lowerBound + rows.upperBound) / 2 / Double(rep.pixelsHigh)
-        XCTAssertGreaterThan(middle, 0.1)
-        XCTAssertLessThan(middle, 0.6, "the current sentence sits about a third from the top")
+        return Double(rows.lowerBound + rows.upperBound) / 2 / Double(rep.pixelsHigh)
     }
 
     /// Top and bottom pixel rows of the accent-tinted band (blue clearly above red).

@@ -124,3 +124,36 @@ enum SubtitleSourcePicker {
         return sources.first { $0.kind == active }?.displayName
     }
 }
+
+/// Scroll ids in the full transcript. Typed, so a sentence id never equals a paragraph id:
+/// with plain `Int`s on both, `scrollTo(8)` could land on paragraph 8 near the end of the list.
+enum TranscriptRowID: Hashable, Sendable {
+    case paragraph(Int)
+    case sentence(Int)
+
+    var sentenceIndex: Int? {
+        if case let .sentence(index) = self {
+            return index
+        }
+        return nil
+    }
+}
+
+/// One paragraph of the transcript with its typed ids.
+struct TranscriptParagraphRows: Identifiable, Equatable, Sendable {
+    let id: TranscriptRowID
+    let sentenceIDs: [TranscriptRowID]
+}
+
+extension SubtitleTranscript {
+    var paragraphRows: [TranscriptParagraphRows] {
+        paragraphs.enumerated().map { offset, range in
+            TranscriptParagraphRows(id: .paragraph(offset), sentenceIDs: range.map { .sentence($0) })
+        }
+    }
+
+    /// Every id the transcript's scroll view uses, paragraphs and sentences, in order.
+    var scrollIDs: [TranscriptRowID] {
+        paragraphRows.flatMap { [$0.id] + $0.sentenceIDs }
+    }
+}

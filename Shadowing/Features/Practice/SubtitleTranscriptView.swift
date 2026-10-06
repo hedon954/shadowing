@@ -38,9 +38,11 @@ struct SubtitleTranscriptView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 13) {
-                    ForEach(Array(transcript.paragraphs.enumerated()), id: \.offset) { _, range in
+                    // Typed ids only (`TranscriptRowID`): paragraph and sentence ids never clash.
+                    ForEach(transcript.paragraphRows) { paragraph in
                         VStack(alignment: .leading, spacing: 2) {
-                            ForEach(Array(range), id: \.self) { index in
+                            ForEach(paragraph.sentenceIDs, id: \.self) { rowID in
+                                let index = rowID.sentenceIndex ?? 0
                                 TranscriptSentenceRow(
                                     cue: transcript.cues[index],
                                     cueIndex: index,
@@ -49,7 +51,7 @@ struct SubtitleTranscriptView: View {
                                     reduceMotion: reduceMotion,
                                     onSeek: onSeek
                                 )
-                                .id(index)
+                                .id(rowID)
                             }
                         }
                     }
@@ -66,7 +68,7 @@ struct SubtitleTranscriptView: View {
             .task(id: RevealRequest(token: revealToken, cueCount: transcript.cues.count)) {
                 await Task.yield()
                 if let target = SubtitleTimeline.revealIndex(current: current, cueCount: transcript.cues.count) {
-                    proxy.scrollTo(target, anchor: Self.scrollAnchor)
+                    proxy.scrollTo(TranscriptRowID.sentence(target), anchor: Self.scrollAnchor)
                 }
             }
             .onChange(of: current) { _, index in
@@ -74,10 +76,10 @@ struct SubtitleTranscriptView: View {
                     return
                 }
                 if reduceMotion {
-                    proxy.scrollTo(index, anchor: Self.scrollAnchor)
+                    proxy.scrollTo(TranscriptRowID.sentence(index), anchor: Self.scrollAnchor)
                 } else {
                     withAnimation(.easeInOut(duration: TranscriptLineEmphasis.bandAnimationDuration)) {
-                        proxy.scrollTo(index, anchor: Self.scrollAnchor)
+                        proxy.scrollTo(TranscriptRowID.sentence(index), anchor: Self.scrollAnchor)
                     }
                 }
             }
