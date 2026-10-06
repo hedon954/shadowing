@@ -456,6 +456,8 @@ extension PracticeViewModel {
         loopEnabled = enabled
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.setLoop(enabled ? region : nil))
+        } completion: { [weak self] in
+            self?.persistProjectImmediately() // saved at once: quitting may never close
         }
     }
 
