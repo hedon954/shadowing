@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 @testable import Shadowing
 import XCTest
 
@@ -42,6 +43,45 @@ final class SessionLoaderProjectFieldsTests: XCTestCase {
         XCTAssertEqual(reopened.selectedTakeID, original.selectedTakeID, file: file, line: line)
         XCTAssertEqual(reopened.keptTakeID, original.keptTakeID, file: file, line: line)
         XCTAssertEqual(reopened.playbackRate, original.playbackRate, file: file, line: line)
+        XCTAssertEqual(reopened.loopEnabled, original.loopEnabled, file: file, line: line)
+        XCTAssertEqual(reopened.viewportStart, original.viewportStart, file: file, line: line)
+        XCTAssertEqual(reopened.viewportDuration, original.viewportDuration, file: file, line: line)
+    }
+
+    /// The real open path on the real database: the saved zoom and loop state survive the
+    /// loader's rebuild-and-save, and the practice screen shows that zoom.
+    @MainActor
+    func testOpeningThroughTheLoaderKeepsTheSavedZoomInTheDatabaseAndOnScreen() async throws {
+        let database = try DatabaseQueue()
+        try AppDatabase.makeMigrator().migrate(database)
+        let projects = GRDBProjectRepository(database: database)
+        var project = try Self.storedProject()
+        project.viewportStart = 20
+        project.viewportDuration = 6
+        project.loopEnabled = false
+        try await projects.save(project)
+        let loader = Self.makeLoader(projects: projects)
+
+        let prepared = try await loader.prepareExistingProject(id: project.id)
+        let savedOrNil = try await projects.project(id: project.id)
+        let saved = try XCTUnwrap(savedOrNil)
+        XCTAssertEqual(saved.viewportStart, 20, "the open must not wipe the saved zoom")
+        XCTAssertEqual(saved.viewportDuration, 6)
+        XCTAssertFalse(saved.loopEnabled)
+
+        let model = PracticeViewModel(
+            prepared: prepared,
+            audioClient: PracticeAudioClientSpy(),
+            projects: projects,
+            sessionPreparer: FixedSessionPreparer(prepared: prepared)
+        )
+        model.start()
+        await M7TestSupport.waitUntil { model.revealToken > 0 }
+        XCTAssertEqual(model.timelineViewport, TimelineViewport(start: 20, duration: 6, sourceDuration: 40))
+        await model.close()
+        let closed = try await projects.project(id: project.id)
+        XCTAssertEqual(closed?.viewportStart, 20)
+        XCTAssertEqual(closed?.viewportDuration, 6)
     }
 
     private func makeFixture() async throws -> Fixture {
@@ -58,7 +98,10 @@ final class SessionLoaderProjectFieldsTests: XCTestCase {
             keptTakeID: UUID(),
             lastOpenedAt: Date(timeIntervalSince1970: 10),
             playbackRate: 1.25,
-            scriptDisplayName: "speech.txt"
+            scriptDisplayName: "speech.txt",
+            loopEnabled: true,
+            viewportStart: 3,
+            viewportDuration: 9
         )
         try await projects.save(project)
         let loader = AudioProjectSessionLoader(
@@ -80,6 +123,38 @@ final class SessionLoaderProjectFieldsTests: XCTestCase {
             now: { Date(timeIntervalSince1970: 99) }
         )
         return Fixture(projects: projects, project: project, loader: loader)
+    }
+}
+
+private extension SessionLoaderProjectFieldsTests {
+    static func storedProject() throws -> AudioProject {
+        try AudioProject(
+            id: UUID(),
+            sourceDisplayName: "source.mp3",
+            sourceBookmark: Data([1]),
+            duration: 40,
+            playhead: 25,
+            currentRegion: PracticeRegion(start: 2, end: 7, sourceDuration: 40),
+            selectedTakeID: nil,
+            keptTakeID: nil,
+            lastOpenedAt: Date(timeIntervalSince1970: 10)
+        )
+    }
+
+    static func makeLoader(projects: any ProjectRepository) -> AudioProjectSessionLoader {
+        AudioProjectSessionLoader(
+            projects: projects,
+            bookmarks: M7BookmarkStore(
+                access: M7BookmarkAccess(
+                    resolvedBookmark: ResolvedBookmark(url: URL(fileURLWithPath: "/tmp/source.mp3"), isStale: false)
+                )
+            ),
+            validator: M7AcceptingValidator(),
+            metadataLoader: M7MetadataLoader(metadata: AudioAssetMetadata(displayName: "source.mp3", duration: 40)),
+            waveformService: M7WaveformPreparer(),
+            audioClient: PracticeAudioClientSpy(),
+            now: { Date(timeIntervalSince1970: 99) }
+        )
     }
 }
 

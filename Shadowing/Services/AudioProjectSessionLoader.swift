@@ -189,7 +189,10 @@ actor AudioProjectSessionLoader: PracticeSessionPreparing {
             keptTakeID: existing?.keptTakeID,
             lastOpenedAt: now(),
             playbackRate: defaultRate,
-            scriptDisplayName: existing?.scriptDisplayName
+            scriptDisplayName: existing?.scriptDisplayName,
+            loopEnabled: region == nil ? false : existing?.loopEnabled ?? false,
+            viewportStart: existing?.viewportStart,
+            viewportDuration: existing?.viewportDuration
         )
     }
 
