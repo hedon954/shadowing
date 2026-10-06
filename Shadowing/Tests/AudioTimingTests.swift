@@ -114,24 +114,27 @@ final class AudioTimingTests: XCTestCase {
         )
     }
 
-    func testPlaybackSegmentPlanRestartsOutsideRequestAtLoopStart() throws {
+    /// A loop never pulls the start into it: before the loop playback runs into it and then
+    /// repeats it; at or after its end there is nothing ahead to loop, so it runs to the end.
+    func testPlaybackSegmentPlanStartsWhereAskedOutsideTheLoop() throws {
         let scheduler = try RegionLoopScheduler(
             regionStartFrame: 1000,
             regionEndFrame: 4000,
             sourceSampleRate: 1000,
             playbackRate: 1
         )
+        let before = try PlaybackSegmentPlanner.plan(from: 200, sourceFrameCount: 10000, loopScheduler: scheduler)
+        XCTAssertEqual(before.initial, AudioSegment(startFrame: 200, frameCount: 3800))
+        XCTAssertEqual(before.repeated, AudioSegment(startFrame: 1000, frameCount: 3000))
 
-        for requestedFrame in [0, 4000, 9000] {
-            let plan = try PlaybackSegmentPlanner.plan(
-                from: Int64(requestedFrame),
+        for requestedFrame: Int64 in [4000, 9000] {
+            let after = try PlaybackSegmentPlanner.plan(
+                from: requestedFrame,
                 sourceFrameCount: 10000,
                 loopScheduler: scheduler
             )
-            XCTAssertEqual(
-                plan.initial,
-                AudioSegment(startFrame: 1000, frameCount: 3000)
-            )
+            XCTAssertEqual(after.initial, AudioSegment(startFrame: requestedFrame, frameCount: 10000 - requestedFrame))
+            XCTAssertNil(after.repeated)
         }
     }
 

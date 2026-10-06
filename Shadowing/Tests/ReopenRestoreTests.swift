@@ -169,16 +169,41 @@ final class ReopenRestoreTests: XCTestCase {
         XCTAssertEqual(Array(commands.suffix(2)), [.setLoop(fixture.region), .seek(41)])
     }
 
-    /// Only old data can say "loop on" with the playhead outside: the playhead wins.
-    func testLoopSavedOnButPlayheadOutsideKeepsThePlayheadAndLeavesLoopOff() async throws {
+    /// Designer rule: the saved on/off alone decides the loop, never the playhead's place.
+    /// Saved on with the playhead outside the selection: loop stays on, playhead stays put,
+    /// and Space plays from the playhead with the loop attached (the engine decides the rest:
+    /// before the selection it plays into it and loops, after it it plays on; see
+    /// `PracticeAudioEngineLoopTests`).
+    private func assertLoopOnComesBackWithThePlayheadAt(_ playhead: TimeInterval) async throws {
         let fixture = try await M7TestSupport.makeHydrateFixture(
-            testCase: self, duration: 129, region: 36 ... 44, playhead: 80, selectsTake: false, loopEnabled: true
+            testCase: self, duration: 129, region: 36 ... 44, playhead: playhead, selectsTake: false, loopEnabled: true
         )
         let model = fixture.viewModel
         model.start()
-        await M7TestSupport.waitForCommand(.seek(80), audio: fixture.audio)
-        XCTAssertEqual(model.playhead, 80, accuracy: 1e-9)
-        XCTAssertFalse(model.loopEnabled)
+        await M7TestSupport.waitForCommand(.seek(playhead), audio: fixture.audio)
+        XCTAssertTrue(model.loopEnabled, "saved on stays on at \(playhead)")
+        XCTAssertEqual(model.playhead, playhead, accuracy: 1e-9, "never moved for the loop")
+        let restore = await fixture.audio.commands
+        XCTAssertEqual(Array(restore.suffix(2)), [.setLoop(fixture.region), .seek(playhead)])
+
+        model.togglePlayback()
+        await M7TestSupport.waitForCommand(
+            .playOriginal(region: fixture.region, from: playhead, rate: model.rate),
+            audio: fixture.audio
+        )
+        XCTAssertEqual(model.playhead, playhead, accuracy: 1e-9, "Space does not jump to the selection")
+    }
+
+    func testLoopSavedOnWithThePlayheadBeforeTheSelectionStaysOnThere() async throws {
+        try await assertLoopOnComesBackWithThePlayheadAt(20)
+    }
+
+    func testLoopSavedOnWithThePlayheadAfterTheSelectionStaysOnThere() async throws {
+        try await assertLoopOnComesBackWithThePlayheadAt(80)
+    }
+
+    func testLoopSavedOnWithThePlayheadExactlyAtTheSelectionEndStaysOnThere() async throws {
+        try await assertLoopOnComesBackWithThePlayheadAt(44)
     }
 
     /// The loop state is saved with the project, so the next open sees it.

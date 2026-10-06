@@ -37,6 +37,7 @@ extension PracticeAudioEngine {
         }
         scheduledStartFrame = plan.initial.startFrame
         firstScheduledFrameCount = plan.initial.frameCount
+        scheduledLoops = plan.repeated != nil
         originalSegmentEndFrame = forcedEndFrame
         try scheduleSegment(
             file: sourceFile,
@@ -71,7 +72,7 @@ extension PracticeAudioEngine {
             startingFrame: startFrame,
             frameCount: AVAudioFrameCount(frameCount),
             at: nil,
-            completionCallbackType: .dataPlayedBack,
+            completionCallbackType: segmentCallbackType,
             completionHandler: { [weak self] _ in
                 guard let generation else {
                     return
@@ -97,7 +98,7 @@ extension PracticeAudioEngine {
             startingFrame: segment.startFrame,
             frameCount: AVAudioFrameCount(segment.frameCount),
             at: nil,
-            completionCallbackType: .dataPlayedBack,
+            completionCallbackType: segmentCallbackType,
             completionHandler: { [weak self] _ in
                 Self.hop(self) {
                     await $0.requeueLoopingSegment(
@@ -128,7 +129,7 @@ extension PracticeAudioEngine {
                 startingFrame: segment.startFrame,
                 frameCount: AVAudioFrameCount(segment.frameCount),
                 at: nil,
-                completionCallbackType: .dataPlayedBack,
+                completionCallbackType: segmentCallbackType,
                 completionHandler: { [weak self] _ in
                     Self.hop(self) {
                         await $0.requeueLoopingSegment(
@@ -153,7 +154,7 @@ extension PracticeAudioEngine {
             startingFrame: segment.startFrame,
             frameCount: AVAudioFrameCount(segment.frameCount),
             at: nil,
-            completionCallbackType: .dataPlayedBack,
+            completionCallbackType: segmentCallbackType,
             completionHandler: { [weak self] _ in
                 Self.hop(self) {
                     await $0.requeueLoopingSegment(
@@ -351,7 +352,7 @@ extension PracticeAudioEngine {
             startingFrame: startFrame,
             frameCount: AVAudioFrameCount(frameCount),
             at: nil,
-            completionCallbackType: .dataPlayedBack,
+            completionCallbackType: segmentCallbackType,
             completionHandler: { [weak self] _ in
                 guard let generation else {
                     return

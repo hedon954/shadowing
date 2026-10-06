@@ -20,6 +20,9 @@ actor PracticeAudioEngine: PracticeAudioClient {
     let takePlayer = AVAudioPlayerNode()
     let timePitch = AVAudioUnitTimePitch()
     let takeURLResolver: TakeURLResolver?
+    /// When a scheduled segment counts as done (track end, loop re-queue). Live that is when it
+    /// has been heard; offline there is no device, so it is when it has been rendered.
+    let segmentCallbackType: AVAudioPlayerNodeCompletionCallbackType
     /// Playback only. It never gets a microphone input: recording runs on a separate,
     /// throwaway input-only engine (see `MicrophoneInputGate` and `MicrophoneRecorder`).
     let engine = AVAudioEngine()
@@ -44,6 +47,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var originalSegmentEndFrame: Int64?
     var scheduledStartFrame: Int64 = 0
     var firstScheduledFrameCount: Int64 = 0
+    /// Whether the current original schedule repeats the loop after its first segment.
+    var scheduledLoops = false
     var scheduleGeneration: UInt64 = 0
     var takeScheduleGeneration: UInt64 = 0
     var isPlaying = false
@@ -62,10 +67,20 @@ actor PracticeAudioEngine: PracticeAudioClient {
 
     private init(
         takeURLResolver: TakeURLResolver?,
-        microphoneStatus: @escaping MicrophoneInputGate<MicrophoneRecorder>.StatusProvider
-    ) {
+        microphoneStatus: @escaping MicrophoneInputGate<MicrophoneRecorder>.StatusProvider,
+        offlineRenderingFormat: AVAudioFormat? = nil
+    ) throws {
         self.takeURLResolver = takeURLResolver
+        segmentCallbackType = offlineRenderingFormat == nil ? .dataPlayedBack : .dataRendered
         inputGate = MicrophoneInputGate(status: microphoneStatus, makeRecorder: MicrophoneRecorder.init)
+        if let offlineRenderingFormat {
+            // Before any node exists: the output node is then a render target, not a device.
+            try engine.enableManualRenderingMode(
+                .offline,
+                format: offlineRenderingFormat,
+                maximumFrameCount: 4096
+            )
+        }
         Self.connectPlaybackGraph(on: engine, player: player, takePlayer: takePlayer, timePitch: timePitch)
 
         // The playback engine only; each take's recorder watches its own input engine.
@@ -118,14 +133,11 @@ actor PracticeAudioEngine: PracticeAudioClient {
         }
     }
 
+    /// Keeps a position inside the file. A loop never moves it: a playhead outside the loop
+    /// stays where it is (seek, setLoop and play all go through here).
     func normalizedPlaybackFrame(_ requestedFrame: Int64) throws -> Int64 {
         guard let sourceInfo else {
             throw PracticeAudioEngineError.sourceNotLoaded
-        }
-        if let scheduler = try makeLoopScheduler() {
-            return scheduler.contains(requestedFrame)
-                ? requestedFrame
-                : scheduler.regionStartFrame
         }
         return min(max(requestedFrame, 0), max(sourceInfo.frameCount - 1, 0))
     }
@@ -139,7 +151,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
             return pausedFrame
         }
         let elapsedFrames = max(Int64(playerTime.sampleTime), 0)
-        guard let loopRegion, let sourceInfo else {
+        // Not looping this run (no loop, or started after the loop's end): a straight run.
+        guard let loopRegion, let sourceInfo, scheduledLoops else {
             return min(scheduledStartFrame + elapsedFrames, sourceInfo?.frameCount ?? 0)
         }
         let loopStart = Int64(
@@ -325,7 +338,51 @@ extension PracticeAudioEngine {
         guard !AppLaunchEnvironment.isRunningTests(environment: environment) else {
             throw PracticeAudioEngineConstructionError.unavailableUnderTests
         }
-        return PracticeAudioEngine(takeURLResolver: takeURLResolver, microphoneStatus: microphoneStatus)
+        return try PracticeAudioEngine(takeURLResolver: takeURLResolver, microphoneStatus: microphoneStatus)
+    }
+
+    /// The same engine rendering offline (AVAudioEngine manual rendering): no speakers, no
+    /// microphone, no audio device at all. Engine-level tests drive it with
+    /// `renderOffline(frames:)`, which plays exactly that much audio and returns it.
+    static func offlineRendering(
+        sampleRate: Double = 44100,
+        takeURLResolver: TakeURLResolver? = nil
+    ) throws -> PracticeAudioEngine {
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2) else {
+            throw PracticeAudioEngineError.audioEngineFailed("Unsupported offline format")
+        }
+        return try PracticeAudioEngine(
+            takeURLResolver: takeURLResolver,
+            microphoneStatus: { .denied },
+            offlineRenderingFormat: format
+        )
+    }
+
+    /// Offline only: renders `frames` output frames and returns their peak level.
+    func renderOffline(frames: AVAudioFrameCount) throws -> Float {
+        guard engine.isInManualRenderingMode,
+              let buffer = AVAudioPCMBuffer(
+                  pcmFormat: engine.manualRenderingFormat,
+                  frameCapacity: engine.manualRenderingMaximumFrameCount
+              )
+        else {
+            throw PracticeAudioEngineError.audioEngineFailed("Not rendering offline")
+        }
+        var remaining = frames
+        var peak: Float = 0
+        while remaining > 0 {
+            let chunk = min(remaining, buffer.frameCapacity)
+            guard try engine.renderOffline(chunk, to: buffer) == .success else {
+                throw PracticeAudioEngineError.audioEngineFailed("Offline render failed")
+            }
+            if let channel = buffer.floatChannelData?[0] {
+                for index in 0 ..< Int(buffer.frameLength) {
+                    peak = max(peak, abs(channel[index]))
+                }
+            }
+            remaining -= chunk
+        }
+        return peak
     }
 
     /// Original → time-pitch → mixer, and the take player straight into the mixer.

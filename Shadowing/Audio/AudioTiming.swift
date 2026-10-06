@@ -93,9 +93,16 @@ struct PlaybackSegmentPlanner: Sendable {
         guard loopScheduler.regionEndFrame <= sourceFrameCount else {
             throw AudioTimingError.invalidFrameRange
         }
-        let startFrame = loopScheduler.contains(requestedFrame)
-            ? requestedFrame
-            : loopScheduler.regionStartFrame
+        // Playback starts where the playhead is, never pulled into the loop (Designer rule).
+        // Before the loop it plays into it and loops from then on; at or after the loop's end
+        // there is nothing ahead to loop, so it plays on to the end of the file.
+        let startFrame = min(max(requestedFrame, 0), sourceFrameCount - 1)
+        guard startFrame < loopScheduler.regionEndFrame else {
+            return PlaybackSegmentPlan(
+                initial: AudioSegment(startFrame: startFrame, frameCount: sourceFrameCount - startFrame),
+                repeated: nil
+            )
+        }
         return PlaybackSegmentPlan(
             initial: AudioSegment(
                 startFrame: startFrame,

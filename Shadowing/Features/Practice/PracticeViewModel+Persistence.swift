@@ -183,7 +183,7 @@ extension PracticeViewModel {
             project.selectedTakeID = take.id
             updateRegionNoticeForHydratedTake(take)
         }
-        let loopRegion = Self.restoredLoopRegion(for: project, playhead: position)
+        let loopRegion = Self.restoredLoopRegion(for: project)
         loopEnabled = loopRegion != nil
         restoreTimelineViewport(focus: take?.region)
         performVoidCommand { [audioClient] in
@@ -194,15 +194,12 @@ extension PracticeViewModel {
         }
     }
 
-    /// The loop to restore: the saved one, never one turned on by opening. The engine keeps a
-    /// looping playhead inside the region, so a loop saved on with the playhead outside it
-    /// (only possible from old data) stays off: the playhead never moves for the loop, the same
-    /// as clicking outside the selection turns the loop off.
-    static func restoredLoopRegion(for project: AudioProject, playhead: TimeInterval) -> PracticeRegion? {
-        guard project.loopEnabled, let region = project.currentRegion, region.start ..< region.end ~= playhead else {
-            return nil
-        }
-        return region
+    /// The loop to restore: exactly the saved on/off (Designer rule), never decided by where
+    /// the playhead is. The engine never moves a playhead for the loop, so with the loop on and
+    /// the playhead outside the selection, Space plays from the playhead: before the selection
+    /// it plays into it and loops there; after it, it plays on to the end.
+    static func restoredLoopRegion(for project: AudioProject) -> PracticeRegion? {
+        project.loopEnabled ? project.currentRegion : nil
     }
 
     /// The saved visible range, exactly; without one (older projects) the selected take's
