@@ -16,11 +16,20 @@ concurrency:
 jobs:
   quality:
     name: Swift build, test, and quality gates
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          xcode_app="$(printf '%s\n' /Applications/Xcode_26*.app | grep -viE 'beta|release_candidate' | sort -V | tail -n 1)"
+          if [[ ! -d "$xcode_app" ]]; then
+            echo "No Xcode 26 found on this runner" >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_app/Contents/Developer"
 
       - name: Show toolchain
         run: xcodebuild -version

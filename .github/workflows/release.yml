@@ -11,13 +11,22 @@ permissions:
 jobs:
   build:
     name: Build and Release DMG
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Select Xcode 26
+        run: |
+          xcode_app="$(printf '%s\n' /Applications/Xcode_26*.app | grep -viE 'beta|release_candidate' | sort -V | tail -n 1)"
+          if [[ ! -d "$xcode_app" ]]; then
+            echo "No Xcode 26 found on this runner" >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_app/Contents/Developer"
 
       - name: Show toolchain
         run: xcodebuild -version
