@@ -74,4 +74,48 @@ final class ReopenRestoreTests: XCTestCase {
         XCTAssertEqual(saved?.playhead, 62)
         XCTAssertEqual(saved?.savedTimelineViewport, model.timelineViewport)
     }
+
+    /// Playback ticks no longer save the project. Switching to another project while playing
+    /// closes this practice, which must save the position and zoom at that moment so switching
+    /// back resumes there, even though the delayed save never ran.
+    func testSwitchingAwayWhilePlayingSavesThePositionAndZoomForSwitchingBack() async throws {
+        let fixture = try await M7TestSupport.makeHydrateFixture(
+            testCase: self, duration: 129, region: 27 ... 30, playhead: 62, visibleRange: 55 ... 70
+        )
+        let model = fixture.viewModel
+        model.playheadPersistDelay = .seconds(60)
+        model.start()
+        await M7TestSupport.waitUntil { model.revealToken > 0 }
+        model.togglePlayback()
+        await M7TestSupport.waitUntil { model.isPlaying }
+        for tick in 1 ... 30 {
+            await fixture.audio.emit(.playheadChanged(62 + Double(tick) * 0.1))
+        }
+        await M7TestSupport.waitUntil { abs(model.playhead - 65) < 1e-9 }
+        model.setTimelineViewport(TimelineViewport(start: 60, duration: 10, sourceDuration: 129))
+        let beforeSwitch = try await fixture.projects.project(id: fixture.projectID)
+        XCTAssertEqual(beforeSwitch?.playhead, 62, "ticks alone do not save")
+
+        await model.close() // what switching to another project runs first
+
+        let savedOrNil = try await fixture.projects.project(id: fixture.projectID)
+        let saved = try XCTUnwrap(savedOrNil)
+        XCTAssertEqual(saved.playhead, 65, accuracy: 1e-9)
+        XCTAssertEqual(saved.savedTimelineViewport, TimelineViewport(start: 60, duration: 10, sourceDuration: 129))
+
+        let reopened = PracticeViewModel(
+            prepared: PreparedPractice(
+                project: saved,
+                waveform: WaveformPresentation(peaks: [0.2, 0.5], warning: nil)
+            ),
+            audioClient: PracticeAudioClientSpy(),
+            projects: fixture.projects,
+            sessionPreparer: M7SessionPreparer()
+        )
+        reopened.start()
+        await M7TestSupport.waitUntil { reopened.revealToken > 0 }
+        XCTAssertEqual(reopened.playhead, 65, accuracy: 1e-9)
+        XCTAssertEqual(reopened.timelineViewport, TimelineViewport(start: 60, duration: 10, sourceDuration: 129))
+        await reopened.close()
+    }
 }
