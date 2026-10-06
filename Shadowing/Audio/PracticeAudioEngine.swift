@@ -214,9 +214,19 @@ actor PracticeAudioEngine: PracticeAudioClient {
                 guard !Task.isCancelled else {
                     return
                 }
-                await self?.publishPlayhead()
+                await self?.publishPlayheadTick()
             }
         }
+    }
+
+    /// A timer tick hops onto the engine after its cancellation check, so it can arrive after
+    /// a pause or a take's end: then it publishes nothing (after a take, `publishPlayhead`
+    /// would report the original's old paused position).
+    func publishPlayheadTick() {
+        guard !Task.isCancelled, isPlaying else {
+            return
+        }
+        publishPlayhead()
     }
 
     func publishPlayhead() {

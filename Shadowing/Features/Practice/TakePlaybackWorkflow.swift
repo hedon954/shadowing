@@ -160,6 +160,20 @@ extension PracticeViewModel {
         }
     }
 
+    /// Clears the playing take before its pause reaches the engine. Until then the engine may
+    /// still report the take's positions, in take time; with no take playing they would land
+    /// on the waveform as source time (near 0:00) and scroll it there. So the seek gate holds
+    /// the playhead where it is on screen until the pause is done. Returns that gate (nil
+    /// when no take was playing).
+    func stopTakeHoldingPlayhead() -> TimeInterval? {
+        guard playingTakeID != nil else {
+            return nil
+        }
+        playingTakeID = nil
+        pendingLocalSeek = playhead
+        return playhead
+    }
+
     /// Take-file time for a waveform time, with the take's offset, kept inside the file.
     func takeTime(_ take: Take, forSourceTime sourceTime: TimeInterval) -> TimeInterval {
         let local = RecordingAlignment.takeTime(

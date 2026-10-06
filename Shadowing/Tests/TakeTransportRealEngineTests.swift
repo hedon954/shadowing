@@ -109,4 +109,36 @@ final class TakeTransportRealEngineTests: XCTestCase {
         await M7TestSupport.waitUntil { model.playhead > Self.takeStart + 0.3 }
         XCTAssertEqual(model.playhead, Self.takeStart + 0.5, accuracy: 0.15, "from the take's start")
     }
+
+    func testPausingATakeLeavesThePlayheadWhereItStopped() async throws {
+        let fixture = try await makeFixture()
+        let model = fixture.model
+        await pressTakePlay(fixture)
+        try await render(fixture, seconds: 1.5)
+        await M7TestSupport.waitUntil { model.playhead > Self.takeStart + 1.3 }
+        let viewport = model.timelineViewport
+
+        model.toggleTakePlayback(fixture.take) // pause
+        await M7TestSupport.waitUntil { !model.isPlaying && model.pendingLocalSeek == nil }
+        let paused = model.playhead
+        try await Task.sleep(for: .milliseconds(120)) // any tick still on its way
+        XCTAssertGreaterThan(paused, Self.takeStart + 1.3, "on the take, not near 0:00")
+        XCTAssertEqual(model.playhead, paused, accuracy: 1e-9, "stays where it stopped")
+        XCTAssertEqual(model.timelineViewport, viewport, "no scroll")
+    }
+
+    /// A timer tick that reaches the engine after the pause publishes nothing; before, it
+    /// reported the original's old paused position.
+    func testATickArrivingAfterAPausePublishesNothing() async throws {
+        let fixture = try await makeFixture()
+        await pressTakePlay(fixture)
+        try await render(fixture, seconds: 1)
+        fixture.model.toggleTakePlayback(fixture.take)
+        await M7TestSupport.waitUntil { !fixture.model.isPlaying }
+        let before = fixture.model.playhead
+
+        await fixture.engine.publishPlayheadTick()
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(fixture.model.playhead, before, accuracy: 1e-9)
+    }
 }

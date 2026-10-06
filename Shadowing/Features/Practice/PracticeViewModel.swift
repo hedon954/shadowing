@@ -380,8 +380,8 @@ extension PracticeViewModel {
         guard isPlaying || playingTakeID != nil else {
             return
         }
-        playingTakeID = nil
-        performVoidCommand { [audioClient] in
+        let gate = stopTakeHoldingPlayhead()
+        performVoidCommand(seekGate: gate) { [audioClient] in
             try await audioClient.execute(.pause)
         } completion: { [weak self] in
             self?.isPlaying = false

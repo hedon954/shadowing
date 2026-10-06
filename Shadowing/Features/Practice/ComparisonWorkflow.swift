@@ -184,11 +184,11 @@ extension PracticeViewModel {
         }
         settleTakePlayheadsAfterPlaybackStopped() // the playback stops here, on screen
         let wasTake = playingTakeID != nil
-        playingTakeID = nil
+        let gate = stopTakeHoldingPlayhead()
         guard isPlaying || wasTake else {
             return
         }
-        performVoidCommand { [audioClient] in
+        performVoidCommand(seekGate: gate) { [audioClient] in
             try await audioClient.execute(.pause)
         } completion: { [weak self] in
             self?.isPlaying = false

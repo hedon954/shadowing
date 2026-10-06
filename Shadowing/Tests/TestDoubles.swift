@@ -217,6 +217,10 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
             holdsNextSeek = false
             await withCheckedContinuation { heldSeek = $0 }
         }
+        if case .pause = command, holdsNextPause {
+            holdsNextPause = false
+            await withCheckedContinuation { heldSeek = $0 }
+        }
         if case .playTake = command {
             if let failure = nextPlayTakeFailure {
                 nextPlayTakeFailure = nil
@@ -230,6 +234,13 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
     }
 
     private var holdsNextPlayTake = false
+    private var holdsNextPause = false
+
+    /// Like `holdNextSeek`, for the next `.pause` (released with `releaseHeldSeek()`).
+    func holdNextPause() {
+        holdsNextPause = true
+    }
+
     private var nextPlayTakeFailure: Error?
 
     /// Like `holdNextSeek`, for the next `.playTake` (released with `releaseHeldSeek()`).
