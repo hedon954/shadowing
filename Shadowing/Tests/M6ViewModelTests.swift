@@ -251,7 +251,9 @@ final class M6ViewModelTests: XCTestCase {
         XCTAssertLessThan(newest.displayOrder, existing.displayOrder)
     }
 
-    func testTakePlayButtonStartsFromTakeBeginning() async throws {
+    /// Designer rule: a take's play button starts from the playhead on screen when it is
+    /// inside the take (here 0.5 s in), not from the take's beginning.
+    func testTakePlayButtonStartsFromTheOnScreenPlayhead() async throws {
         let fixture = try await makeFixtureWithCommittedTake()
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
         fixture.viewModel.setLoopEnabled(false)
@@ -259,10 +261,10 @@ final class M6ViewModelTests: XCTestCase {
 
         fixture.viewModel.toggleTakePlayback(take)
         await M6TestSupport.waitForCommand(
-            .playTake(takeID: take.id, from: 0, loop: nil),
+            .playTake(takeID: take.id, from: 0.5, loop: nil),
             audio: fixture.audio
         )
-        XCTAssertEqual(fixture.viewModel.playhead, take.region.start)
+        XCTAssertEqual(fixture.viewModel.playhead, take.region.start + 0.5)
         XCTAssertEqual(fixture.viewModel.playingTakeID, take.id)
     }
 

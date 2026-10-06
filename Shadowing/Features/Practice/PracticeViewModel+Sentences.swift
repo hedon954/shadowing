@@ -76,6 +76,7 @@ extension PracticeViewModel {
         pauseTakePlaybackIfNeeded()
         playingTakeID = nil
         playhead = region.start
+        syncTakePlayheads(toSourceTime: region.start)
         performCommand { [audioClient, rate] in
             try await audioClient.execute(.playOriginalSegment(region: region, from: region.start, rate: rate))
             return true

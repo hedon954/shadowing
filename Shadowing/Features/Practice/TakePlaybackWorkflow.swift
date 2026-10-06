@@ -89,19 +89,18 @@ extension PracticeViewModel {
     /// playing from the click spot, like the original does. Any other case keeps the usual
     /// click rules (`seekTimeline`): a playing take on another lane stops and the playhead
     /// moves there, paused, so a click never starts a different sound; during Compare the
-    /// Compare rules apply unchanged. Either way the click becomes this take's playhead, so
-    /// its play button starts there.
+    /// Compare rules apply unchanged. Either way the click becomes the take's playhead (see
+    /// `syncTakePlayheads`), so its play button starts there.
     func seekTakeLane(_ take: Take, to sourceTime: TimeInterval) {
         guard comparison == nil, !controlsLocked else {
             seekTimeline(sourceTime)
             return
         }
-        let localFrom = takeTime(take, forSourceTime: sourceTime)
         guard playingTakeID == take.id, isPlaying else {
-            seekTimeline(sourceTime)
-            takePlayheads[take.id] = localFrom
+            seekTimeline(sourceTime) // also sets the takes' playheads there
             return
         }
+        let localFrom = takeTime(take, forSourceTime: sourceTime)
         // The take's loop selection stays, even for a click outside it, and the playhead goes
         // exactly where clicked: the engine plays into the loop from before it, or straight
         // on to the take's end from after it.
@@ -127,6 +126,18 @@ extension PracticeViewModel {
         let local = min(max(position, 0), max(take.duration, 0))
         takePlayheads[take.id] = local
         playhead = takeSourcePlayhead(take, forTakeTime: local)
+    }
+
+    /// The user moved the playhead to `sourceTime` (a click on any lane, a sentence, a take
+    /// row, a selection, a jump): every take whose span holds it takes that spot as its own
+    /// playhead; every other take loses its playhead, so its play button starts from its loop
+    /// start (or 0). Play always starts from the playhead on screen. Engine positions never
+    /// come here (only the playing take follows them, and only with the seek gate open).
+    func syncTakePlayheads(toSourceTime sourceTime: TimeInterval) {
+        for take in takes {
+            let inside = take.region.start ... take.region.end ~= sourceTime
+            takePlayheads[take.id] = inside ? takeTime(take, forSourceTime: sourceTime) : nil
+        }
     }
 
     /// Take-file time for a waveform time, with the take's offset, kept inside the file.
@@ -170,8 +181,9 @@ extension PracticeViewModel {
 
     /// Sets the take's playhead and the waveform playhead; returns the waveform target.
     private func moveTakePlayhead(_ take: Take, to local: TimeInterval) -> TimeInterval {
-        takePlayheads[take.id] = local
         let target = takeSourcePlayhead(take, forTakeTime: local)
+        syncTakePlayheads(toSourceTime: target)
+        takePlayheads[take.id] = local // exact, also where the offset puts it off the lane
         playhead = target
         project.playhead = target
         return target

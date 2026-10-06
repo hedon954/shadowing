@@ -393,6 +393,7 @@ extension PracticeViewModel {
         // plays into the loop from before it, or straight on from after it.
         let clamped = min(max(position, 0), project.duration)
         playhead = clamped
+        syncTakePlayheads(toSourceTime: clamped)
         pendingLocalSeek = clamped
         revealPlayhead()
         performVoidCommand(seekGate: clamped) { [audioClient] in
@@ -416,6 +417,7 @@ extension PracticeViewModel {
         let nextPlayhead = resumeInsideLoop ? playhead : region.start
         playhead = nextPlayhead
         project.playhead = nextPlayhead
+        syncTakePlayheads(toSourceTime: nextPlayhead)
         pendingLocalSeek = nextPlayhead
         // Released from a waveform drag: the release reveal aims at where playback continues
         // (this selection and its start), never at the playhead it is about to leave.

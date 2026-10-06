@@ -203,4 +203,67 @@ final class TakePlayButtonTests: XCTestCase {
         XCTAssertEqual(sent?.from ?? -1, 0.7, accuracy: 1e-9)
         XCTAssertEqual(model.playhead, take.region.start + 0.5, accuracy: 1e-9, "at the selection start")
     }
+
+    func testRowClickAfterALaneClickMakesPlayStartAtTheTakesStart() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        model.takeOffsets[take.id] = 0.2
+        await click(fixture, take, at: take.region.start + 1) // mid-take
+
+        model.selectTake(take) // the row: the playhead jumps to the take's start
+        await M9TestSupport.waitForCommand(.seek(take.region.start), audio: fixture.audio)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        let sent = await pressPlay(fixture, take)
+
+        XCTAssertEqual(sent?.from ?? -1, 0.2, accuracy: 1e-9, "the take's start, in take time with the offset")
+        XCTAssertEqual(model.playhead, take.region.start, accuracy: 1e-9)
+        await fixture.audio.emit(.playheadChanged(0.2))
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(model.playhead, take.region.start, accuracy: 1e-9, "no jump")
+    }
+
+    func testAnOriginalLaneOrSentenceClickInsideTheTakeMovesItsPlayheadThere() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        model.takeOffsets[take.id] = 0.2
+        await click(fixture, take, at: take.region.start + 0.3) // on the take's lane
+
+        model.seekTimeline(take.region.start + 1) // then on the original lane, inside the take
+        await M9TestSupport.waitForCommand(.seek(take.region.start + 1), audio: fixture.audio)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        let fromLane = await pressPlay(fixture, take)
+        XCTAssertEqual(fromLane?.from ?? -1, 1.2, accuracy: 1e-9, "where the playhead is, with the offset")
+        XCTAssertEqual(model.playhead, take.region.start + 1, accuracy: 1e-9)
+
+        model.toggleTakePlayback(take) // pause
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        model.seek(to: take.region.start + 0.6) // a sentence click
+        await M9TestSupport.waitForCommand(.seek(take.region.start + 0.6), audio: fixture.audio)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        let fromSentence = await pressPlay(fixture, take)
+        XCTAssertEqual(fromSentence?.from ?? -1, 0.8, accuracy: 1e-9)
+        XCTAssertEqual(model.playhead, take.region.start + 0.6, accuracy: 1e-9)
+    }
+
+    func testAClickOutsideTheTakeMakesPlayStartAtItsLoopStartOrZero() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        await click(fixture, take, at: take.region.start + 1.2)
+        model.seekTimeline(20) // outside the take
+        await M9TestSupport.waitForCommand(.seek(20), audio: fixture.audio)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        XCTAssertNil(model.takePlayheads[take.id])
+
+        let noLoop = await pressPlay(fixture, take)
+        XCTAssertEqual(noLoop?.from ?? -1, 0, accuracy: 1e-9, "no loop: from 0")
+
+        model.toggleTakePlayback(take) // pause
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        model.takeLoopSelections[take.id] = try loop(take)
+        await click(fixture, take, at: take.region.start + 1.2)
+        model.seekTimeline(20)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil && model.takePlayheads[take.id] == nil }
+        let withLoop = await pressPlay(fixture, take)
+        XCTAssertEqual(withLoop?.from ?? -1, 0.5, accuracy: 1e-9, "with a loop: from its start")
+    }
 }

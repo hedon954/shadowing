@@ -74,9 +74,11 @@ extension PracticeViewModel {
         // Mirror the take interval on the waveform selection without turning loop on.
         project.currentRegion = take.region
         let shouldUpdateLoop = loopEnabled
-        // Always force the playhead to the take start (Designer: click take → jump).
+        // Always force the playhead to the take start (Designer: click take → jump); the takes'
+        // own playheads follow it, so the play button starts where the screen shows.
         playhead = take.region.start
         project.playhead = take.region.start
+        syncTakePlayheads(toSourceTime: take.region.start)
         revealPlayhead(focus: take.region)
         performVoidCommand { [audioClient] in
             if shouldUpdateLoop {
