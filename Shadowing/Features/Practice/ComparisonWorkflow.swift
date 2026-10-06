@@ -229,12 +229,44 @@ extension PracticeViewModel {
         }
     }
 
+    /// A single click on a take lane (Designer rule). While this same take plays it keeps
+    /// playing from the click spot, like the original does. Any other case keeps the usual
+    /// click rules (`seekTimeline`): a playing take on another lane stops and the playhead
+    /// moves there, paused, so a click never starts a different sound; during Compare the
+    /// Compare rules apply unchanged.
+    func seekTakeLane(_ take: Take, to sourceTime: TimeInterval) {
+        guard comparison == nil, !controlsLocked, playingTakeID == take.id, isPlaying else {
+            seekTimeline(sourceTime)
+            return
+        }
+        // Like the original: clicking outside the take's loop selection drops the loop.
+        if let selection = takeLoopSelections[take.id], !(selection.start ..< selection.end ~= sourceTime) {
+            takeLoopSelections[take.id] = nil
+        }
+        let localLoop = takeLoopSelections[take.id].flatMap { selection in
+            TakePlaybackTiming.localLoopRegion(selection: selection, takeRegion: take.region)
+        }
+        let localFrom = takeLocalPlaybackPosition(take: take, localLoop: localLoop, at: sourceTime)
+        playhead = take.region.start + localFrom
+        project.playhead = playhead
+        performCommand { [audioClient] in
+            try await audioClient.execute(.playTake(takeID: take.id, from: localFrom, loop: localLoop))
+            return true
+        } completion: { [weak self] playing in
+            self?.isPlaying = playing
+            if !playing {
+                self?.playingTakeID = nil
+            }
+        }
+    }
+
     private func takeLocalPlaybackPosition(
         take: Take,
-        localLoop: PracticeRegion?
+        localLoop: PracticeRegion?,
+        at sourceTime: TimeInterval? = nil
     ) -> TimeInterval {
         let local = min(
-            max(playhead - take.region.start, 0),
+            max((sourceTime ?? playhead) - take.region.start, 0),
             max(take.duration, 0)
         )
         guard let localLoop else {

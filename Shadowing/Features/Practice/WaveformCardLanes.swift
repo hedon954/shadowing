@@ -59,7 +59,9 @@ struct AlignedTakeLane: View {
                 playhead: nil,
                 clock: viewModel.playheadClock,
                 isEnabled: !viewModel.controlsLocked,
-                onSeek: viewModel.seekTimeline,
+                onSeek: { time in
+                    viewModel.seekTakeLane(take, to: time)
+                },
                 onRegionChanged: { region in
                     viewModel.selectTakeLoopRegion(take, region)
                 },
