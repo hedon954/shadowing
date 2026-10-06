@@ -72,6 +72,7 @@ extension PracticeViewModel {
         // of them outlives this practice; the engine is paused below.
         cancelComparison()
         restoringPlayheadAfterComparison = nil
+        pendingLocalSeek = nil
         suspendPlayheadFollow = false
         deferredTimelineReveal = nil
         playingTakeID = nil

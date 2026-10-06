@@ -172,6 +172,14 @@ extension PracticeViewModel {
         }
     }
 
+    /// The engine applied the seek to `target`; its positions are current again. A newer seek
+    /// keeps its own gate.
+    func finishLocalSeek(_ target: TimeInterval) {
+        if pendingLocalSeek == target {
+            pendingLocalSeek = nil
+        }
+    }
+
     func performVoidCommand(
         _ operation: @escaping @Sendable () async throws -> Void,
         completion: @escaping @MainActor () -> Void = {}
@@ -219,6 +227,10 @@ extension PracticeViewModel {
     private func updatePlayhead(from position: TimeInterval) {
         // Compare owns the transport: the main playhead stays frozen until it is restored.
         if comparison != nil || restoringPlayheadAfterComparison != nil {
+            return
+        }
+        // A local seek is in flight: this position predates the jump.
+        if pendingLocalSeek != nil {
             return
         }
         if let take = currentlyPlayingTake() {
@@ -287,6 +299,7 @@ extension PracticeViewModel {
 
     private func handleAudioFailure(_ audioFailure: PracticeAudioFailure) {
         isPlaying = false
+        pendingLocalSeek = nil
         if audioFailure.operation == .recording {
             handleRecordingFailure(audioFailure, reason: .writeFailure)
         } else {

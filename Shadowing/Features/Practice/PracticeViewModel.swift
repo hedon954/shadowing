@@ -108,6 +108,10 @@ final class PracticeViewModel: ObservableObject {
     @Published var comparison: ComparisonPlayback?
     /// Non-nil while a post-Compare engine seek is in flight; ignore late playheadChanged.
     var restoringPlayheadAfterComparison: TimeInterval?
+    /// Non-nil while a seek this view model issued (click, selection) is not yet applied by the
+    /// engine: positions the engine reports meanwhile are from before the jump, and following
+    /// them panned the waveform back toward the old playhead (then again to the new one).
+    var pendingLocalSeek: TimeInterval?
     @Published var compareMode = CompareMode.originalThenMine
 
     let audioClient: any PracticeAudioClient
@@ -364,6 +368,7 @@ extension PracticeViewModel {
             loopEnabled = false
         }
         playhead = clamped
+        pendingLocalSeek = clamped
         revealPlayhead()
         performVoidCommand { [audioClient] in
             if disablesLoop {
@@ -371,6 +376,7 @@ extension PracticeViewModel {
             }
             try await audioClient.execute(.seek(clamped))
         } completion: { [weak self] in
+            self?.finishLocalSeek(clamped)
             self?.persistProjectImmediately()
         }
     }
@@ -389,10 +395,15 @@ extension PracticeViewModel {
         let nextPlayhead = resumeInsideLoop ? playhead : region.start
         playhead = nextPlayhead
         project.playhead = nextPlayhead
+        pendingLocalSeek = nextPlayhead
+        // Released from a waveform drag: the release reveal aims at where playback continues
+        // (this selection and its start), never at the playhead it is about to leave.
+        _ = deferTimelineMoveDuringGesture(focus: region)
         performVoidCommand { [audioClient] in
             try await audioClient.execute(.setLoop(region))
             try await audioClient.execute(.seek(nextPlayhead))
         } completion: { [weak self] in
+            self?.finishLocalSeek(nextPlayhead)
             self?.persistProjectImmediately()
         }
     }
