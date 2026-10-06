@@ -68,6 +68,12 @@ extension PracticeViewModel {
         finalizationTask?.cancel()
         appActivationTask?.cancel()
         appActivationTask = nil
+        // Leaving (e.g. switching project) ends Compare and every transport gate here, so none
+        // of them outlives this practice; the engine is paused below.
+        cancelComparison()
+        restoringPlayheadAfterComparison = nil
+        suspendPlayheadFollow = false
+        deferredTimelineReveal = nil
         playingTakeID = nil
         var closeError: Error?
         if case .countingDown = recordingPresentation {

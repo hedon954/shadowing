@@ -29,13 +29,13 @@ extension PracticeAudioEngine {
             if let takeEndFrame {
                 // A Compare take segment: take-local time must never reach the main playhead.
                 takePausedFrame = takeEndFrame
-                eventContinuation.yield(.segmentFinished)
+                eventHub.yield(.segmentFinished)
             } else {
                 if let takeInfo {
                     takePausedFrame = takeInfo.frameCount
-                    eventContinuation.yield(.playheadChanged(takeInfo.duration))
+                    eventHub.yield(.playheadChanged(takeInfo.duration))
                 }
-                eventContinuation.yield(.playbackFinished)
+                eventHub.yield(.playbackFinished)
             }
             takeEndFrame = nil
             // Return to the original timeline so later seeks use source time,
@@ -58,11 +58,11 @@ extension PracticeAudioEngine {
         pausedFrame = endFrame
         playbackTarget = .original
         if let sourceInfo, sourceInfo.sampleRate > 0 {
-            eventContinuation.yield(
+            eventHub.yield(
                 .playheadChanged(Double(endFrame) / sourceInfo.sampleRate)
             )
         }
-        eventContinuation.yield(.playbackFinished)
+        eventHub.yield(.playbackFinished)
     }
 
     private func finishOriginalPlayback() async {
@@ -72,7 +72,7 @@ extension PracticeAudioEngine {
             do {
                 try await finishRecording(reason: .regionEnd)
             } catch {
-                eventContinuation.yield(
+                eventHub.yield(
                     .failed(
                         PracticeAudioFailure(
                             operation: .recording,
@@ -88,15 +88,15 @@ extension PracticeAudioEngine {
             originalSegmentEndFrame = nil
             pausedFrame = segmentEnd
             if let sourceInfo, sourceInfo.sampleRate > 0 {
-                eventContinuation.yield(.playheadChanged(Double(segmentEnd) / sourceInfo.sampleRate))
+                eventHub.yield(.playheadChanged(Double(segmentEnd) / sourceInfo.sampleRate))
             }
-            eventContinuation.yield(.segmentFinished)
+            eventHub.yield(.segmentFinished)
             return
         }
         if let sourceInfo {
             pausedFrame = sourceInfo.frameCount
-            eventContinuation.yield(.playheadChanged(sourceInfo.duration))
+            eventHub.yield(.playheadChanged(sourceInfo.duration))
         }
-        eventContinuation.yield(.playbackFinished)
+        eventHub.yield(.playbackFinished)
     }
 }

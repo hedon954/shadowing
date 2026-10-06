@@ -21,7 +21,7 @@ extension PracticeAudioEngine {
                 try await executeTransport(command)
             }
         } catch {
-            eventContinuation.yield(
+            eventHub.yield(
                 .failed(
                     PracticeAudioFailure(
                         operation: operation(for: command),
@@ -59,12 +59,15 @@ extension PracticeAudioEngine {
         originalSourceURL = sourceURL
         pausedFrame = 0
         loopRegion = nil
+        // A new source starts with no segment end or take window left over from Compare.
+        originalSegmentEndFrame = nil
+        takeEndFrame = nil
         playbackTarget = .original
         // Never touch the microphone here, even with access granted: an engine with an input
         // keeps the microphone in use on every start. Only `startRecording` creates the input.
         engine.prepare()
-        eventContinuation.yield(.sourceLoaded(info))
-        eventContinuation.yield(.playheadChanged(0))
+        eventHub.yield(.sourceLoaded(info))
+        eventHub.yield(.playheadChanged(0))
         return info
     }
 

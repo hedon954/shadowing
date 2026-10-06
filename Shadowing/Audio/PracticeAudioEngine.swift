@@ -25,8 +25,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
     let engine = AVAudioEngine()
     /// Hands out one fresh microphone recorder per take, only once access is granted.
     let inputGate: MicrophoneInputGate<MicrophoneRecorder>
-    private let events: AsyncStream<PracticeAudioEvent>
-    let eventContinuation: AsyncStream<PracticeAudioEvent>.Continuation
+    /// One stream per subscriber (see `PracticeAudioEventHub`).
+    let eventHub = PracticeAudioEventHub()
 
     var sourceFile: AVAudioFile?
     var sourceInfo: LoadedAudioSource?
@@ -65,11 +65,6 @@ actor PracticeAudioEngine: PracticeAudioClient {
         microphoneStatus: @escaping MicrophoneInputGate<MicrophoneRecorder>.StatusProvider
     ) {
         self.takeURLResolver = takeURLResolver
-        let pair = AsyncStream<PracticeAudioEvent>.makeStream(
-            bufferingPolicy: .bufferingNewest(256)
-        )
-        events = pair.stream
-        eventContinuation = pair.continuation
         inputGate = MicrophoneInputGate(status: microphoneStatus, makeRecorder: MicrophoneRecorder.init)
         Self.connectPlaybackGraph(on: engine, player: player, takePlayer: takePlayer, timePitch: timePitch)
 
@@ -98,7 +93,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
         playheadTask?.cancel()
         recordingPeakTask?.cancel()
         firstAudioWatchdog?.cancel()
-        eventContinuation.finish()
+        eventHub.finish()
         for token in notificationTokens {
             NotificationCenter.default.removeObserver(token)
         }
@@ -108,7 +103,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
     }
 
     func eventStream() async -> AsyncStream<PracticeAudioEvent> {
-        events
+        eventHub.makeStream()
     }
 
     func ensureEngineRunning() throws {
@@ -215,16 +210,16 @@ actor PracticeAudioEngine: PracticeAudioClient {
                 return
             }
             let position = Double(currentTakeFrame()) / takeInfo.sampleRate
-            eventContinuation.yield(.playheadChanged(position))
+            eventHub.yield(.playheadChanged(position))
         case .original, .together:
             guard let sourceInfo else {
                 return
             }
             let position = Double(currentSourceFrame()) / sourceInfo.sampleRate
-            eventContinuation.yield(.playheadChanged(position))
+            eventHub.yield(.playheadChanged(position))
             if let recordingContext {
                 let progress = max(position - recordingContext.region.start, 0) / playbackRate
-                eventContinuation.yield(.recordingProgress(progress))
+                eventHub.yield(.recordingProgress(progress))
             }
         }
     }
@@ -244,11 +239,11 @@ actor PracticeAudioEngine: PracticeAudioClient {
     private func handleEngineConfigurationChange() async {
         engine.stop()
         if recordingContext != nil {
-            eventContinuation.yield(.interrupted(.inputDeviceRemoved))
+            eventHub.yield(.interrupted(.inputDeviceRemoved))
             do {
                 try await finishRecording(reason: .inputDeviceRemoved)
             } catch {
-                eventContinuation.yield(
+                eventHub.yield(
                     .failed(
                         PracticeAudioFailure(
                             operation: .recording,
@@ -259,17 +254,17 @@ actor PracticeAudioEngine: PracticeAudioClient {
             }
         } else if isPlaying {
             pause()
-            eventContinuation.yield(.interrupted(.outputDeviceChanged))
+            eventHub.yield(.interrupted(.outputDeviceChanged))
         }
     }
 
     private func handleSystemInterruption() async {
-        eventContinuation.yield(.interrupted(.systemInterruption))
+        eventHub.yield(.interrupted(.systemInterruption))
         if recordingContext != nil {
             do {
                 try await finishRecording(reason: .systemInterruption)
             } catch {
-                eventContinuation.yield(
+                eventHub.yield(
                     .failed(
                         PracticeAudioFailure(
                             operation: .recording,

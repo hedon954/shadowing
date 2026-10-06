@@ -100,7 +100,7 @@ extension PracticeAudioEngine {
             await abortRecording()
             throw error
         }
-        eventContinuation.yield(.recordingStarted)
+        eventHub.yield(.recordingStarted)
         startFirstAudioWatchdog(for: take.pipeline)
     }
 
@@ -122,7 +122,7 @@ extension PracticeAudioEngine {
             return
         }
         await abortRecording()
-        eventContinuation.yield(.recordingNoAudio)
+        eventHub.yield(.recordingNoAudio)
     }
 
     /// The take's input engine changed configuration (device switch, sample rate): restart the
@@ -134,11 +134,11 @@ extension PracticeAudioEngine {
         if context.take.restartAfterConfigurationChange() {
             return
         }
-        eventContinuation.yield(.interrupted(.inputDeviceRemoved))
+        eventHub.yield(.interrupted(.inputDeviceRemoved))
         do {
             try await finishRecording(reason: .inputDeviceRemoved)
         } catch {
-            eventContinuation.yield(
+            eventHub.yield(
                 .failed(PracticeAudioFailure(operation: .recording, message: error.localizedDescription))
             )
         }
@@ -234,7 +234,7 @@ extension PracticeAudioEngine {
         }
         guard let result = finished else {
             // No audio at all: the file is gone and no take is saved.
-            eventContinuation.yield(.recordingNoAudio)
+            eventHub.yield(.recordingNoAudio)
             return
         }
         if result.droppedBufferCount > 0 {
@@ -245,9 +245,9 @@ extension PracticeAudioEngine {
             context.clock.offset(outputLatency: outputLatency, inputLatency: inputLatency)
         }
         if let offset {
-            eventContinuation.yield(.recordingAlignmentMeasured(offset))
+            eventHub.yield(.recordingAlignmentMeasured(offset))
         }
-        eventContinuation.yield(
+        eventHub.yield(
             .recordingFinished(
                 url: result.url,
                 duration: result.duration,
@@ -272,9 +272,9 @@ extension PracticeAudioEngine {
         guard recordingContext != nil else {
             return
         }
-        eventContinuation.yield(.recordingProgress(update.elapsed))
+        eventHub.yield(.recordingProgress(update.elapsed))
         if !update.points.isEmpty {
-            eventContinuation.yield(.recordingEnvelope(update.points))
+            eventHub.yield(.recordingEnvelope(update.points))
         }
         guard update.reachedLimit else {
             return
@@ -282,7 +282,7 @@ extension PracticeAudioEngine {
         do {
             try await finishRecording(reason: .regionEnd)
         } catch {
-            eventContinuation.yield(
+            eventHub.yield(
                 .failed(
                     PracticeAudioFailure(
                         operation: .recording,
