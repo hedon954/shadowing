@@ -126,7 +126,7 @@ extension PracticeViewModel {
     /// the take's own playhead.
     func takePlaybackProgressed(_ take: Take, to position: TimeInterval) {
         let local = min(max(position, 0), max(take.duration, 0))
-        takePlayheads[take.id] = local
+        takePlayheads[take.id] = keptTakePlayhead(take, local)
         playhead = takeSourcePlayhead(take, forTakeTime: local)
     }
 
@@ -137,8 +137,8 @@ extension PracticeViewModel {
     /// come here (only the playing take follows them, and only with the seek gate open).
     func syncTakePlayheads(toSourceTime sourceTime: TimeInterval) {
         for take in takes {
-            let inside = take.region.start ... take.region.end ~= sourceTime
-            takePlayheads[take.id] = inside ? takeTime(take, forSourceTime: sourceTime) : nil
+            let inside = take.region.start ..< take.region.end ~= sourceTime
+            takePlayheads[take.id] = inside ? keptTakePlayhead(take, takeTime(take, forSourceTime: sourceTime)) : nil
         }
     }
 
@@ -152,7 +152,7 @@ extension PracticeViewModel {
         let own = stopped.flatMap { takePlayheads[$0.id] }
         syncTakePlayheads(toSourceTime: pendingLocalSeek ?? playhead)
         if let stopped {
-            takePlayheads[stopped.id] = own
+            takePlayheads[stopped.id] = keptTakePlayhead(stopped, own)
         }
     }
 
@@ -189,7 +189,18 @@ extension PracticeViewModel {
 
     /// The take's own playhead, unless it has none yet or it is at the take's end.
     private func resumableTakePlayhead(_ take: Take) -> TimeInterval? {
-        guard let local = takePlayheads[take.id], local < take.duration - 0.001 else {
+        keptTakePlayhead(take, takePlayheads[take.id])
+    }
+
+    /// A take playhead less than this before the take's end (in the take's own time, after
+    /// the offset) counts as finished, so Play does not start a tiny blip at the end.
+    static let takeEndFinishThreshold: TimeInterval = 0.5
+
+    /// The one rule for every take playhead: `local` (take time) is kept unless it is less
+    /// than `takeEndFinishThreshold` before the take's end; then nil, so the take's Play
+    /// starts from its loop start (or 0). Same for any offset, as `local` already has it.
+    func keptTakePlayhead(_ take: Take, _ local: TimeInterval?) -> TimeInterval? {
+        guard let local, local < take.duration - Self.takeEndFinishThreshold else {
             return nil
         }
         return local
@@ -199,7 +210,7 @@ extension PracticeViewModel {
     private func moveTakePlayhead(_ take: Take, to local: TimeInterval) -> TimeInterval {
         let target = takeSourcePlayhead(take, forTakeTime: local)
         syncTakePlayheads(toSourceTime: target)
-        takePlayheads[take.id] = local // exact, also where the offset puts it off the lane
+        takePlayheads[take.id] = keptTakePlayhead(take, local) // exact, also off the lane
         playhead = target
         project.playhead = target
         return target

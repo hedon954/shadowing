@@ -112,7 +112,8 @@ enum M9TestSupport {
     static func makeFixtureWithCommittedTake(
         testCase: XCTestCase,
         scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler(),
-        measuredOffset: TimeInterval? = nil
+        measuredOffset: TimeInterval? = nil,
+        takeDuration: TimeInterval = 1.5
     ) async throws -> M9Fixture {
         let fixture = try await makeFixture(
             testCase: testCase,
@@ -127,7 +128,7 @@ enum M9TestSupport {
             await fixture.audio.emit(.recordingAlignmentMeasured(measuredOffset))
         }
         await fixture.audio.emit(
-            .recordingFinished(url: temporaryURL, duration: 1.5, reason: .manual)
+            .recordingFinished(url: temporaryURL, duration: takeDuration, reason: .manual)
         )
         await waitUntil {
             fixture.viewModel.isComparing

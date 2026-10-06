@@ -6,11 +6,12 @@ import XCTest
 /// lane, or where its playback got to). Only a take with no playhead yet, or whose last
 /// playback reached the end, starts from its loop start (or 0). Then the loop rule applies:
 /// before the loop it plays into it and loops; after it, straight on to the end.
-/// Fixture take: waveform 4…5.5 s, 1.5 s long; its loop selection here is 4.5…5 s.
+/// Fixture take: waveform 4…7 s, 3 s long (finished from 2.5 s on, see
+/// `takeEndFinishThreshold`); its loop selection here is 4.5…5 s.
 @MainActor
 final class TakePlayButtonTests: XCTestCase {
     private func takeFixture() async throws -> (M9Fixture, Take) {
-        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self, takeDuration: 3)
         return try (fixture, XCTUnwrap(fixture.viewModel.takes.first))
     }
 
@@ -330,11 +331,11 @@ final class TakePlayButtonTests: XCTestCase {
     // MARK: - A take paused or ended: the other takes follow the playhead on screen
 
     func testPausingATakeInsideAnotherTakeMakesItsPlayStartThere() async throws {
-        let (fixture, takeA) = try await takeFixture() // 4…5.5 s
+        let (fixture, takeA) = try await takeFixture() // 4…7 s
         let model = fixture.viewModel
         let takeB = try await M9TestSupport.commitAdditionalTake(
             fixture: fixture,
-            region: PracticeRegion(start: 4.5, end: 6, sourceDuration: 30),
+            region: PracticeRegion(start: 4.5, end: 8.5, sourceDuration: 30),
             sequence: takeA.sequence + 1,
             createdAt: Date()
         )
@@ -358,6 +359,6 @@ final class TakePlayButtonTests: XCTestCase {
         await M9TestSupport.waitUntil { !model.isPlaying }
         XCTAssertNil(model.takePlayheads[takeA.id], "A reached its end: it restarts from 0")
         let fromEnd = await pressPlay(fixture, takeB)
-        XCTAssertEqual(fromEnd?.from ?? -1, 1.1, accuracy: 1e-9, "A's end (5.5 s) in B's time")
+        XCTAssertEqual(fromEnd?.from ?? -1, 2.6, accuracy: 1e-9, "A's end (7 s) in B's time")
     }
 }
