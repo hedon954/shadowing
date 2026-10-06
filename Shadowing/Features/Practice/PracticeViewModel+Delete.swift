@@ -107,6 +107,7 @@ extension PracticeViewModel {
         takeOffsets[take.id] = nil
         takeWaveforms[take.id] = nil
         takeLoopSelections[take.id] = nil
+        takePlayheads[take.id] = nil
         if project.keptTakeID == take.id {
             project.keptTakeID = nil
         }

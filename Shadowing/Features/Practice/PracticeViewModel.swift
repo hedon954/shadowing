@@ -91,6 +91,9 @@ final class PracticeViewModel: ObservableObject {
     /// Per-Take loop selections on the source timeline (independent of Original practice region).
     @Published var takeLoopSelections: [UUID: PracticeRegion] = [:]
     @Published var playingTakeID: UUID?
+    /// Each take's own playhead in take-file time (in memory). Missing: never played, or its
+    /// last playback reached the end. See `TakePlaybackWorkflow`.
+    var takePlayheads: [UUID: TimeInterval] = [:]
     @Published var timelineViewport: TimelineViewport {
         didSet {
             timelineViewportDidChange(from: oldValue)

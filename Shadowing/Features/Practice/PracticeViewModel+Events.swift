@@ -250,13 +250,7 @@ extension PracticeViewModel {
             return
         }
         if let take = currentlyPlayingTake() {
-            let local = min(max(position, 0), take.duration)
-            let source = RecordingAlignment.sourceTime(
-                forTakeTime: local,
-                regionStart: take.region.start,
-                offset: alignmentOffset(for: take.id)
-            )
-            playhead = min(max(source, take.region.start), take.region.end)
+            takePlaybackProgressed(take, to: position)
             followPlayheadInTimeline(at: playhead)
             return
         }

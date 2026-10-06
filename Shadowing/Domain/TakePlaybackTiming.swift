@@ -45,15 +45,25 @@ enum TakePlaybackTiming: Sendable {
         )
     }
 
-    /// Maps a source-timeline Take selection into Take-local time for playback.
+    /// Maps a source-timeline Take selection into Take-local time for playback, with the
+    /// take's measured offset (`RecordingAlignment.takeTime`), so the loop plays exactly what
+    /// the waveform shows under the selection.
     static func localLoopRegion(
         selection: PracticeRegion,
-        takeRegion: PracticeRegion
+        takeRegion: PracticeRegion,
+        offset: TimeInterval = 0
     ) -> PracticeRegion? {
         let overlapStart = max(selection.start, takeRegion.start)
         let overlapEnd = min(selection.end, takeRegion.end)
-        let localStart = overlapStart - takeRegion.start
-        let localEnd = overlapEnd - takeRegion.start
+        let localStart = max(
+            RecordingAlignment.takeTime(forSourceTime: overlapStart, regionStart: takeRegion.start, offset: offset),
+            0
+        )
+        let localEnd = RecordingAlignment.takeTime(
+            forSourceTime: overlapEnd,
+            regionStart: takeRegion.start,
+            offset: offset
+        )
         guard takeRegion.duration > 0,
               localEnd - localStart >= PracticeRegion.minimumDuration
         else {
@@ -62,7 +72,7 @@ enum TakePlaybackTiming: Sendable {
         return try? PracticeRegion(
             start: localStart,
             end: localEnd,
-            sourceDuration: takeRegion.duration
+            sourceDuration: max(takeRegion.duration, localEnd)
         )
     }
 }
