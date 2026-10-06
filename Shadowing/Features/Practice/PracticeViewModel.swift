@@ -91,7 +91,12 @@ final class PracticeViewModel: ObservableObject {
     /// Per-Take loop selections on the source timeline (independent of Original practice region).
     @Published var takeLoopSelections: [UUID: PracticeRegion] = [:]
     @Published var playingTakeID: UUID?
-    @Published var timelineViewport: TimelineViewport
+    @Published var timelineViewport: TimelineViewport {
+        didSet {
+            timelineViewportDidChange(from: oldValue)
+        }
+    }
+
     /// True while the user drags on the waveform: no automatic pan or zoom until release.
     var suspendPlayheadFollow = false
     /// The reveal held back during that drag, applied once on release.
@@ -167,6 +172,8 @@ final class PracticeViewModel: ObservableObject {
     var recordingTimelineRate: Double = 1
     private var hasStarted = false
     var hasClosed = false
+    /// Set once hydrate applied the saved visible range; from then on changes to it are saved.
+    var restoredTimelineViewport = false
     var playheadPersistTask: Task<Void, Never>?
     var leaveAfterFinalize: (@MainActor () -> Void)?
     /// Tests can shorten this; production uses a short debounce for playhead writes.

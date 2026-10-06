@@ -61,6 +61,42 @@ actor GRDBProjectRepository: ProjectRepository {
         }
     }
 
+    private static let upsertProjectSQL = """
+    INSERT INTO projects (
+        id,
+        source_display_name,
+        source_bookmark,
+        duration,
+        playhead,
+        region_id,
+        region_start,
+        region_end,
+        selected_take_id,
+        kept_take_id,
+        last_opened_at,
+        playback_rate,
+        script_display_name,
+        timeline_visible_start,
+        timeline_visible_duration
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+        source_display_name = excluded.source_display_name,
+        source_bookmark = excluded.source_bookmark,
+        duration = excluded.duration,
+        playhead = excluded.playhead,
+        region_id = excluded.region_id,
+        region_start = excluded.region_start,
+        region_end = excluded.region_end,
+        selected_take_id = excluded.selected_take_id,
+        kept_take_id = excluded.kept_take_id,
+        last_opened_at = excluded.last_opened_at,
+        playback_rate = excluded.playback_rate,
+        script_display_name = excluded.script_display_name,
+        timeline_visible_start = excluded.timeline_visible_start,
+        timeline_visible_duration = excluded.timeline_visible_duration
+    """
+
     func save(_ project: AudioProject) async throws {
         guard project.duration.isFinite,
               project.duration >= 0,
@@ -75,37 +111,7 @@ actor GRDBProjectRepository: ProjectRepository {
 
         try await database.write { database in
             try database.execute(
-                sql: """
-                INSERT INTO projects (
-                    id,
-                    source_display_name,
-                    source_bookmark,
-                    duration,
-                    playhead,
-                    region_id,
-                    region_start,
-                    region_end,
-                    selected_take_id,
-                    kept_take_id,
-                    last_opened_at,
-                    playback_rate,
-                    script_display_name
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    source_display_name = excluded.source_display_name,
-                    source_bookmark = excluded.source_bookmark,
-                    duration = excluded.duration,
-                    playhead = excluded.playhead,
-                    region_id = excluded.region_id,
-                    region_start = excluded.region_start,
-                    region_end = excluded.region_end,
-                    selected_take_id = excluded.selected_take_id,
-                    kept_take_id = excluded.kept_take_id,
-                    last_opened_at = excluded.last_opened_at,
-                    playback_rate = excluded.playback_rate,
-                    script_display_name = excluded.script_display_name
-                """,
+                sql: Self.upsertProjectSQL,
                 arguments: [
                     project.id.uuidString,
                     project.sourceDisplayName,
@@ -119,7 +125,9 @@ actor GRDBProjectRepository: ProjectRepository {
                     project.keptTakeID?.uuidString,
                     project.lastOpenedAt,
                     project.playbackRate,
-                    project.scriptDisplayName
+                    project.scriptDisplayName,
+                    project.timelineVisibleStart,
+                    project.timelineVisibleDuration
                 ]
             )
         }
@@ -180,7 +188,9 @@ actor GRDBProjectRepository: ProjectRepository {
             keptTakeID: keptTakeID,
             lastOpenedAt: row["last_opened_at"],
             playbackRate: playbackRate,
-            scriptDisplayName: row["script_display_name"]
+            scriptDisplayName: row["script_display_name"],
+            timelineVisibleStart: row["timeline_visible_start"],
+            timelineVisibleDuration: row["timeline_visible_duration"]
         )
     }
 

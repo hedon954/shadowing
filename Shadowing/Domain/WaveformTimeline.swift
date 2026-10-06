@@ -1,5 +1,23 @@
 import Foundation
 
+extension AudioProject {
+    /// The saved visible range, clamped to the source; nil when none was saved or it is unusable.
+    var savedTimelineViewport: TimelineViewport? {
+        guard let start = timelineVisibleStart,
+              let visibleDuration = timelineVisibleDuration,
+              start.isFinite, visibleDuration.isFinite, visibleDuration > 0, duration > 0
+        else {
+            return nil
+        }
+        return TimelineViewport(start: start, duration: visibleDuration, sourceDuration: duration)
+    }
+
+    mutating func saveTimelineViewport(_ viewport: TimelineViewport) {
+        timelineVisibleStart = viewport.start
+        timelineVisibleDuration = viewport.duration
+    }
+}
+
 struct TimelineViewport: Equatable, Sendable {
     static let minimumVisibleDuration: TimeInterval = 0.25
 

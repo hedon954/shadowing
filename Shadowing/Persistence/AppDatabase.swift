@@ -20,6 +20,10 @@ enum AppDatabase {
             "v4-project-script-display-name",
             migrate: migrateV4ProjectScriptDisplayName
         )
+        migrator.registerMigration(
+            "v5-project-timeline-viewport",
+            migrate: migrateV5ProjectTimelineViewport
+        )
         return migrator
     }
 
@@ -93,6 +97,14 @@ enum AppDatabase {
     private static func migrateV4ProjectScriptDisplayName(_ database: Database) throws {
         try database.alter(table: "projects") { table in
             table.add(column: "script_display_name", .text)
+        }
+    }
+
+    /// The zoomed waveform's visible range, restored when the project reopens.
+    private static func migrateV5ProjectTimelineViewport(_ database: Database) throws {
+        try database.alter(table: "projects") { table in
+            table.add(column: "timeline_visible_start", .double)
+            table.add(column: "timeline_visible_duration", .double)
         }
     }
 }

@@ -17,7 +17,7 @@ final class M7ViewModelTests: XCTestCase {
         XCTAssertEqual(fixture.viewModel.activeTake?.id, fixture.take.id)
         XCTAssertEqual(fixture.viewModel.takes, [fixture.take])
         XCTAssertEqual(fixture.viewModel.project.currentRegion, fixture.region)
-        XCTAssertEqual(fixture.viewModel.project.playhead, fixture.region.start)
+        XCTAssertEqual(fixture.viewModel.project.playhead, 12, "the saved playhead, not the take start")
         XCTAssertEqual(fixture.viewModel.project.playbackRate, 0.75)
 
         fixture.viewModel.setRate(1.25)

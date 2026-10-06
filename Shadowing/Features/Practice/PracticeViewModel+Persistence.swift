@@ -117,6 +117,18 @@ extension PracticeViewModel {
     func syncProjectSnapshot() {
         project.playhead = min(max(playhead, 0), project.duration)
         project.playbackRate = rate
+        if restoredTimelineViewport {
+            project.saveTimelineViewport(timelineViewport)
+        }
+    }
+
+    /// Zoom and pan are saved (debounced, with the playhead) so a reopened project shows the
+    /// same part of the waveform. Before hydrate has restored the saved range nothing is saved.
+    func timelineViewportDidChange(from oldValue: TimelineViewport) {
+        guard restoredTimelineViewport, !hasClosed, timelineViewport != oldValue else {
+            return
+        }
+        schedulePlayheadPersist()
     }
 
     func persistProjectImmediately() {
@@ -133,8 +145,9 @@ extension PracticeViewModel {
         }
     }
 
-    /// Called on every playback tick: must not touch published state (`project` is synced when
-    /// the save actually runs), or every tick redraws the practice screen.
+    /// Debounced save of the playhead, rate and visible range. Called on every playback tick:
+    /// must not touch published state (`project` is synced when the save actually runs), or
+    /// every tick redraws the practice screen.
     func schedulePlayheadPersist() {
         playheadPersistTask?.cancel()
         playheadPersistTask = Task { [weak self] in
@@ -158,33 +171,48 @@ extension PracticeViewModel {
         subtitles.load(script: subtitleScript)
         await refreshTakes()
         await preloadTakeWaveforms()
-        if let take = restoredSelectedTake() {
-            activeTake = take
-            project.selectedTakeID = take.id
-            playhead = take.region.start
-            project.playhead = take.region.start
-            timelineViewport = .fitting(
-                take.region,
-                sourceDuration: project.duration
-            )
-            revealPlayhead(focus: take.region)
-            updateRegionNoticeForHydratedTake(take)
-            return
-        }
-
-        if project.currentRegion != nil {
-            loopEnabled = true
-        }
+        // Reopening puts back where the user was: the saved playhead (`playhead` starts there;
+        // a seek made while hydrating wins) and visible range. A selected take stays selected
+        // (and its region), but does not move the playhead.
         let position = min(max(playhead, 0), project.duration)
         playhead = position
-        // Opening or switching a project is an active jump: show the restored position now.
-        revealPlayhead()
-        performVoidCommand { [audioClient, region = project.currentRegion] in
+        let take = restoredSelectedTake()
+        if let take {
+            activeTake = take
+            project.selectedTakeID = take.id
+            updateRegionNoticeForHydratedTake(take)
+        } else if project.currentRegion != nil {
+            loopEnabled = true
+        }
+        restoreTimelineViewport(focus: take?.region)
+        performVoidCommand { [audioClient, region = take == nil ? project.currentRegion : nil] in
             if let region {
                 try await audioClient.execute(.setLoop(region))
             }
             try await audioClient.execute(.seek(position))
         }
+    }
+
+    /// The saved visible range, exactly; without one (older projects) the selected take's
+    /// region together with the playhead when both fit, else the playhead. Opening is an active
+    /// jump either way, so the transcript scrolls to the current sentence.
+    private func restoreTimelineViewport(focus: PracticeRegion?) {
+        if let saved = project.savedTimelineViewport {
+            timelineViewport = saved
+            jumpReveal.reveal()
+        } else if let focus {
+            let start = min(focus.start, playhead)
+            let end = max(focus.end, playhead)
+            if let span = try? PracticeRegion(start: start, end: end, sourceDuration: project.duration) {
+                timelineViewport = .fitting(span, sourceDuration: project.duration)
+            } else {
+                timelineViewport = .fitting(focus, sourceDuration: project.duration)
+            }
+            revealPlayhead()
+        } else {
+            revealPlayhead()
+        }
+        restoredTimelineViewport = true
     }
 
     func attachScript() {

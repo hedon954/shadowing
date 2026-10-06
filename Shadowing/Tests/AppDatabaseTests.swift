@@ -31,6 +31,8 @@ final class AppDatabaseTests: XCTestCase {
         }
         XCTAssertTrue(columns.contains("playback_rate"))
         XCTAssertTrue(columns.contains("script_display_name"))
+        XCTAssertTrue(columns.contains("timeline_visible_start"))
+        XCTAssertTrue(columns.contains("timeline_visible_duration"))
 
         let takeColumns = try database.read { database in
             try Row.fetchAll(database, sql: "PRAGMA table_info(takes)").map { row in

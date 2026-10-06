@@ -4,33 +4,27 @@ import XCTest
 
 enum M7TestSupport {
     @MainActor
-    static func makeHydrateFixture(testCase: XCTestCase) async throws -> M7HydrateFixture {
+    static func makeHydrateFixture(
+        testCase: XCTestCase,
+        duration: TimeInterval = 60,
+        region range: ClosedRange<TimeInterval> = 3 ... 8,
+        playhead: TimeInterval = 12,
+        visibleRange: ClosedRange<TimeInterval>? = nil,
+        selectsTake: Bool = true
+    ) async throws -> M7HydrateFixture {
         let storage = InMemoryPersistence()
         let projects = InMemoryProjectRepository(storage: storage)
         let takes = InMemoryTakeRepository(storage: storage)
-        let region = try PracticeRegion(start: 3, end: 8, sourceDuration: 60)
-        let projectID = UUID()
-        let take = try Take(
-            id: UUID(),
-            projectID: projectID,
+        let region = try PracticeRegion(start: range.lowerBound, end: range.upperBound, sourceDuration: duration)
+        let (project, take) = try makeHydrateProject(
+            duration: duration,
             region: region,
-            sequence: 1,
-            relativeAudioPath: "projects/\(projectID.uuidString)/take.caf",
-            duration: 5,
-            createdAt: Date(timeIntervalSince1970: 50)
+            playhead: playhead,
+            visibleRange: visibleRange,
+            selectsTake: selectsTake
         )
-        let project = AudioProject(
-            id: projectID,
-            sourceDisplayName: "Speech.mp3",
-            sourceBookmark: Data([7]),
-            duration: 60,
-            playhead: 12,
-            currentRegion: region,
-            selectedTakeID: take.id,
-            keptTakeID: nil,
-            lastOpenedAt: Date(timeIntervalSince1970: 100),
-            playbackRate: 0.75
-        )
+        let projectID = project.id
+        let audio = PracticeAudioClientSpy()
         try await projects.save(project)
         try await takes.save(take)
 
@@ -41,7 +35,7 @@ enum M7TestSupport {
                 project: project,
                 waveform: WaveformPresentation(peaks: [0.2, 0.5, 0.8], warning: nil)
             ),
-            audioClient: PracticeAudioClientSpy(),
+            audioClient: audio,
             projects: projects,
             sessionPreparer: M7SessionPreparer(),
             recordingDependencies: RecordingDependencies(
@@ -60,11 +54,46 @@ enum M7TestSupport {
         )
         return M7HydrateFixture(
             viewModel: viewModel,
+            audio: audio,
             projects: projects,
             projectID: projectID,
             take: take,
             region: region
         )
+    }
+
+    private static func makeHydrateProject(
+        duration: TimeInterval,
+        region: PracticeRegion,
+        playhead: TimeInterval,
+        visibleRange: ClosedRange<TimeInterval>?,
+        selectsTake: Bool
+    ) throws -> (AudioProject, Take) {
+        let projectID = UUID()
+        let take = try Take(
+            id: UUID(),
+            projectID: projectID,
+            region: region,
+            sequence: 1,
+            relativeAudioPath: "projects/\(projectID.uuidString)/take.caf",
+            duration: region.duration,
+            createdAt: Date(timeIntervalSince1970: 50)
+        )
+        let project = AudioProject(
+            id: projectID,
+            sourceDisplayName: "Speech.mp3",
+            sourceBookmark: Data([7]),
+            duration: duration,
+            playhead: playhead,
+            currentRegion: region,
+            selectedTakeID: selectsTake ? take.id : nil,
+            keptTakeID: nil,
+            lastOpenedAt: Date(timeIntervalSince1970: 100),
+            playbackRate: 0.75,
+            timelineVisibleStart: visibleRange?.lowerBound,
+            timelineVisibleDuration: visibleRange.map { $0.upperBound - $0.lowerBound }
+        )
+        return (project, take)
     }
 
     @MainActor
@@ -189,6 +218,7 @@ enum M7TestSupport {
 
 struct M7HydrateFixture {
     let viewModel: PracticeViewModel
+    let audio: PracticeAudioClientSpy
     let projects: InMemoryProjectRepository
     let projectID: UUID
     let take: Take
