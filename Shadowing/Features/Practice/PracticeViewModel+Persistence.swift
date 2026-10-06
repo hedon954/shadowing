@@ -133,8 +133,9 @@ extension PracticeViewModel {
         }
     }
 
+    /// Called on every playback tick: must not touch published state (`project` is synced when
+    /// the save actually runs), or every tick redraws the practice screen.
     func schedulePlayheadPersist() {
-        syncProjectSnapshot()
         playheadPersistTask?.cancel()
         playheadPersistTask = Task { [weak self] in
             do {

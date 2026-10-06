@@ -12,6 +12,9 @@ struct PracticeControlBar: View {
     }
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("PracticeControlBar")
+        #endif
         ViewThatFits(in: .horizontal) {
             layout(sideWidth: 110, spacing: 18)
             layout(sideWidth: 84, spacing: 12)
@@ -48,16 +51,9 @@ struct PracticeControlBar: View {
         }
     }
 
+    /// Reads only the playhead clock, at a constant width: ticks never re-measure the bar.
     private var timeText: some View {
-        Text(
-            verbatim: ClockText.format(viewModel.playhead) + " / "
-                + ClockText.format(viewModel.project.duration)
-        )
-        .font(.system(size: 12).monospacedDigit())
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-        .fixedSize()
-        .accessibilityLabel("Playback position")
+        PlayheadTimeLabel(clock: viewModel.playheadClock, duration: viewModel.project.duration)
     }
 }
 
@@ -123,6 +119,9 @@ private struct PracticeTransportControls: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("PracticeTransportControls")
+        #endif
         Button {
             viewModel.jump(by: -5)
         } label: {

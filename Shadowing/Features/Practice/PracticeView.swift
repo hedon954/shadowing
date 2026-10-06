@@ -10,6 +10,9 @@ struct PracticeView: View {
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("PracticeView")
+        #endif
         VStack(alignment: .leading, spacing: 0) {
             OriginalWaveformSection(
                 viewModel: viewModel,

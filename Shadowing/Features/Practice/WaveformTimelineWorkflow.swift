@@ -65,10 +65,6 @@ extension PracticeViewModel {
         return activeTake?.duration ?? 0
     }
 
-    var timelinePlayhead: TimeInterval {
-        playhead
-    }
-
     var liveRecordingTimelineEnvelope: [TimedWaveformEnvelopePoint] {
         guard let region = recordingTimelineRegion else {
             return []

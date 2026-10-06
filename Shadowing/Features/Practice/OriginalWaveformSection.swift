@@ -22,6 +22,9 @@ struct OriginalWaveformSection: View {
     }
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("OriginalWaveformSection")
+        #endif
         VStack(alignment: .leading, spacing: 0) {
             lanes
             WaveformRuler(viewport: viewModel.timelineViewport)
@@ -75,13 +78,15 @@ struct OriginalWaveformSection: View {
             )
         }
         .overlay(alignment: .topLeading) {
-            SentenceBandOverlay(
-                viewport: viewModel.timelineViewport,
-                sentence: nil,
-                playhead: viewModel.timelinePlayhead,
-                playheadColor: isRecording ? .red : .accentColor,
-                leading: Self.waveformLeading
-            )
+            PlayheadReader(clock: viewModel.playheadClock) { playhead in
+                SentenceBandOverlay(
+                    viewport: viewModel.timelineViewport,
+                    sentence: nil,
+                    playhead: playhead,
+                    playheadColor: isRecording ? .red : .accentColor,
+                    leading: Self.waveformLeading
+                )
+            }
             .allowsHitTesting(false)
         }
     }
@@ -99,31 +104,33 @@ struct OriginalWaveformSection: View {
     }
 
     private var originalTrack: some View {
-        WaveformSelectableTrack(
-            waveform: viewModel.waveform,
-            viewport: viewModel.timelineViewport,
-            sourceDuration: viewModel.project.duration,
-            region: viewModel.region,
-            playhead: viewModel.timelinePlayhead,
-            isEnabled: !viewModel.controlsLocked,
-            onSeek: { time in
-                viewModel.clearTakeSelection()
-                viewModel.seekTimeline(time)
-            },
-            onRegionChanged: { region in
-                viewModel.clearTakeSelection()
-                viewModel.selectRegion(region)
-            },
-            onRegionCleared: viewModel.clearRegion,
-            onViewportChanged: viewModel.setTimelineViewport,
-            onGestureActiveChanged: viewModel.setTimelineGestureActive,
-            color: Color(nsColor: .tertiaryLabelColor),
-            showsChrome: false,
-            playedColor: .accentColor,
-            playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
-            barStyle: .original,
-            fillsSelection: false
-        )
+        PlayheadReader(clock: viewModel.playheadClock) { playhead in
+            WaveformSelectableTrack(
+                waveform: viewModel.waveform,
+                viewport: viewModel.timelineViewport,
+                sourceDuration: viewModel.project.duration,
+                region: viewModel.region,
+                playhead: playhead,
+                isEnabled: !viewModel.controlsLocked,
+                onSeek: { time in
+                    viewModel.clearTakeSelection()
+                    viewModel.seekTimeline(time)
+                },
+                onRegionChanged: { region in
+                    viewModel.clearTakeSelection()
+                    viewModel.selectRegion(region)
+                },
+                onRegionCleared: viewModel.clearRegion,
+                onViewportChanged: viewModel.setTimelineViewport,
+                onGestureActiveChanged: viewModel.setTimelineGestureActive,
+                color: Color(nsColor: .tertiaryLabelColor),
+                showsChrome: false,
+                playedColor: .accentColor,
+                playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
+                barStyle: .original,
+                fillsSelection: false
+            )
+        }
         .help("Click to jump there. Drag across the waveform to select one sentence.")
         .contextMenu {
             zoomMenuItems
@@ -146,16 +153,18 @@ struct OriginalWaveformSection: View {
 
     private var zoomControls: some View {
         VStack(spacing: 6) {
-            WaveformTimelineOverview(
-                waveform: viewModel.waveform,
-                sourceDuration: viewModel.project.duration,
-                viewport: viewModel.timelineViewport,
-                region: viewModel.region ?? viewModel.recordingDisplayRegion,
-                playhead: viewModel.timelinePlayhead,
-                isInteractive: !viewModel.controlsLocked,
-                onViewportChanged: viewModel.setTimelineViewport,
-                onBackgroundTap: viewModel.clearTakeSelection
-            )
+            PlayheadReader(clock: viewModel.playheadClock) { playhead in
+                WaveformTimelineOverview(
+                    waveform: viewModel.waveform,
+                    sourceDuration: viewModel.project.duration,
+                    viewport: viewModel.timelineViewport,
+                    region: viewModel.region ?? viewModel.recordingDisplayRegion,
+                    playhead: playhead,
+                    isInteractive: !viewModel.controlsLocked,
+                    onViewportChanged: viewModel.setTimelineViewport,
+                    onBackgroundTap: viewModel.clearTakeSelection
+                )
+            }
             WaveformTimelineControls(
                 canFitRegion: viewModel.region != nil || viewModel.recordingDisplayRegion != nil,
                 isEnabled: !viewModel.controlsLocked,

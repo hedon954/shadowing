@@ -5,6 +5,9 @@ struct TakesListSection: View {
     @ObservedObject var viewModel: PracticeViewModel
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("TakesListSection")
+        #endif
         VStack(alignment: .leading, spacing: 6) {
             if viewModel.showsTakesHeader {
                 header

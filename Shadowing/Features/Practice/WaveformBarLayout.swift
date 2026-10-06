@@ -85,6 +85,17 @@ enum WaveformBarLayout {
         }
     }
 
+    /// Right edge of the last bar whose centre is at or left of `playedX`, plus half a gap; 0 when
+    /// none is. Masking a played copy up to here colors exactly the bars `bars(playedX:)` marks played.
+    static func playedEdge(playedX: CGFloat, style: WaveformBarStyle, width: CGFloat) -> CGFloat {
+        let step = style.width + style.gap
+        guard step > 0, playedX >= style.width / 2 else {
+            return 0
+        }
+        let lastPlayed = ((playedX - style.width / 2) / step).rounded(.down)
+        return min(lastPlayed * step + style.width + style.gap / 2, width)
+    }
+
     /// Divides by the 95th percentile of the present levels (at least `minimumReference`) and
     /// clamps to 0...1. `nil` slots stay `nil`.
     static func normalizedLevels(_ levels: [CGFloat?]) -> [CGFloat?] {

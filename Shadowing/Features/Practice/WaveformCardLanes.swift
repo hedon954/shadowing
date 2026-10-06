@@ -51,33 +51,35 @@ struct AlignedTakeLane: View {
             title: Text("Take \(take.sequence)"),
             detail: Text(verbatim: TakeDateText.short(take.createdAt))
         ) {
-            WaveformSelectableTrack(
-                waveform: viewModel.takeWaveforms[take.id],
-                viewport: viewModel.timelineViewport,
-                sourceDuration: viewModel.project.duration,
-                region: viewModel.takeLoopSelections[take.id],
-                playhead: viewModel.timelinePlayhead,
-                isEnabled: !viewModel.controlsLocked,
-                onSeek: viewModel.seekTimeline,
-                onRegionChanged: { region in
-                    viewModel.selectTakeLoopRegion(take, region)
-                },
-                onRegionCleared: {
-                    viewModel.clearTakeLoopRegion(take)
-                },
-                onViewportChanged: viewModel.setTimelineViewport,
-                onGestureActiveChanged: viewModel.setTimelineGestureActive,
-                color: Color(nsColor: .tertiaryLabelColor),
-                assetTimelineStart: take.region.start - viewModel.alignmentOffset(for: take.id),
-                selectionBounds: take.region,
-                accessibilityTitle: "Take \(take.sequence) waveform",
-                accessibilityHintText: "Drag to select a Take loop region, or click to seek.",
-                coordinateSpaceName: "takeWaveform-\(take.id.uuidString)",
-                showsChrome: false,
-                playedColor: .primary,
-                playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
-                barStyle: .original
-            )
+            PlayheadReader(clock: viewModel.playheadClock) { playhead in
+                WaveformSelectableTrack(
+                    waveform: viewModel.takeWaveforms[take.id],
+                    viewport: viewModel.timelineViewport,
+                    sourceDuration: viewModel.project.duration,
+                    region: viewModel.takeLoopSelections[take.id],
+                    playhead: playhead,
+                    isEnabled: !viewModel.controlsLocked,
+                    onSeek: viewModel.seekTimeline,
+                    onRegionChanged: { region in
+                        viewModel.selectTakeLoopRegion(take, region)
+                    },
+                    onRegionCleared: {
+                        viewModel.clearTakeLoopRegion(take)
+                    },
+                    onViewportChanged: viewModel.setTimelineViewport,
+                    onGestureActiveChanged: viewModel.setTimelineGestureActive,
+                    color: Color(nsColor: .tertiaryLabelColor),
+                    assetTimelineStart: take.region.start - viewModel.alignmentOffset(for: take.id),
+                    selectionBounds: take.region,
+                    accessibilityTitle: "Take \(take.sequence) waveform",
+                    accessibilityHintText: "Drag to select a Take loop region, or click to seek.",
+                    coordinateSpaceName: "takeWaveform-\(take.id.uuidString)",
+                    showsChrome: false,
+                    playedColor: .primary,
+                    playheadStyle: WaveformPlayheadStyle(color: .clear, width: 0),
+                    barStyle: .original
+                )
+            }
             .frame(height: OriginalWaveformSection.takeHeight + WaveformBarStyle.original.verticalInset * 2)
             .padding(.vertical, -WaveformBarStyle.original.verticalInset)
         }

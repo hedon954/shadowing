@@ -53,10 +53,30 @@ final class PracticeViewModel: ObservableObject {
     static let maximumLivePeakCount = 360
     static let maximumLiveEnvelopePointCount = 12000
 
-    @Published var project: AudioProject
+    @Published var project: AudioProject {
+        didSet {
+            if project.currentRegion != oldValue.currentRegion {
+                refreshPlayheadSentence()
+            }
+        }
+    }
+
     @Published private(set) var waveform: WaveformPresentation
     @Published var isPlaying = false
-    @Published var playhead: TimeInterval
+    /// Not published: it ticks while playing. Views read `playheadClock` (cursor, time) or
+    /// `playheadSentence` (changes only when the sentence changes).
+    var playhead: TimeInterval {
+        didSet {
+            guard playhead != oldValue else {
+                return
+            }
+            playheadClock.position = playhead
+            refreshPlayheadSentence()
+        }
+    }
+
+    let playheadClock: PlayheadClock
+    @Published var playheadSentence = PlayheadSentence()
     @Published private(set) var rate: Double = 1
     @Published private(set) var volume: Double = 0.8
     @Published var loopEnabled = false
@@ -99,13 +119,23 @@ final class PracticeViewModel: ObservableObject {
     @Published var leaveConfirmation: PracticeLeaveConfirmation?
     @Published var scriptText: String?
     /// Sentences found from pauses in the original; used when there are no timed subtitles.
-    @Published var sentenceChunks: [SentenceChunk] = []
+    @Published var sentenceChunks: [SentenceChunk] = [] {
+        didSet {
+            refreshPlayheadSentence()
+        }
+    }
+
     /// Measured take offsets (`RecordingAlignment`); missing means 0.
     @Published var takeOffsets: [UUID: TimeInterval] = [:]
     /// The window's undo manager, for "Undo Delete Take N" (set by `PracticeView`).
     weak var undoManager: UndoManager?
     /// The running "compare" playback, if any.
-    @Published var comparison: ComparisonPlayback?
+    @Published var comparison: ComparisonPlayback? {
+        didSet {
+            refreshPlayheadSentence()
+        }
+    }
+
     /// Non-nil while a post-Compare engine seek is in flight; ignore late playheadChanged.
     var restoringPlayheadAfterComparison: TimeInterval?
     /// Non-nil while a seek this view model issued (click, selection) is not yet applied by the
@@ -154,26 +184,6 @@ final class PracticeViewModel: ObservableObject {
         !takes.isEmpty || recordingPresentation != .idle
     }
 
-    var comparisonRegionNotice: String? {
-        guard let take = activeTake,
-              let currentRegion = project.currentRegion,
-              take.region != currentRegion
-        else {
-            return nil
-        }
-        return Self.regionSnapshotNotice(for: take)
-    }
-
-    /// Shown when the selected take was recorded over a different region than the current one.
-    static func regionSnapshotNotice(for take: Take) -> String {
-        let start = ClockText.format(take.region.start)
-        let end = ClockText.format(take.region.end)
-        return String(localized: """
-        This take keeps its recorded region (\(start)–\(end)). \
-        Changing the practice region does not change past takes.
-        """)
-    }
-
     var controlsLocked: Bool {
         interactionPhase == .recording || recordingPresentation.locksPracticeControls
     }
@@ -200,6 +210,7 @@ final class PracticeViewModel: ObservableObject {
         project = prepared.project
         waveform = prepared.waveform
         playhead = prepared.project.playhead
+        playheadClock = PlayheadClock(position: prepared.project.playhead)
         timelineViewport = .full(sourceDuration: prepared.project.duration)
         rate = Self.normalizedRate(prepared.project.playbackRate)
         self.audioClient = audioClient
@@ -216,6 +227,10 @@ final class PracticeViewModel: ObservableObject {
         subtitles.onTextChosen = { [weak self] url in
             self?.attachScript(from: url)
         }
+        subtitles.onDisplayChanged = { [weak self] in
+            self?.refreshPlayheadSentence()
+        }
+        refreshPlayheadSentence()
     }
 
     deinit {

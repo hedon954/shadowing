@@ -218,3 +218,25 @@ extension PracticeViewModel {
         takeOffsets = loaded
     }
 }
+
+extension PracticeViewModel {
+    var comparisonRegionNotice: String? {
+        guard let take = activeTake,
+              let currentRegion = project.currentRegion,
+              take.region != currentRegion
+        else {
+            return nil
+        }
+        return Self.regionSnapshotNotice(for: take)
+    }
+
+    /// Shown when the selected take was recorded over a different region than the current one.
+    static func regionSnapshotNotice(for take: Take) -> String {
+        let start = ClockText.format(take.region.start)
+        let end = ClockText.format(take.region.end)
+        return String(localized: """
+        This take keeps its recorded region (\(start)–\(end)). \
+        Changing the practice region does not change past takes.
+        """)
+    }
+}

@@ -7,6 +7,9 @@ struct SubtitlesInspector: View {
     @ObservedObject var subtitles: SubtitlesViewModel
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("SubtitlesInspector")
+        #endif
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 16)
@@ -78,12 +81,13 @@ struct SubtitlesInspector: View {
         case let .timed(transcript):
             SubtitleTranscriptView(
                 transcript: transcript,
-                current: viewModel.currentCueIndex,
+                current: viewModel.currentSentenceIndex,
                 revealToken: viewModel.revealToken,
                 autoFollows: { viewModel.transcriptAutoFollows() },
                 onUserScroll: { viewModel.noteTranscriptUserScroll() },
                 onSeek: viewModel.seek(to:)
             )
+            .equatable()
         }
     }
 

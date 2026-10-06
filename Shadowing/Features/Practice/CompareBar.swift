@@ -10,6 +10,9 @@ struct CompareBar: View {
     }
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("CompareBar")
+        #endif
         HStack(spacing: 12) {
             if isRecording {
                 recordingStatus

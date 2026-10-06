@@ -56,7 +56,12 @@ struct SubtitleSourceOption: Equatable, Identifiable, Sendable {
 /// on-device recognition for text alignment. Playback and recording never wait on it.
 @MainActor
 final class SubtitlesViewModel: ObservableObject {
-    @Published var display = SubtitleDisplay.loading
+    @Published var display = SubtitleDisplay.loading {
+        didSet {
+            onDisplayChanged?()
+        }
+    }
+
     @Published var sources: [SubtitleSourceOption] = []
     @Published var activeSource: SubtitleSourceKind?
     /// Why recognition failed; shown as help on the failure notice.
@@ -68,6 +73,8 @@ final class SubtitlesViewModel: ObservableObject {
     var onError: ((any Error) -> Void)?
     /// A .txt picked from "Add Subtitles or Text…" goes through the script attachment flow.
     var onTextChosen: ((URL) -> Void)?
+    /// Lets the practice view model recompute its current sentence when the cues change.
+    var onDisplayChanged: (() -> Void)?
 
     let projectID: UUID
     let sourceDisplayName: String

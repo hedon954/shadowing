@@ -33,3 +33,7 @@ identifier_name:
   excluded:
     - db
     - id
+
+# `let _ = RenderProbe.note(...)` in SwiftUI bodies (debug-only redraw counters for tests).
+redundant_discardable_let:
+  ignore_swiftui_view_bodies: true

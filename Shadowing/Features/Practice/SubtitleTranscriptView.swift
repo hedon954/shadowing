@@ -15,7 +15,7 @@ import SwiftUI
 /// on the whole list redrew it each time the pointer crossed a row, which moved rows under the
 /// pointer again (the transcript-scroll hang). Hover now lives in each row, and user scrolling
 /// only reports outward (`onUserScroll` never changes what this view draws).
-struct SubtitleTranscriptView: View {
+struct SubtitleTranscriptView: View, Equatable {
     /// Keeps the current sentence about a third of the way down.
     static let scrollAnchor = UnitPoint(x: 0.5, y: 0.33)
 
@@ -31,6 +31,9 @@ struct SubtitleTranscriptView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("SubtitleTranscriptView")
+        #endif
         let bandOpacity = TranscriptLineEmphasis.bandOpacity(
             dark: colorScheme == .dark,
             increaseContrast: colorSchemeContrast == .increased
@@ -86,6 +89,12 @@ struct SubtitleTranscriptView: View {
         }
     }
 
+    /// Redraws only when what it shows changes: the cues, the current sentence or a reveal.
+    /// The closures only forward to the view model, so a fresh copy each render changes nothing.
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.transcript == rhs.transcript && lhs.current == rhs.current && lhs.revealToken == rhs.revealToken
+    }
+
     private struct RevealRequest: Equatable {
         let token: Int
         let cueCount: Int
@@ -105,6 +114,9 @@ private struct TranscriptSentenceRow: View {
     @State private var isHovered = false
 
     var body: some View {
+        #if DEBUG
+            let _ = RenderProbe.note("TranscriptSentenceRow")
+        #endif
         sentenceText
             .font(.system(size: TranscriptLineEmphasis.fontSize, weight: .regular))
             .lineSpacing(TranscriptLineEmphasis.fontSize * 0.65)
