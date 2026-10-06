@@ -4,44 +4,54 @@
   <img src="docs/screenshots/app-icon.png" alt="Shadowing App Icon" width="128" />
 </p>
 
-macOS 本地英语跟读练习应用。打开 MP3，选一段循环听，同步录音，在同一时间轴上对比原音与多条 Take。
+macOS 原生的英语跟读练习应用。打开一段 MP3，选一句或一段循环听，跟着录音，再把自己的每一遍和原音放在同一条时间轴上回放、对比。
 
 ```mermaid
 flowchart LR
   A[打开 MP3] --> B[选择并循环片段]
-  B --> C[同步录音]
-  C --> D[多 Take 对比]
-  D --> E[本地恢复]
+  B --> C[跟读录音]
+  C --> D[回放与对比]
+  D --> E[本地保存与恢复]
 ```
 
-数据默认只保存在本机：无账号、无上传、无网络依赖。
-
-## 界面预览
-
-### Library
-
-拖入或选择 MP3，在统一的 Projects 列表里继续练习（含 Take 数量与最近活动时间）。右上角齿轮打开 Settings。
-
-<p align="center">
-  <img src="docs/screenshots/library.png" alt="Library：打开 MP3 与 Projects 列表" width="860" />
-</p>
-
-### Practice
-
-Original 与多条 Take 纵向对齐；选区循环、变速、录音与删除 Take 都在同一页完成。
-
-<p align="center">
-  <img src="docs/screenshots/practice-multitrack.png" alt="Practice：Original 与多条 Take 对齐" width="860" />
-</p>
+数据只保存在本机：无账号、无上传。字幕识别也在本机完成，音频不会离开这台 Mac。
 
 ## 功能概览
 
-- **Library**：拖入或选择 MP3；统一 Projects 列表（有录音时显示 Take 数量）
-- **练习页**：完整波形 Overview、选区缩放 / 平移、循环播放、变速与音量
-- **多轨跟读**：Original + 多条 Take 纵向对齐；Take 可独立播放与选区循环
-- **覆盖重录**：选中 Take 后继续录音，按原音时间轴合并（空隙补静音）
-- **Take 排序**：新 Take 默认在 Original 下方；可拖拽调整顺序
-- **Settings**：窗口右上角齿轮打开浮窗（麦克风、倒计时、录音时是否播放原音等）
+- **练习材料**：左侧栏列出所有练习过的 MP3（显示跟读遍数与时长）；点击「打开 MP3…」或把 MP3 拖进窗口即可开始。再次打开时恢复上次的播放位置、选区、循环状态和波形缩放。
+- **波形时间轴**：原音波形与当前录音上下对齐；支持触控板捏合缩放、缩放按钮、「全部」与「选段」快速切换视图，以及缩略总览条。
+- **选区与循环**：在波形上拖动选出一段，拖动选区边缘可微调；点全文字幕里的句子可跳到这一句，按 Return 重播当前这一句。开启循环后只重复播放选区。
+- **跟读录音**：每次录音都会新增一条录音（Take），不会覆盖以前的录音。可设置录音前倒计时，以及录音时是否同时播放原音。
+- **录音列表**：每一遍都可以单独播放；可拖拽调整顺序，删除的录音会移到废纸篓。
+- **对比播放**：三种方式：只听原音、只听我的、先原音再我的。
+- **字幕**：波形下方的单行字幕和右侧的全文字幕都可以单独开关，默认都隐藏（先专心听）。可以附加 `.srt` / `.vtt` / `.lrc` 字幕，或附加 `.txt` 文稿；在 macOS 26 上还可以用本机语音识别生成字幕，并把文稿自动对齐到音频。字幕可以导出为 `.srt`。
+- **变速**：0.5× – 1.5×，可在设置里指定默认速度。
+- **外观与语言**：跟随系统的浅色 / 深色外观；界面支持简体中文和英文。
+
+## 快捷键
+
+快捷键（除 ⌘O 外都列在菜单栏「练习」(Practice) 中）：
+
+| 操作 | 快捷键 |
+| --- | --- |
+| 播放 / 暂停 | Space |
+| 录音 / 停止录音 | R |
+| 对比播放 | C |
+| 重播这一句 | Return |
+| 后退 / 前进 5 秒 | ← / → |
+| 循环开关 | L |
+| 放慢 / 加快 | ⌘[ / ⌘] |
+| 删除这一遍 | ⌘⌫ |
+| 单行字幕 / 全文字幕 | ⌥⌘S / ⌥⌘I |
+| 打开 MP3 | ⌘O |
+
+## 安装
+
+1. 从 [GitHub Releases](https://github.com/hedon954/shadowing/releases/latest) 下载 `Shadowing-<版本>.dmg`，把 Shadowing 拖进「应用程序」。
+2. 安装包是 ad-hoc 签名、未经 Apple 公证的。第一次打开时 macOS 会拦截：在「应用程序」里右键点 Shadowing →「打开」；或者打开「系统设置 → 隐私与安全性」，在下方点「仍要打开」。之后就可以正常打开了。
+3. 第一次录音时会请求麦克风权限。
+
+系统要求：macOS 15 或更高。生成字幕和自动对齐文稿需要 macOS 26。
 
 ## 技术栈
 
@@ -49,11 +59,12 @@ Original 与多条 Take 纵向对齐；选区循环、变速、录音与删除 T
 | --- | --- |
 | UI | SwiftUI · Swift 6 · macOS 15+ |
 | 音频 | AVFoundation / Core Audio |
+| 字幕识别 | Speech（`SpeechAnalyzer`，macOS 26，本机运行） |
 | 元数据 | GRDB / SQLite |
-| 录音与波形缓存 | 本地文件系统 |
+| 录音、波形与字幕缓存 | 本地文件系统 |
 | 工程 | XcodeGen（`Shadowing/project.yml` 为事实来源） |
 
-MVP **不**引入 Rust、UniFFI、cargo-swift、网络服务或 AI 评分。持久化通过 Swift 协议注入，后续若评估 UniFFI，见 [ADR-0010](docs/adr/0010-rust-uniffi-adoption-threshold.md)。
+不引入 Rust、UniFFI、cargo-swift、网络服务或 AI 评分。持久化通过 Swift 协议注入，后续若评估 UniFFI，见 [ADR-0010](docs/adr/0010-rust-uniffi-adoption-threshold.md)。
 
 ## 架构
 
@@ -67,14 +78,14 @@ flowchart TB
   end
 
   subgraph Domain["领域层"]
-    Models["值对象与规则<br/>Project · Region · Take"]
+    Models["值对象与规则<br/>Project · Region · Take · Subtitle"]
     Protocols["协议边界<br/>Repository · AudioClient · Store"]
   end
 
   subgraph Adapters["适配层（由 App 注入）"]
     Audio["Audio<br/>播放 / 循环 / 录音<br/>render-time 时钟"]
-    Persist["Persistence<br/>SQLite 元数据<br/>录音与波形文件"]
-    Services["Services<br/>书签 · 权限 · Session"]
+    Persist["Persistence<br/>SQLite 元数据<br/>录音、波形与字幕文件"]
+    Services["Services<br/>书签 · 权限 · Session · 语音识别"]
   end
 
   Views -->|"用户操作"| VM
@@ -92,17 +103,21 @@ flowchart TB
 | **Domain** | 模型、不变量、状态规则与协议 | 不导入 SwiftUI / AVFoundation / GRDB |
 | **Audio** | 选区循环、同步录音、波形采样；循环与录音边界用 sample/render time | 不在实时 callback 里访问数据库或阻塞主线程 |
 | **Persistence** | Project / Take 元数据（SQLite）与录音文件；Take 提交顺序为临时写入 → 校验 → 原子移动 → 元数据事务 | 不向外泄漏 GRDB record 类型 |
-| **Services** | security-scoped bookmark、麦克风权限、打开/恢复会话 | 不承载 UI 状态 |
+| **Services** | 文件书签、麦克风权限、打开/恢复会话、本机语音识别 | 不承载 UI 状态 |
 
-`AppDependencies.live()` 是唯一组装点：把 `PracticeAudioEngine`、GRDB repository、`RecordingFileStore`、bookmark 等接到协议上，再交给 Features。更多决策见 [ADR 索引](docs/adr/README.md)。
+应用暂不启用 App Sandbox，书签不带安全作用域，见 [ADR-0011](docs/adr/0011-unsandboxed-app-and-plain-bookmarks.md)。`AppDependencies.live()` 是唯一组装点：把 `PracticeAudioEngine`、GRDB repository、`RecordingFileStore`、书签等接到协议上，再交给 Features。更多决策见 [ADR 索引](docs/adr/README.md)。
 
-## 环境要求
+## 数据位置
+
+正式版的数据在 `~/Library/Application Support/Shadowing`：`Shadowing.sqlite`（练习材料、录音列表与设置），以及 `Recordings/`、`Waveforms/`、`Subtitles/` 目录。原始 MP3 不会被复制，仍留在原来的位置。
+
+## 从源码构建
+
+环境要求：
 
 - macOS 15 或更高
-- Xcode（含 macOS SDK）
+- Xcode 26 或更高（需要 macOS 26 SDK 才能编译语音识别部分）
 - Homebrew
-
-## 开发
 
 ```bash
 make setup     # 安装工具、hooks，并生成 Xcode 工程
@@ -110,7 +125,7 @@ make build     # Debug 构建（无签名）
 make upgrade   # 重新构建并启动 Debug app
 make test      # 单元测试
 make check     # format + lint + build + test
-make dmg       # Release 无签名 DMG（build/Shadowing-<version>.dmg）
+make dmg       # Release DMG（ad-hoc 签名，build/Shadowing-<version>.dmg）
 ```
 
 Debug 构建是独立的应用：bundle id 为 `com.hedon.shadowing.debug`，数据在
@@ -126,12 +141,12 @@ Debug 构建是独立的应用：bundle id 为 `com.hedon.shadowing.debug`，数
 
 ```text
 Shadowing/
-├── App/             入口与依赖组装
+├── App/             入口、菜单与依赖组装
 ├── Domain/          模型、规则与持久化协议
-├── Features/        功能 View / ViewModel
+├── Features/        功能 View / ViewModel（Files · Practice · Settings）
 ├── Audio/           播放、录音与波形
 ├── Persistence/     GRDB 与文件存储
-├── Services/        权限、书签等平台能力
+├── Services/        权限、书签、语音识别等平台能力
 └── Tests/           单元 / 契约 / migration 测试
 ```
 
@@ -143,8 +158,6 @@ Shadowing/
 - [工程规范](CLAUDE.md)
 - [P0 验收清单](docs/testing/p0-acceptance-checklist.md)
 - [音频 Spike 报告](docs/testing/audio-spike-report.md)
-- [界面参考图](assets/img/)
-- [产品截图](docs/screenshots/)
 
 ## LICENSE
 
