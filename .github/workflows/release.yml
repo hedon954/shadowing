@@ -19,6 +19,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check tag matches app version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Shadowing/Info.plist)"
+          if [[ "$version" != "$plist_version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME (version $version) does not match CFBundleShortVersionString $plist_version in Shadowing/Info.plist"
+            exit 1
+          fi
+
       - name: Select Xcode 26
         run: |
           xcode_app="$(printf '%s\n' /Applications/Xcode_26*.app | grep -viE 'beta|release_candidate' | sort -V | tail -n 1)"
