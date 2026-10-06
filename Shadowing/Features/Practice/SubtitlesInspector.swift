@@ -79,7 +79,7 @@ struct SubtitlesInspector: View {
             SubtitleTranscriptView(
                 transcript: transcript,
                 current: SubtitleTimeline.cueIndex(at: viewModel.playhead, in: transcript.cues),
-                revealToken: viewModel.jumpReveal.token,
+                revealToken: viewModel.revealToken,
                 autoFollows: { viewModel.transcriptAutoFollows() },
                 onUserScroll: { viewModel.noteTranscriptUserScroll() },
                 onSeek: viewModel.seek(to:)

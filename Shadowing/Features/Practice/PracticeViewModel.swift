@@ -76,8 +76,18 @@ final class PracticeViewModel: ObservableObject {
     var suspendPlayheadFollow = false
     /// The reveal held back during that drag, applied once on release.
     var deferredTimelineReveal: DeferredTimelineReveal?
-    /// Active-jump signal for the waveform and transcript (see `JumpReveal`).
-    @Published var jumpReveal = JumpReveal()
+    /// Active-jump signal for the waveform and transcript (see `JumpReveal`). Not published
+    /// itself: noting the user's transcript scroll must not redraw the practice view (that fed
+    /// the transcript layout loop). Only a token bump is published, as `revealToken`.
+    var jumpReveal = JumpReveal() {
+        didSet {
+            if jumpReveal.token != revealToken {
+                revealToken = jumpReveal.token
+            }
+        }
+    }
+
+    @Published private(set) var revealToken = 0
     @Published var lastRecordingStopReason: RecordingStopReason?
     @Published var microphonePermissionPrompt: MicrophonePermissionState?
     /// Last microphone access read (refreshed whenever the app becomes active); `nil` until read.

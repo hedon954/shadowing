@@ -8,6 +8,13 @@ import SwiftUI
 /// Scrolling follows `JumpReveal`: every `revealToken` bump (and appearing) scrolls to the
 /// current sentence at once; playback moving to the next sentence scrolls only while
 /// `autoFollows()`; only the user's own scrolling (`onUserScroll`) pauses that.
+///
+/// Layout is a plain `VStack` with one `.id` per sentence: a transcript is a few dozen to a
+/// few hundred lines, so every row exists with its real height. The earlier `LazyVStack` of
+/// variable-height paragraphs kept re-estimating heights while the wheel scrolled; hover state
+/// on the whole list redrew it each time the pointer crossed a row, which moved rows under the
+/// pointer again (the transcript-scroll hang). Hover now lives in each row, and user scrolling
+/// only reports outward (`onUserScroll` never changes what this view draws).
 struct SubtitleTranscriptView: View {
     /// Keeps the current sentence about a third of the way down.
     static let scrollAnchor = UnitPoint(x: 0, y: 0.33)
@@ -22,7 +29,6 @@ struct SubtitleTranscriptView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var hoveredIndex: Int?
 
     var body: some View {
         let bandOpacity = TranscriptLineEmphasis.bandOpacity(
@@ -31,7 +37,7 @@ struct SubtitleTranscriptView: View {
         )
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 13) {
+                VStack(alignment: .leading, spacing: 13) {
                     ForEach(Array(transcript.paragraphs.enumerated()), id: \.offset) { _, range in
                         VStack(alignment: .leading, spacing: 2) {
                             ForEach(Array(range), id: \.self) { index in
@@ -39,19 +45,11 @@ struct SubtitleTranscriptView: View {
                                     cue: transcript.cues[index],
                                     cueIndex: index,
                                     isCurrent: current == index,
-                                    isHovered: hoveredIndex == index,
                                     bandOpacity: bandOpacity,
                                     reduceMotion: reduceMotion,
                                     onSeek: onSeek
                                 )
                                 .id(index)
-                                .onHover { hovering in
-                                    if hovering {
-                                        hoveredIndex = index
-                                    } else if hoveredIndex == index {
-                                        hoveredIndex = nil
-                                    }
-                                }
                             }
                         }
                     }
@@ -97,10 +95,12 @@ private struct TranscriptSentenceRow: View {
     let cue: SubtitleCue
     let cueIndex: Int
     let isCurrent: Bool
-    let isHovered: Bool
     let bandOpacity: Double
     let reduceMotion: Bool
     let onSeek: (TimeInterval) -> Void
+
+    /// Row-local, so hovering redraws only this row, never the list.
+    @State private var isHovered = false
 
     var body: some View {
         sentenceText
@@ -114,6 +114,11 @@ private struct TranscriptSentenceRow: View {
                     .fill(backgroundFill)
             }
             .contentShape(Rectangle())
+            .onHover { hovering in
+                if isHovered != hovering {
+                    isHovered = hovering
+                }
+            }
             .onTapGesture { onSeek(cue.start) }
             .pointerStyle(.link)
             .accessibilityElement(children: .ignore)
