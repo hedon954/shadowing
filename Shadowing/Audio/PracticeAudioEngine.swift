@@ -102,7 +102,7 @@ actor PracticeAudioEngine: PracticeAudioClient {
         }
     }
 
-    func eventStream() async -> AsyncStream<PracticeAudioEvent> {
+    nonisolated func eventStream() -> AsyncStream<PracticeAudioEvent> {
         eventHub.makeStream()
     }
 

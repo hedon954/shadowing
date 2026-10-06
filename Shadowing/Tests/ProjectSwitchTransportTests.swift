@@ -97,7 +97,7 @@ private actor BroadcastingAudioClient: PracticeAudioClient {
         commands.append(command)
     }
 
-    func eventStream() async -> AsyncStream<PracticeAudioEvent> {
+    nonisolated func eventStream() -> AsyncStream<PracticeAudioEvent> {
         hub.makeStream()
     }
 

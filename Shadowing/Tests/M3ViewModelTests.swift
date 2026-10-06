@@ -220,7 +220,7 @@ private actor FailingPracticeAudioClient: PracticeAudioClient {
         throw StubM3ViewModelError.failed
     }
 
-    func eventStream() async -> AsyncStream<PracticeAudioEvent> {
+    nonisolated func eventStream() -> AsyncStream<PracticeAudioEvent> {
         AsyncStream { continuation in
             continuation.finish()
         }

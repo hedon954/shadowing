@@ -205,15 +205,21 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
     private var holdsNextSeek = false
     private var heldSeek: CheckedContinuation<Void, Never>?
 
+    private var nextSeekFailure: Error?
+
     func execute(_ command: PracticeAudioCommand) async throws {
         commands.append(command)
+        if case .seek = command, let failure = nextSeekFailure {
+            nextSeekFailure = nil
+            throw failure
+        }
         if case .seek = command, holdsNextSeek {
             holdsNextSeek = false
             await withCheckedContinuation { heldSeek = $0 }
         }
     }
 
-    func eventStream() async -> AsyncStream<PracticeAudioEvent> {
+    nonisolated func eventStream() -> AsyncStream<PracticeAudioEvent> {
         stream
     }
 
@@ -221,6 +227,11 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
     /// deliver events while the engine has not applied it yet.
     func holdNextSeek() {
         holdsNextSeek = true
+    }
+
+    /// The next seek is recorded, then throws `error` instead of being applied.
+    func failNextSeek(with error: Error) {
+        nextSeekFailure = error
     }
 
     func releaseHeldSeek() {

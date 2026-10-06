@@ -254,8 +254,10 @@ final class PracticeViewModel: ObservableObject {
             return
         }
         hasStarted = true
-        eventTask = Task { [weak self, audioClient] in
-            let stream = await audioClient.eventStream()
+        // Subscribed here, synchronously: events sent before the task first runs are buffered,
+        // not lost.
+        let stream = audioClient.eventStream()
+        eventTask = Task { [weak self] in
             for await event in stream {
                 guard !Task.isCancelled else {
                     return
@@ -392,13 +394,12 @@ extension PracticeViewModel {
         playhead = clamped
         pendingLocalSeek = clamped
         revealPlayhead()
-        performVoidCommand { [audioClient] in
+        performVoidCommand(seekGate: clamped) { [audioClient] in
             if disablesLoop {
                 try await audioClient.execute(.setLoop(nil))
             }
             try await audioClient.execute(.seek(clamped))
         } completion: { [weak self] in
-            self?.finishLocalSeek(clamped)
             self?.persistProjectImmediately()
         }
     }
@@ -421,11 +422,10 @@ extension PracticeViewModel {
         // Released from a waveform drag: the release reveal aims at where playback continues
         // (this selection and its start), never at the playhead it is about to leave.
         _ = deferTimelineMoveDuringGesture(focus: region)
-        performVoidCommand { [audioClient] in
+        performVoidCommand(seekGate: nextPlayhead) { [audioClient] in
             try await audioClient.execute(.setLoop(region))
             try await audioClient.execute(.seek(nextPlayhead))
         } completion: { [weak self] in
-            self?.finishLocalSeek(nextPlayhead)
             self?.persistProjectImmediately()
         }
     }

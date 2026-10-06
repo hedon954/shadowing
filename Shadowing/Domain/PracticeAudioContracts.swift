@@ -83,5 +83,6 @@ enum PracticeAudioEvent: Equatable, Sendable {
 protocol PracticeAudioClient: Sendable {
     func execute(_ command: PracticeAudioCommand) async throws
     /// A new stream per call: cancelling one subscriber's loop must not end the others'.
-    func eventStream() async -> AsyncStream<PracticeAudioEvent>
+    /// Synchronous and nonisolated, so a screen is subscribed the moment it asks.
+    nonisolated func eventStream() -> AsyncStream<PracticeAudioEvent>
 }

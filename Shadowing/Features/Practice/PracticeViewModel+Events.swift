@@ -180,12 +180,22 @@ extension PracticeViewModel {
         }
     }
 
+    /// Runs `operation` after the previous command. `seekGate` is the target of the local seek
+    /// this command applies (`pendingLocalSeek`): it is released on every exit (done, failed,
+    /// cancelled, or cancelled before it ran), so a seek that never reaches the engine cannot
+    /// freeze the playhead.
     func performVoidCommand(
+        seekGate: TimeInterval? = nil,
         _ operation: @escaping @Sendable () async throws -> Void,
         completion: @escaping @MainActor () -> Void = {}
     ) {
         let previousCommand = commandTask
         commandTask = Task { [weak self] in
+            defer {
+                if let seekGate {
+                    self?.finishLocalSeek(seekGate)
+                }
+            }
             await previousCommand?.value
             guard !Task.isCancelled else {
                 return
