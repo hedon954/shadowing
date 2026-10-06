@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 @testable import Shadowing
 import XCTest
@@ -79,5 +80,43 @@ final class LibraryNavigationTests: XCTestCase {
         await M9TestSupport.waitUntil { navigation.preparedPractice != nil }
         XCTAssertEqual(navigation.preparedPractice?.project.sourceDisplayName, "Dropped.mp3")
         XCTAssertFalse(navigation.acceptDroppedFiles([]))
+    }
+
+    /// The sidebar's selection setter runs inside SwiftUI's view update (AppKit reports the
+    /// selection then): it must publish nothing synchronously, and open the file right after.
+    func testSidebarSelectionPublishesNothingDuringTheUpdateAndOpensRightAfter() async throws {
+        let preparer = RecordingSessionPreparer()
+        let navigation = try AppNavigationModel(
+            dependencies: NavigationTestSupport.makeDependencies(testCase: self, preparer: preparer)
+        )
+        let item = LibraryProjectItem(
+            project: M9TestSupport.makeProject(name: "Talk.mp3", openedAt: 1),
+            takeCount: 0,
+            lastRecordedAt: nil
+        )
+        var published = 0
+        let subscriptions = [
+            navigation.objectWillChange.sink { published += 1 },
+            navigation.filesViewModel.objectWillChange.sink { published += 1 }
+        ]
+
+        navigation.sidebarSelectionChanged(to: item.id, in: [item])
+        XCTAssertEqual(published, 0, "no change may be published from inside the view update")
+        XCTAssertNil(navigation.selectedProjectID)
+
+        await M9TestSupport.waitUntil { navigation.currentProjectID == item.id }
+        XCTAssertEqual(navigation.selectedProjectID, item.id)
+        let prepared = await preparer.preparedProjectIDs
+        XCTAssertEqual(prepared, [item.id])
+
+        // AppKit re-reports the current selection while the list updates: nothing happens.
+        published = 0
+        navigation.sidebarSelectionChanged(to: item.id, in: [item])
+        navigation.sidebarSelectionChanged(to: nil, in: [item])
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(published, 0)
+        let preparedAgain = await preparer.preparedProjectIDs
+        XCTAssertEqual(preparedAgain, [item.id])
+        withExtendedLifetime(subscriptions) {}
     }
 }

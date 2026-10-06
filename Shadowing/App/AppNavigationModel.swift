@@ -103,6 +103,21 @@ final class AppNavigationModel: ObservableObject {
         }
     }
 
+    /// The sidebar list's selection setter. AppKit calls it from inside a SwiftUI view update
+    /// (the outline view reports the new selection while the list updates), where publishing
+    /// is not allowed ("Publishing changes from within view updates"): opening sets
+    /// `selectedProjectID` and the library's loading state. So nothing is published here: the
+    /// open runs on the next main-actor turn, and a re-report of the current selection is
+    /// ignored.
+    func sidebarSelectionChanged(to id: UUID?, in items: [LibraryProjectItem]) {
+        guard let id, id != selectedProjectID, let item = items.first(where: { $0.id == id }) else {
+            return
+        }
+        Task { @MainActor [weak self] in
+            self?.openLibraryItem(item)
+        }
+    }
+
     /// Opens a sidebar row. The current practice is closed first: preparing a file replaces the
     /// shared audio session, so the old practice must end before the new one loads.
     func openLibraryItem(_ item: LibraryProjectItem) {

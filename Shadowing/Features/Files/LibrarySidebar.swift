@@ -31,14 +31,13 @@ struct LibrarySidebar: View {
         }
     }
 
+    /// AppKit reports the selection from inside SwiftUI's view update; the setter must not
+    /// publish there (see `AppNavigationModel.sidebarSelectionChanged`).
     private var selection: Binding<UUID?> {
         Binding(
             get: { navigation.selectedProjectID },
             set: { id in
-                guard let id, let item = viewModel.libraryItems.first(where: { $0.id == id }) else {
-                    return
-                }
-                navigation.openLibraryItem(item)
+                navigation.sidebarSelectionChanged(to: id, in: viewModel.libraryItems)
             }
         )
     }
