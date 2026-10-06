@@ -50,8 +50,7 @@ final class M6ViewModelTests: XCTestCase {
         let take = try XCTUnwrap(fixture.viewModel.activeTake)
         let elsewhere = try PracticeRegion(start: 8, end: 12, sourceDuration: 30)
         fixture.viewModel.selectRegion(elsewhere)
-        // Keep loop on while moving the playhead outside the take (direct assignment —
-        // seek(to:) would turn loop off when leaving the selection).
+        // Move the playhead outside the take directly, without a seek command.
         fixture.viewModel.playhead = 20
         fixture.viewModel.project.playhead = 20
         XCTAssertTrue(fixture.viewModel.loopEnabled)

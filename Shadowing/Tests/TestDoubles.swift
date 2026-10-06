@@ -217,6 +217,29 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
             holdsNextSeek = false
             await withCheckedContinuation { heldSeek = $0 }
         }
+        if case .playTake = command {
+            if let failure = nextPlayTakeFailure {
+                nextPlayTakeFailure = nil
+                throw failure
+            }
+            if holdsNextPlayTake {
+                holdsNextPlayTake = false
+                await withCheckedContinuation { heldSeek = $0 }
+            }
+        }
+    }
+
+    private var holdsNextPlayTake = false
+    private var nextPlayTakeFailure: Error?
+
+    /// Like `holdNextSeek`, for the next `.playTake` (released with `releaseHeldSeek()`).
+    func holdNextPlayTake() {
+        holdsNextPlayTake = true
+    }
+
+    /// The next `.playTake` is recorded, then throws `error`.
+    func failNextPlayTake(with error: Error) {
+        nextPlayTakeFailure = error
     }
 
     nonisolated func eventStream() -> AsyncStream<PracticeAudioEvent> {

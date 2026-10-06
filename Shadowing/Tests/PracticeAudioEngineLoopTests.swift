@@ -42,10 +42,19 @@ final class PracticeAudioEngineLoopTests: XCTestCase {
         return url
     }
 
+    /// The take is the same test file, so the levels mean the same in the take's own time.
     private func makeEngine() async throws -> PracticeAudioEngine {
-        let engine = try PracticeAudioEngine.offlineRendering(sampleRate: Self.sampleRate)
-        try await engine.execute(.loadSource(makeSource()))
+        let source = try makeSource()
+        let engine = try PracticeAudioEngine.offlineRendering(
+            sampleRate: Self.sampleRate,
+            takeURLResolver: { _ in source }
+        )
+        try await engine.execute(.loadSource(source))
         return engine
+    }
+
+    private func takePosition(_ engine: PracticeAudioEngine) async -> TimeInterval {
+        await Double(engine.currentTakeFrame()) / Self.sampleRate
     }
 
     /// Renders `seconds` of output in short chunks (letting the loop re-queue callbacks run, as
@@ -137,6 +146,33 @@ final class PracticeAudioEngineLoopTests: XCTestCase {
         XCTAssertEqual(parts.dropFirst().filter { $0 != .after }, [], "3–4 s, no jump back: \(parts)")
         let reported = await position(engine)
         assertPlaying(reported, at: 4)
+        try await engine.execute(.pause)
+    }
+
+    // MARK: - Take loops: their own scheduling path in the engine, same rule
+
+    func testPlayingATakeFromBeforeItsLoopPlaysIntoItAndThenLoops() async throws {
+        let engine = try await makeEngine()
+        try await engine.execute(.playTake(takeID: UUID(), from: 1, loop: loop))
+
+        let lead = try await render(engine, seconds: 0.8)
+        XCTAssertEqual(lead.dropFirst().filter { $0 != .before }, [], "starts at 1.0 in the take: \(lead)")
+        _ = try await render(engine, seconds: 0.4)
+        let looping = try await render(engine, seconds: 3)
+        XCTAssertEqual(looping.filter { $0 != .loop }, [], "keeps looping the take's 2–3 s: \(looping)")
+        let reported = await takePosition(engine)
+        assertPlaying(reported, at: 2.2, "5.2 s played = 2.2 s after three loops")
+        try await engine.execute(.pause)
+    }
+
+    func testPlayingATakeFromAfterItsLoopPlaysStraightOn() async throws {
+        let engine = try await makeEngine()
+        try await engine.execute(.playTake(takeID: UUID(), from: 5, loop: loop))
+
+        let parts = try await render(engine, seconds: 2)
+        XCTAssertEqual(parts.filter { $0 != .after }, [], "plays the take's 5–7 s, never its loop: \(parts)")
+        let reported = await takePosition(engine)
+        assertPlaying(reported, at: 7, "the take position keeps counting past its loop's end")
         try await engine.execute(.pause)
     }
 }

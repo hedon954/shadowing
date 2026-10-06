@@ -71,4 +71,43 @@ final class WaveformClickPlaybackTests: XCTestCase {
             }
         })
     }
+
+    // MARK: - Loop on + click outside the selection: selection and loop stay (Designer rule)
+
+    private func clickOutsideTheLoop(at spot: TimeInterval, playing: Bool) async throws {
+        let fixture = try await M9TestSupport.makeFixture(testCase: self, selectRegion: false)
+        let model = fixture.viewModel
+        await M9TestSupport.waitUntil { model.revealToken > 0 }
+        model.selectRegion(fixture.region) // 4–7 s, loop on
+        await M9TestSupport.waitForCommand(.setLoop(fixture.region), audio: fixture.audio)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        XCTAssertTrue(model.loopEnabled)
+        if playing {
+            model.togglePlayback()
+            await M9TestSupport.waitUntil { model.isPlaying }
+        }
+        let before = await fixture.audio.commands.count
+
+        click(model, at: spot)
+        await M9TestSupport.waitForCommand(.seek(spot), audio: fixture.audio)
+
+        XCTAssertTrue(model.loopEnabled, "the loop stays on")
+        XCTAssertEqual(model.region, fixture.region, "the selection stays")
+        XCTAssertEqual(model.playhead, spot, accuracy: 1e-9, "the playhead goes where clicked")
+        XCTAssertEqual(model.isPlaying, playing, "a click never starts or stops playback")
+        let after = await fixture.audio.commands.dropFirst(before)
+        XCTAssertEqual(Array(after), [.seek(spot)], "only a seek: the loop is kept in the engine")
+    }
+
+    func testClickBeforeTheLoopWhilePlayingKeepsTheLoop() async throws {
+        try await clickOutsideTheLoop(at: 2, playing: true)
+    }
+
+    func testClickAfterTheLoopWhilePlayingKeepsTheLoop() async throws {
+        try await clickOutsideTheLoop(at: 20, playing: true)
+    }
+
+    func testClickOutsideTheLoopWhilePausedKeepsTheLoop() async throws {
+        try await clickOutsideTheLoop(at: 20, playing: false)
+    }
 }

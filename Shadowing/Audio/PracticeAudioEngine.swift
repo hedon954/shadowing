@@ -56,6 +56,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
     var takePausedFrame: Int64 = 0
     var takeScheduledStartFrame: Int64 = 0
     var takeFirstScheduledFrameCount: Int64 = 0
+    /// Whether the current take schedule repeats the take loop after its first segment.
+    var takeScheduledLoops = false
     var playheadTask: Task<Void, Never>?
     var recordingContext: RecordingContext?
     var recordingPeakTask: Task<Void, Never>?
@@ -177,7 +179,8 @@ actor PracticeAudioEngine: PracticeAudioClient {
             return takePausedFrame
         }
         let elapsedFrames = max(Int64(playerTime.sampleTime), 0)
-        guard let takeLoopRegion, let takeInfo else {
+        // Not looping this run (no loop, or started after the loop's end): a straight run.
+        guard let takeLoopRegion, let takeInfo, takeScheduledLoops else {
             return min(
                 takeScheduledStartFrame + elapsedFrames,
                 takeInfo?.frameCount ?? takeScheduledStartFrame + elapsedFrames

@@ -135,8 +135,10 @@ final class M4ViewModelTests: XCTestCase {
         )
     }
 
+    /// Designer rule: a click outside the selection only moves the playhead; the selection and
+    /// the loop stay (only the loop toggle turns the loop off).
     @MainActor
-    func testSeekOutsideActiveLoopDisablesLoopAndUsesClickedPosition() async throws {
+    func testSeekOutsideActiveLoopKeepsTheLoopAndUsesClickedPosition() async throws {
         let audio = PracticeAudioClientSpy()
         let viewModel = makeViewModel(audio: audio)
         let region = try PracticeRegion(start: 12, end: 20, sourceDuration: 120)
@@ -144,12 +146,14 @@ final class M4ViewModelTests: XCTestCase {
         await waitForCommandCount(2, audio: audio)
 
         viewModel.seek(to: 80)
-        await waitForCommandCount(4, audio: audio)
+        await waitForCommandCount(3, audio: audio)
 
         XCTAssertEqual(viewModel.playhead, 80)
-        XCTAssertFalse(viewModel.loopEnabled)
+        XCTAssertTrue(viewModel.loopEnabled)
+        XCTAssertEqual(viewModel.region, region)
         let commands = await audio.commands
-        XCTAssertEqual(Array(commands.suffix(2)), [.setLoop(nil), .seek(80)])
+        XCTAssertEqual(commands.last, .seek(80))
+        XCTAssertFalse(commands.contains(.setLoop(nil)))
     }
 
     @MainActor

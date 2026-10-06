@@ -385,19 +385,14 @@ extension PracticeViewModel {
 
     private func seekCommand(to position: TimeInterval) {
         restoringPlayheadAfterComparison = nil
+        // A click only moves the playhead: the selection and the loop stay as they are, also
+        // outside the selection (only the loop toggle turns the loop off). The engine then
+        // plays into the loop from before it, or straight on from after it.
         let clamped = min(max(position, 0), project.duration)
-        let disablesLoop = loopEnabled &&
-            region.map { !($0.start ..< $0.end ~= clamped) } == true
-        if disablesLoop {
-            loopEnabled = false
-        }
         playhead = clamped
         pendingLocalSeek = clamped
         revealPlayhead()
         performVoidCommand(seekGate: clamped) { [audioClient] in
-            if disablesLoop {
-                try await audioClient.execute(.setLoop(nil))
-            }
             try await audioClient.execute(.seek(clamped))
         } completion: { [weak self] in
             self?.persistProjectImmediately()

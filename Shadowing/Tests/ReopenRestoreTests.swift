@@ -121,7 +121,7 @@ final class ReopenRestoreTests: XCTestCase {
 
     // MARK: - Loop (no take): restored exactly as left, never turned on, never moves the playhead
 
-    /// Drag-selected 0:36–0:44, then clicked at 1:20 (which turned the loop off).
+    /// Drag-selected 0:36–0:44, turned the loop off, then clicked at 1:20.
     func testLoopLeftOffWithThePlayheadOutsideTheSelectionComesBackThere() async throws {
         let fixture = try await M7TestSupport.makeHydrateFixture(
             testCase: self, duration: 129, region: 36 ... 44, playhead: 80, visibleRange: 70 ... 90,

@@ -113,4 +113,117 @@ final class TakeLaneClickTests: XCTestCase {
         let after = await commands(after: before, fixture)
         XCTAssertFalse(after.contains(where: startsSound), "a click never restarts the take: \(after)")
     }
+
+    // MARK: - Take loop + click outside it: the loop stays, the playhead goes where clicked
+
+    private func waitForPlayTake(_ fixture: M9Fixture, _ take: Take, from local: TimeInterval) async {
+        let selection = fixture.viewModel.takeLoopSelections[take.id]
+        let loop = selection.flatMap { TakePlaybackTiming.localLoopRegion(selection: $0, takeRegion: take.region) }
+        await M9TestSupport.waitUntilAsync {
+            await fixture.audio.commands.contains {
+                if case let .playTake(id, from, sent) = $0 {
+                    // Regions carry their own id: compare the span.
+                    return id == take.id && abs(from - local) < 1e-9
+                        && sent?.start == loop?.start && sent?.end == loop?.end && sent != nil
+                }
+                return false
+            }
+        }
+    }
+
+    /// Take 4–7 s (1.5 s of audio) playing with its loop on 0.5–1.0 s of the take.
+    private func playingTakeWithLoop(_ fixture: M9Fixture) async throws -> Take {
+        let model = fixture.viewModel
+        let take = try XCTUnwrap(model.takes.first)
+        await playingTake(fixture, take)
+        let selection = try PracticeRegion(
+            start: take.region.start + 0.5,
+            end: take.region.start + 1,
+            sourceDuration: model.project.duration
+        )
+        model.selectTakeLoopRegion(take, selection)
+        await waitForPlayTake(fixture, take, from: 0.5) // selecting a loop starts it
+        return take
+    }
+
+    private func assertClickOutsideTheTakeLoopKeepsItAndPlaysFrom(_ local: TimeInterval) async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let take = try await playingTakeWithLoop(fixture)
+        let selection = model.takeLoopSelections[take.id]
+
+        model.seekTakeLane(take, to: take.region.start + local)
+        // From the click, with the loop: the engine plays into it (before) or straight on (after).
+        await waitForPlayTake(fixture, take, from: local)
+        XCTAssertEqual(model.takeLoopSelections[take.id], selection, "the take's loop stays")
+        XCTAssertEqual(model.playhead, take.region.start + local, accuracy: 1e-9, "not moved to the loop start")
+        XCTAssertTrue(model.isPlaying)
+        XCTAssertEqual(model.playingTakeID, take.id)
+    }
+
+    func testClickBeforeThePlayingTakesLoopKeepsTheLoop() async throws {
+        try await assertClickOutsideTheTakeLoopKeepsItAndPlaysFrom(0.2)
+    }
+
+    func testClickAfterThePlayingTakesLoopKeepsTheLoop() async throws {
+        try await assertClickOutsideTheTakeLoopKeepsItAndPlaysFrom(1.2)
+    }
+
+    func testClickOutsideAPausedTakesLoopKeepsTheLoopAndStaysPaused() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let take = try XCTUnwrap(model.takes.first)
+        let selection = try PracticeRegion(
+            start: take.region.start + 0.5,
+            end: take.region.start + 1,
+            sourceDuration: model.project.duration
+        )
+        model.selectTakeLoopRegion(take, selection)
+        XCTAssertFalse(model.isPlaying)
+        let before = await fixture.audio.commands.count
+        let spot = take.region.start + 1.2
+
+        model.seekTakeLane(take, to: spot)
+        await M9TestSupport.waitForCommand(.seek(spot), audio: fixture.audio)
+
+        XCTAssertEqual(model.takeLoopSelections[take.id], selection, "the take's loop stays")
+        XCTAssertEqual(model.playhead, spot, accuracy: 1e-9)
+        XCTAssertFalse(model.isPlaying)
+        let after = await commands(after: before, fixture)
+        XCTAssertFalse(after.contains(where: startsSound), "nothing starts: \(after)")
+    }
+
+    // MARK: - Seek gate: positions from before the click never pull the playhead back
+
+    func testStaleTakePositionsDuringTheClickAreIgnored() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let take = try XCTUnwrap(model.takes.first)
+        await playingTake(fixture, take)
+        await fixture.audio.holdNextPlayTake()
+        let spot = take.region.start + 1.0
+
+        model.seekTakeLane(take, to: spot)
+        await M9TestSupport.waitForCommand(.playTake(takeID: take.id, from: 1.0, loop: nil), audio: fixture.audio)
+        await fixture.audio.emit(.playheadChanged(0.1)) // the take, before it restarted
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(model.playhead, spot, accuracy: 1e-9, "a stale position is ignored")
+
+        await fixture.audio.releaseHeldSeek()
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+        await fixture.audio.emit(.playheadChanged(1.1))
+        await M9TestSupport.waitUntil { abs(model.playhead - (take.region.start + 1.1)) < 1e-9 }
+    }
+
+    func testAFailedTakeRestartReleasesTheGate() async throws {
+        let fixture = try await M9TestSupport.makeFixtureWithCommittedTake(testCase: self)
+        let model = fixture.viewModel
+        let take = try XCTUnwrap(model.takes.first)
+        await playingTake(fixture, take)
+        await fixture.audio.failNextPlayTake(with: PracticeAudioEngineError.sourceNotLoaded)
+
+        model.seekTakeLane(take, to: take.region.start + 1.0)
+        await M9TestSupport.waitForCommand(.playTake(takeID: take.id, from: 1.0, loop: nil), audio: fixture.audio)
+        await M9TestSupport.waitUntil { model.pendingLocalSeek == nil }
+    }
 }

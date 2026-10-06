@@ -187,7 +187,10 @@ extension PracticeViewModel {
             selection: clamped,
             takeRegion: take.region
         )
-        let localFrom = takeLocalPlaybackPosition(take: take, localLoop: localLoop)
+        // Selecting a loop starts it (like selecting on the original), unless the playhead is
+        // already inside it. A click never does this; see `seekTakeLane`.
+        let local = takeLocalPosition(take: take)
+        let localFrom = localLoop.map { $0.start ..< $0.end ~= local ? local : $0.start } ?? local
         playhead = take.region.start + localFrom
         project.playhead = playhead
         if playingTakeID == take.id, isPlaying, let localLoop {
@@ -213,7 +216,7 @@ extension PracticeViewModel {
         guard playingTakeID == take.id, isPlaying else {
             return
         }
-        let localFrom = takeLocalPlaybackPosition(take: take, localLoop: nil)
+        let localFrom = takeLocalPosition(take: take)
         playhead = take.region.start + localFrom
         project.playhead = playhead
         performCommand { [audioClient] in
@@ -239,17 +242,20 @@ extension PracticeViewModel {
             seekTimeline(sourceTime)
             return
         }
-        // Like the original: clicking outside the take's loop selection drops the loop.
-        if let selection = takeLoopSelections[take.id], !(selection.start ..< selection.end ~= sourceTime) {
-            takeLoopSelections[take.id] = nil
-        }
+        // The take's loop selection stays, even for a click outside it, and the playhead goes
+        // exactly where clicked: the engine plays into the loop from before it, or straight
+        // on to the take's end from after it.
         let localLoop = takeLoopSelections[take.id].flatMap { selection in
             TakePlaybackTiming.localLoopRegion(selection: selection, takeRegion: take.region)
         }
-        let localFrom = takeLocalPlaybackPosition(take: take, localLoop: localLoop, at: sourceTime)
-        playhead = take.region.start + localFrom
-        project.playhead = playhead
-        performCommand { [audioClient] in
+        let localFrom = takeLocalPosition(take: take, at: sourceTime)
+        let target = take.region.start + localFrom
+        playhead = target
+        project.playhead = target
+        // Gate closed until the take restarts there: positions the take reports from before
+        // the click must not pull the playhead back. Released on every exit.
+        pendingLocalSeek = target
+        performCommand(seekGate: target) { [audioClient] in
             try await audioClient.execute(.playTake(takeID: take.id, from: localFrom, loop: localLoop))
             return true
         } completion: { [weak self] playing in
@@ -260,22 +266,10 @@ extension PracticeViewModel {
         }
     }
 
-    private func takeLocalPlaybackPosition(
-        take: Take,
-        localLoop: PracticeRegion?,
-        at sourceTime: TimeInterval? = nil
-    ) -> TimeInterval {
-        let local = min(
-            max((sourceTime ?? playhead) - take.region.start, 0),
-            max(take.duration, 0)
-        )
-        guard let localLoop else {
-            return local
-        }
-        if local >= localLoop.start, local < localLoop.end {
-            return local
-        }
-        return localLoop.start
+    /// The playhead as a position inside the take's file, kept inside the file. Never moved
+    /// for the take's loop.
+    private func takeLocalPosition(take: Take, at sourceTime: TimeInterval? = nil) -> TimeInterval {
+        min(max((sourceTime ?? playhead) - take.region.start, 0), max(take.duration, 0))
     }
 
     func handleTakePlaybackFinished() {

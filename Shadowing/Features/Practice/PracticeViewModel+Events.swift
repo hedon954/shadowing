@@ -213,11 +213,17 @@ extension PracticeViewModel {
     }
 
     func performCommand<Value: Sendable>(
+        seekGate: TimeInterval? = nil,
         _ operation: @escaping @Sendable () async throws -> Value,
         completion: @escaping @MainActor (Value) -> Void
     ) {
         let previousCommand = commandTask
         commandTask = Task { [weak self] in
+            defer {
+                if let seekGate {
+                    self?.finishLocalSeek(seekGate)
+                }
+            }
             await previousCommand?.value
             guard !Task.isCancelled else {
                 return
