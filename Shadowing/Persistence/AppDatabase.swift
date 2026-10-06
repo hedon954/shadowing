@@ -20,9 +20,16 @@ enum AppDatabase {
             "v4-project-script-display-name",
             migrate: migrateV4ProjectScriptDisplayName
         )
+        // Shipped once in a redesign build (hedon's database records it as applied); now a no-op.
+        // Its columns are superseded by the next migration, shared with the main working copy.
+        migrator.registerMigration("v5-project-timeline-viewport") { _ in }
         migrator.registerMigration(
-            "v5-project-timeline-viewport",
-            migrate: migrateV5ProjectTimelineViewport
+            "v5-project-viewport-and-loop",
+            migrate: migrateV5ProjectViewportAndLoop
+        )
+        migrator.registerMigration(
+            "v6-copy-redesign-timeline-viewport",
+            migrate: migrateV6CopyRedesignTimelineViewport
         )
         return migrator
     }
@@ -101,10 +108,41 @@ enum AppDatabase {
     }
 
     /// The zoomed waveform's visible range, restored when the project reopens.
-    private static func migrateV5ProjectTimelineViewport(_ database: Database) throws {
+    /// Same identifier, columns and data step as the main working copy's migration, so the
+    /// two branches merge into one schema.
+    private static func migrateV5ProjectViewportAndLoop(_ database: Database) throws {
         try database.alter(table: "projects") { table in
-            table.add(column: "timeline_visible_start", .double)
-            table.add(column: "timeline_visible_duration", .double)
+            table.add(column: "loop_enabled", .boolean).notNull().defaults(to: false)
+            table.add(column: "viewport_start", .double)
+            table.add(column: "viewport_duration", .double)
         }
+        try database.execute(
+            sql: """
+            UPDATE projects
+            SET loop_enabled = 1
+            WHERE region_id IS NOT NULL
+            """
+        )
+    }
+
+    /// Databases that ran the old `v5-project-timeline-viewport` have a saved zoom in
+    /// `timeline_visible_*`: copy it where `viewport_*` is still empty. The old columns stay
+    /// (nothing is dropped). A no-op on databases without them.
+    private static func migrateV6CopyRedesignTimelineViewport(_ database: Database) throws {
+        let columns = try database.columns(in: "projects").map(\.name)
+        guard columns.contains("timeline_visible_start"), columns.contains("timeline_visible_duration") else {
+            return
+        }
+        try database.execute(
+            sql: """
+            UPDATE projects
+            SET viewport_start = timeline_visible_start,
+                viewport_duration = timeline_visible_duration
+            WHERE viewport_start IS NULL
+              AND viewport_duration IS NULL
+              AND timeline_visible_start IS NOT NULL
+              AND timeline_visible_duration IS NOT NULL
+            """
+        )
     }
 }

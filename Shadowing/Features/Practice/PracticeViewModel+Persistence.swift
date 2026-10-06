@@ -117,6 +117,7 @@ extension PracticeViewModel {
     func syncProjectSnapshot() {
         project.playhead = min(max(playhead, 0), project.duration)
         project.playbackRate = rate
+        project.loopEnabled = loopEnabled
         if restoredTimelineViewport {
             project.saveTimelineViewport(timelineViewport)
         }

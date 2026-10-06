@@ -22,8 +22,9 @@ struct ProjectRepositoryContract {
         project.currentRegion = region
         project.sourceDisplayName = "renamed.mp3"
         project.scriptDisplayName = "lines.txt"
-        project.timelineVisibleStart = 0.5
-        project.timelineVisibleDuration = 2.25
+        project.loopEnabled = true
+        project.viewportStart = 0.5
+        project.viewportDuration = 2.25
         try await repository.save(project)
 
         let updated = try await repository.project(id: project.id)

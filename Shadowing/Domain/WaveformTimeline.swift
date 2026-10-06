@@ -3,8 +3,8 @@ import Foundation
 extension AudioProject {
     /// The saved visible range, clamped to the source; nil when none was saved or it is unusable.
     var savedTimelineViewport: TimelineViewport? {
-        guard let start = timelineVisibleStart,
-              let visibleDuration = timelineVisibleDuration,
+        guard let start = viewportStart,
+              let visibleDuration = viewportDuration,
               start.isFinite, visibleDuration.isFinite, visibleDuration > 0, duration > 0
         else {
             return nil
@@ -13,8 +13,8 @@ extension AudioProject {
     }
 
     mutating func saveTimelineViewport(_ viewport: TimelineViewport) {
-        timelineVisibleStart = viewport.start
-        timelineVisibleDuration = viewport.duration
+        viewportStart = viewport.start
+        viewportDuration = viewport.duration
     }
 }
 

@@ -67,10 +67,10 @@ final class ReopenRestoreTests: XCTestCase {
         model.setTimelineViewport(TimelineViewport(start: 40, duration: 8, sourceDuration: 129))
         await M7TestSupport.waitUntil {
             let saved = try? await fixture.projects.project(id: fixture.projectID)
-            return saved?.timelineVisibleStart == 40
+            return saved?.viewportStart == 40
         }
         let saved = try await fixture.projects.project(id: fixture.projectID)
-        XCTAssertEqual(saved?.timelineVisibleDuration, 8)
+        XCTAssertEqual(saved?.viewportDuration, 8)
         XCTAssertEqual(saved?.playhead, 62)
         XCTAssertEqual(saved?.savedTimelineViewport, model.timelineViewport)
     }

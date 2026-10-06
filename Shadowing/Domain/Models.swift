@@ -13,9 +13,11 @@ struct AudioProject: Codable, Equatable, Identifiable, Sendable {
     var playbackRate: Double = 1
     /// Original filename of an attached plain-text script, if any.
     var scriptDisplayName: String?
+    /// Whether practice loop is enabled for `currentRegion`.
+    var loopEnabled: Bool = false
     /// Visible range of the zoomed waveform when the project was last saved (nil: never saved).
-    var timelineVisibleStart: TimeInterval?
-    var timelineVisibleDuration: TimeInterval?
+    var viewportStart: TimeInterval?
+    var viewportDuration: TimeInterval?
 }
 
 struct PracticeRegion: Codable, Equatable, Identifiable, Sendable {

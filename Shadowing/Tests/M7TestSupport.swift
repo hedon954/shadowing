@@ -90,8 +90,8 @@ enum M7TestSupport {
             keptTakeID: nil,
             lastOpenedAt: Date(timeIntervalSince1970: 100),
             playbackRate: 0.75,
-            timelineVisibleStart: visibleRange?.lowerBound,
-            timelineVisibleDuration: visibleRange.map { $0.upperBound - $0.lowerBound }
+            viewportStart: visibleRange?.lowerBound,
+            viewportDuration: visibleRange.map { $0.upperBound - $0.lowerBound }
         )
         return (project, take)
     }

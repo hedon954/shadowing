@@ -76,10 +76,11 @@ actor GRDBProjectRepository: ProjectRepository {
         last_opened_at,
         playback_rate,
         script_display_name,
-        timeline_visible_start,
-        timeline_visible_duration
+        loop_enabled,
+        viewport_start,
+        viewport_duration
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
         source_display_name = excluded.source_display_name,
         source_bookmark = excluded.source_bookmark,
@@ -93,8 +94,9 @@ actor GRDBProjectRepository: ProjectRepository {
         last_opened_at = excluded.last_opened_at,
         playback_rate = excluded.playback_rate,
         script_display_name = excluded.script_display_name,
-        timeline_visible_start = excluded.timeline_visible_start,
-        timeline_visible_duration = excluded.timeline_visible_duration
+        loop_enabled = excluded.loop_enabled,
+        viewport_start = excluded.viewport_start,
+        viewport_duration = excluded.viewport_duration
     """
 
     func save(_ project: AudioProject) async throws {
@@ -126,8 +128,9 @@ actor GRDBProjectRepository: ProjectRepository {
                     project.lastOpenedAt,
                     project.playbackRate,
                     project.scriptDisplayName,
-                    project.timelineVisibleStart,
-                    project.timelineVisibleDuration
+                    project.loopEnabled,
+                    project.viewportStart,
+                    project.viewportDuration
                 ]
             )
         }
@@ -189,8 +192,9 @@ actor GRDBProjectRepository: ProjectRepository {
             lastOpenedAt: row["last_opened_at"],
             playbackRate: playbackRate,
             scriptDisplayName: row["script_display_name"],
-            timelineVisibleStart: row["timeline_visible_start"],
-            timelineVisibleDuration: row["timeline_visible_duration"]
+            loopEnabled: row["loop_enabled"],
+            viewportStart: row["viewport_start"],
+            viewportDuration: row["viewport_duration"]
         )
     }
 
