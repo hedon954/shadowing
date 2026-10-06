@@ -22,7 +22,7 @@ final class TranscriptInspectorTests: XCTestCase {
     func testCurrentSentenceBandOpacityFollowsAppearanceAndContrast() {
         XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: false, increaseContrast: false), 0.14, accuracy: 0.001)
         XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: true, increaseContrast: false), 0.24, accuracy: 0.001)
-        XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: false, increaseContrast: true), 0.22, accuracy: 0.001)
+        XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: false, increaseContrast: true), 0.32, accuracy: 0.001)
         XCTAssertEqual(TranscriptLineEmphasis.bandOpacity(dark: true, increaseContrast: true), 0.32, accuracy: 0.001)
     }
 

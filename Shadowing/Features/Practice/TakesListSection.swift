@@ -188,7 +188,7 @@ private struct TakeRow: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Take \(take.sequence)")
         .accessibilityValue(
-            Text("\(TakeDateText.short(take.createdAt)), \(ClockText.duration(take.duration))")
+            Text("\(TakeDateText.short(take.createdAt)), \(ClockText.format(take.duration))")
         )
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -243,7 +243,7 @@ private struct TakeDurationText: View {
     let duration: TimeInterval
 
     var body: some View {
-        Text(verbatim: ClockText.duration(duration))
+        Text(verbatim: ClockText.format(duration))
             .font(.system(size: 12).monospacedDigit())
             .foregroundStyle(.secondary)
             .frame(width: 40, alignment: .trailing)
@@ -270,7 +270,7 @@ private struct LiveTakeRow: View {
         .padding(.horizontal, 12)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "Recording, \(ClockText.duration(viewModel.recordingElapsed)) elapsed"
+            "Recording, \(ClockText.format(viewModel.recordingElapsed)) elapsed"
         )
     }
 

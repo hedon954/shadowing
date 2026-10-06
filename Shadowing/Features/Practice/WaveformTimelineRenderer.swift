@@ -489,7 +489,6 @@ struct WaveformTimelineOverview: View {
     }
 
     private func format(_ time: TimeInterval) -> String {
-        let seconds = max(Int(time.rounded()), 0)
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+        ClockText.format(time)
     }
 }

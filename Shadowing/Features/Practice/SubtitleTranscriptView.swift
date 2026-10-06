@@ -20,14 +20,14 @@ struct SubtitleTranscriptView: View {
     let onSeek: (TimeInterval) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hoveredIndex: Int?
-    @State private var increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
 
     var body: some View {
         let bandOpacity = TranscriptLineEmphasis.bandOpacity(
             dark: colorScheme == .dark,
-            increaseContrast: increaseContrast
+            increaseContrast: colorSchemeContrast == .increased
         )
         ScrollViewReader { proxy in
             ScrollView {
@@ -83,13 +83,6 @@ struct SubtitleTranscriptView: View {
                     }
                 }
             }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification
-            )
-        ) { _ in
-            increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         }
     }
 

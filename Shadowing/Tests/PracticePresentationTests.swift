@@ -67,10 +67,19 @@ final class PracticePresentationTests: XCTestCase {
     }
 
     func testClockTextFormatsPositionsAndDurations() {
-        XCTAssertEqual(ClockText.paddedPosition(192.6), "03:12")
-        XCTAssertEqual(ClockText.paddedPosition(1249), "20:49")
-        XCTAssertEqual(ClockText.duration(252), "4:12")
-        XCTAssertEqual(ClockText.duration(3725), "1:02:05")
+        XCTAssertEqual(ClockText.format(192.6), "3:12")
+        XCTAssertEqual(ClockText.format(1249), "20:49")
+        XCTAssertEqual(ClockText.format(252), "4:12")
+        XCTAssertEqual(ClockText.format(3725), "1:02:05")
+        XCTAssertEqual(ClockText.format(48), "0:48", "no leading zero on minutes")
+        XCTAssertEqual(ClockText.format(3723), "1:02:03")
+        XCTAssertEqual(ClockText.format(0), "0:00")
+        XCTAssertEqual(ClockText.format(-1), "0:00")
+        XCTAssertEqual(ClockText.format(.nan), "0:00")
+        XCTAssertEqual(ClockText.format(2.999_999_9), "0:03", "float noise from tick math stays on the second")
+        // Title, sidebar and playback bar share the formatter: a 129.9 s track is 2:09 everywhere.
+        XCTAssertEqual(ClockText.format(129.9), "2:09")
+        XCTAssertEqual(PracticeTitleText.summary(duration: 129.9, takeCount: 0), "2:09")
         XCTAssertEqual(PracticeRateText.label(1), "1.0×")
         XCTAssertEqual(PracticeRateText.label(0.75), "0.75×")
     }

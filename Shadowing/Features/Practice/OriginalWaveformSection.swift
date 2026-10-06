@@ -87,7 +87,7 @@ struct OriginalWaveformSection: View {
     }
 
     private var originalDuration: String {
-        ClockText.duration(viewModel.project.duration)
+        ClockText.format(viewModel.project.duration)
     }
 
     /// Pause cuts, drawn only while pauses decide the sentence (no subtitles, no loop range).
@@ -233,7 +233,7 @@ struct WaveformRuler: View {
     private func label(_ time: TimeInterval, index: Int, count: Int, width: CGFloat) -> some View {
         let fraction = CGFloat((time - viewport.start) / max(viewport.duration, 0.001))
         let anchor: UnitPoint = index == 0 ? .topLeading : (index == count - 1 ? .topTrailing : .top)
-        return Text(verbatim: ClockText.duration(time))
+        return Text(verbatim: ClockText.format(time))
             .fixedSize()
             .alignmentGuide(.leading) { dimension in
                 dimension.width * anchor.x - fraction * width

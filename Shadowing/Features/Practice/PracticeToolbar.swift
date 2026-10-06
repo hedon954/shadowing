@@ -27,7 +27,7 @@ struct PracticeToolbar: ToolbarContent {
 enum PracticeTitleText {
     /// "2:10 · 3 takes", or just "2:12" before the first take.
     static func summary(duration: TimeInterval, takeCount: Int) -> String {
-        let length = ClockText.duration(duration)
+        let length = ClockText.format(duration)
         guard takeCount > 0 else {
             return length
         }

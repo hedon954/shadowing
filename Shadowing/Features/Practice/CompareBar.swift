@@ -74,7 +74,7 @@ struct CompareBar: View {
         guard let sentence = viewModel.currentSentence else {
             return nil
         }
-        let range = "\(ClockText.duration(sentence.start))–\(ClockText.duration(sentence.end))"
+        let range = "\(ClockText.format(sentence.start))–\(ClockText.format(sentence.end))"
         return String(localized: "Plays only the selected sentence · \(range)")
     }
 

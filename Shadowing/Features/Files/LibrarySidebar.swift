@@ -118,7 +118,7 @@ struct LibraryRowSubtitle: View {
     }
 
     static func accessibilityText(for item: LibraryProjectItem) -> String {
-        let duration = ClockText.duration(item.project.duration)
+        let duration = ClockText.format(item.project.duration)
         if item.takeCount > 0 {
             return String(localized: "\(item.takeCount) takes · \(duration)")
         }

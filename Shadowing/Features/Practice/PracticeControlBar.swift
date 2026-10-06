@@ -50,8 +50,8 @@ struct PracticeControlBar: View {
 
     private var timeText: some View {
         Text(
-            verbatim: ClockText.paddedPosition(viewModel.playhead) + " / "
-                + ClockText.paddedPosition(viewModel.project.duration)
+            verbatim: ClockText.format(viewModel.playhead) + " / "
+                + ClockText.format(viewModel.project.duration)
         )
         .font(.system(size: 12).monospacedDigit())
         .foregroundStyle(.secondary)
@@ -271,7 +271,7 @@ struct PracticeRecordControl: View {
     var body: some View {
         HStack(spacing: 8) {
             if isRecording {
-                Text(verbatim: ClockText.paddedPosition(viewModel.recordingElapsed))
+                Text(verbatim: ClockText.format(viewModel.recordingElapsed))
                     .font(.system(size: 13, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.red)
                     .fixedSize()

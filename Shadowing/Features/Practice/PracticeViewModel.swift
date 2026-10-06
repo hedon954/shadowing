@@ -150,8 +150,8 @@ final class PracticeViewModel: ObservableObject {
 
     /// Shown when the selected take was recorded over a different region than the current one.
     static func regionSnapshotNotice(for take: Take) -> String {
-        let start = formatTime(take.region.start)
-        let end = formatTime(take.region.end)
+        let start = ClockText.format(take.region.start)
+        let end = ClockText.format(take.region.end)
         return String(localized: """
         This take keeps its recorded region (\(start)–\(end)). \
         Changing the practice region does not change past takes.
@@ -168,13 +168,6 @@ final class PracticeViewModel: ObservableObject {
 
     var canToggleLoop: Bool {
         region != nil && !controlsLocked
-    }
-
-    static func formatTime(_ time: TimeInterval) -> String {
-        let totalSeconds = max(Int(time.rounded()), 0)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, seconds)
     }
 
     init(

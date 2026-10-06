@@ -28,18 +28,12 @@ enum TranscriptLineEmphasis: Equatable {
     }
 
     /// Accent band opacity behind the current sentence.
-    /// Light 14% / dark 24%; Increase Contrast raises that to 22% / 32%.
+    /// Light 14% / dark 24%; Increase Contrast raises both to 32%.
     static func bandOpacity(dark: Bool, increaseContrast: Bool) -> Double {
-        switch (dark, increaseContrast) {
-        case (false, false):
-            0.14
-        case (true, false):
-            0.24
-        case (false, true):
-            0.22
-        case (true, true):
-            0.32
+        if increaseContrast {
+            return 0.32
         }
+        return dark ? 0.24 : 0.14
     }
 }
 
