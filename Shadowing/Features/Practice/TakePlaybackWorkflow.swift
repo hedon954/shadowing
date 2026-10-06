@@ -77,6 +77,28 @@ extension PracticeViewModel {
         }
     }
 
+    /// An edge of a take's loop was dragged: only the selection changes, and the take's
+    /// playhead stays. A take playing right now plays on from where it is, the loop following.
+    func resizeTakeLoopRegion(_ take: Take, _ region: PracticeRegion) {
+        guard take.projectID == project.id,
+              takeLoopSelections[take.id] != nil,
+              let clamped = TakePlaybackTiming.clampedSelection(
+                  region,
+                  takeRegion: take.region,
+                  sourceDuration: project.duration
+              )
+        else {
+            return
+        }
+        takeLoopSelections[take.id] = clamped
+        guard playingTakeID == take.id, isPlaying, let localLoop = takeLocalLoop(take) else {
+            return
+        }
+        let local = takeTime(take, forSourceTime: playhead)
+        let target = moveTakePlayhead(take, to: local)
+        playTake(take, from: local, loop: localLoop, seekGate: target)
+    }
+
     func clearTakeLoopRegion(_ take: Take) {
         takeLoopSelections[take.id] = nil
         guard playingTakeID == take.id, isPlaying else {

@@ -3,19 +3,13 @@ import SwiftUI
 
 /// Waveform surface that supports seek, drag-to-select, and region handles.
 struct WaveformSelectableTrack: View {
-    private enum Handle {
-        case start
-        case end
-    }
+    private typealias Handle = WaveformSelectionEdges.Edge
 
     private enum DragKind {
         case pan
         case select
         case resize(Handle)
     }
-
-    private static let dragThreshold: CGFloat = 4
-    private static let handleHitRadius: CGFloat = 14
 
     let waveform: WaveformPresentation?
     let viewport: TimelineViewport
@@ -26,7 +20,10 @@ struct WaveformSelectableTrack: View {
     var clock: PlayheadClock?
     let isEnabled: Bool
     let onSeek: (TimeInterval) -> Void
+    /// A new selection dragged out on the waveform.
     let onRegionChanged: (PracticeRegion) -> Void
+    /// The selection's edge dragged: only the selection changes (never turns the loop on).
+    let onRegionResized: (PracticeRegion) -> Void
     let onRegionCleared: () -> Void
     var onViewportChanged: ((TimelineViewport) -> Void)?
     /// Called when a selection or handle drag begins (`true`) or ends (`false`).
@@ -50,6 +47,7 @@ struct WaveformSelectableTrack: View {
     @State private var dragBaseRegion: PracticeRegion?
     @State private var panOrigin: TimelineViewport?
     @State private var isGestureActive = false
+    @State private var showsResizeCursor = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -73,6 +71,9 @@ struct WaveformSelectableTrack: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .gesture(interactionGesture(size: geometry.size))
+                    .onContinuousHover(coordinateSpace: .named(coordinateSpaceName)) { phase in
+                        updateResizeCursor(phase, width: geometry.size.width)
+                    }
                     .accessibilityElement()
                     .accessibilityLabel(accessibilityTitle)
                     .accessibilityHint(accessibilityHintText)
@@ -94,6 +95,7 @@ struct WaveformSelectableTrack: View {
         // A drag cut short by the track going away must not leave the waveform frozen.
         .onDisappear {
             markGestureActive(false)
+            setResizeCursor(false)
         }
     }
 
@@ -138,13 +140,12 @@ struct WaveformSelectableTrack: View {
         case .pan:
             return
         case let .resize(handle):
-            commitResize(handle, at: value.location.x, width: size.width)
+            commitResize(handle, value, width: size.width)
         case .select:
             commitSelection(value, width: size.width)
         case .none:
-            if dragDistance(value) < Self.dragThreshold {
-                onSeek(time(at: value.location.x, width: size.width))
-            }
+            // Still a plain click (also on an edge): it only moves the playhead.
+            onSeek(time(at: value.location.x, width: size.width))
         }
     }
 
@@ -161,19 +162,15 @@ struct WaveformSelectableTrack: View {
         guard dragKind == nil else {
             return
         }
-        if let currentRegion = region {
-            if let handle = hitHandle(
-                at: value.startLocation,
-                region: currentRegion,
-                width: width
-            ) {
-                dragBaseRegion = currentRegion
-                beginDrag(.resize(handle))
-                return
-            }
-        }
-        if dragDistance(value) >= Self.dragThreshold {
+        switch edges(width).pressKind(startX: value.startLocation.x, distance: dragDistance(value), region: region) {
+        case let .resize(handle):
+            dragBaseRegion = region
+            setResizeCursor(true)
+            beginDrag(.resize(handle))
+        case .select:
             beginDrag(.select)
+        case nil:
+            break
         }
     }
 
@@ -183,11 +180,7 @@ struct WaveformSelectableTrack: View {
             guard let base = dragBaseRegion else {
                 return
             }
-            draftRegion = adjusted(
-                handle,
-                region: base,
-                to: time(at: value.location.x, width: width)
-            )
+            draftRegion = adjusted(handle, region: base, to: draggedTime(handle, base, value, width))
         case .select:
             draftRegion = makeRegion(
                 anchor: time(at: value.startLocation.x, width: width),
@@ -198,18 +191,14 @@ struct WaveformSelectableTrack: View {
         }
     }
 
-    private func commitResize(_ handle: Handle, at locationX: CGFloat, width: CGFloat) {
+    private func commitResize(_ handle: Handle, _ value: DragGesture.Value, width: CGFloat) {
         guard let base = dragBaseRegion,
-              let next = adjusted(
-                  handle,
-                  region: base,
-                  to: time(at: locationX, width: width)
-              ),
+              let next = adjusted(handle, region: base, to: draggedTime(handle, base, value, width)),
               next != base
         else {
             return
         }
-        onRegionChanged(next)
+        onRegionResized(next)
     }
 
     private func commitSelection(_ value: DragGesture.Value, width: CGFloat) {
@@ -227,24 +216,6 @@ struct WaveformSelectableTrack: View {
             dragKind = kind
             markGestureActive(true)
         }
-    }
-
-    private func hitHandle(
-        at point: CGPoint,
-        region: PracticeRegion,
-        width: CGFloat
-    ) -> Handle? {
-        let startX = xPosition(for: region.start, width: width)
-        let endX = xPosition(for: region.end, width: width)
-        let startDistance = abs(point.x - startX)
-        let endDistance = abs(point.x - endX)
-        if startDistance <= Self.handleHitRadius, startDistance <= endDistance {
-            return .start
-        }
-        if endDistance <= Self.handleHitRadius {
-            return .end
-        }
-        return nil
     }
 
     private func regionHandle(
@@ -331,19 +302,51 @@ extension WaveformSelectableTrack {
         hypot(value.translation.width, value.translation.height)
     }
 
+    private func edges(_ width: CGFloat) -> WaveformSelectionEdges {
+        WaveformSelectionEdges(viewport: viewport, width: width)
+    }
+
     private func time(at xPosition: CGFloat, width: CGFloat) -> TimeInterval {
-        guard width > 0 else {
-            return viewport.start
-        }
-        let fraction = min(max(xPosition / width, 0), 1)
-        return viewport.start + viewport.duration * Double(fraction)
+        edges(width).time(at: xPosition)
     }
 
     private func xPosition(for time: TimeInterval, width: CGFloat) -> CGFloat {
-        guard viewport.duration > 0 else {
-            return 0
+        edges(width).xPosition(for: time)
+    }
+
+    private func draggedTime(
+        _ handle: Handle,
+        _ base: PracticeRegion,
+        _ value: DragGesture.Value,
+        _ width: CGFloat
+    ) -> TimeInterval {
+        edges(width).draggedEdgeTime(handle, of: base, from: value.startLocation.x, to: value.location.x)
+    }
+
+    /// Over an edge's grab zone the pointer becomes the left-right resize cursor; it stays so
+    /// while that edge is dragged.
+    private func updateResizeCursor(_ phase: HoverPhase, width: CGFloat) {
+        if case .resize = dragKind {
+            return
         }
-        return width * CGFloat((time - viewport.start) / viewport.duration)
+        switch phase {
+        case let .active(location):
+            setResizeCursor(isEnabled && edges(width).edge(at: location.x, of: displayedRegion) != nil)
+        case .ended:
+            setResizeCursor(false)
+        }
+    }
+
+    private func setResizeCursor(_ shown: Bool) {
+        guard showsResizeCursor != shown else {
+            return
+        }
+        showsResizeCursor = shown
+        if shown {
+            NSCursor.resizeLeftRight.push()
+        } else {
+            NSCursor.pop()
+        }
     }
 
     private func format(_ time: TimeInterval) -> String {

@@ -65,6 +65,9 @@ struct AlignedTakeLane: View {
                 onRegionChanged: { region in
                     viewModel.selectTakeLoopRegion(take, region)
                 },
+                onRegionResized: { region in
+                    viewModel.resizeTakeLoopRegion(take, region)
+                },
                 onRegionCleared: {
                     viewModel.clearTakeLoopRegion(take)
                 },

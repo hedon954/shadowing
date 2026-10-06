@@ -20,6 +20,7 @@ enum PracticeIntent: Equatable, Sendable {
     case seek(TimeInterval)
     case jump(TimeInterval)
     case selectRegion(PracticeRegion)
+    case resizeRegion(PracticeRegion)
     case clearRegion
     case setLoop(Bool)
     case setRate(Double)
@@ -34,6 +35,7 @@ enum PracticeIntent: Equatable, Sendable {
              .seek,
              .jump,
              .selectRegion,
+             .resizeRegion,
              .clearRegion,
              .setLoop,
              .setRate:
@@ -296,10 +298,8 @@ final class PracticeViewModel: ObservableObject {
             seekCommand(to: position)
         case let .jump(offset):
             seekCommand(to: playhead + offset)
-        case let .selectRegion(region):
-            selectRegionCommand(region)
-        case .clearRegion:
-            clearRegionCommand()
+        case .selectRegion, .resizeRegion, .clearRegion:
+            regionCommand(intent)
         case let .setLoop(enabled):
             setLoopCommand(enabled)
         case let .setRate(newRate):
@@ -327,6 +327,10 @@ final class PracticeViewModel: ObservableObject {
 
     func selectRegion(_ region: PracticeRegion) {
         send(.selectRegion(region))
+    }
+
+    func resizeRegion(_ region: PracticeRegion) {
+        send(.resizeRegion(region))
     }
 
     func clearRegion() {
@@ -402,46 +406,6 @@ extension PracticeViewModel {
         revealPlayhead()
         performVoidCommand(seekGate: clamped) { [audioClient] in
             try await audioClient.execute(.seek(clamped))
-        } completion: { [weak self] in
-            self?.persistProjectImmediately()
-        }
-    }
-
-    private func selectRegionCommand(_ region: PracticeRegion) {
-        guard region.end <= project.duration else {
-            show(DomainError.invalidTimeRange)
-            return
-        }
-        project.currentRegion = region
-        loopEnabled = true
-        let resumeInsideLoop = isPlaying
-            && playingTakeID == nil
-            && playhead >= region.start
-            && playhead < region.end
-        let nextPlayhead = resumeInsideLoop ? playhead : region.start
-        playhead = nextPlayhead
-        project.playhead = nextPlayhead
-        syncTakePlayheads(toSourceTime: nextPlayhead)
-        pendingLocalSeek = nextPlayhead
-        // Released from a waveform drag: the release reveal aims at where playback continues
-        // (this selection and its start), never at the playhead it is about to leave.
-        _ = deferTimelineMoveDuringGesture(focus: region)
-        performVoidCommand(seekGate: nextPlayhead) { [audioClient] in
-            try await audioClient.execute(.setLoop(region))
-            try await audioClient.execute(.seek(nextPlayhead))
-        } completion: { [weak self] in
-            self?.persistProjectImmediately()
-        }
-    }
-
-    private func clearRegionCommand() {
-        guard region != nil else {
-            return
-        }
-        project.currentRegion = nil
-        loopEnabled = false
-        performVoidCommand { [audioClient] in
-            try await audioClient.execute(.setLoop(nil))
         } completion: { [weak self] in
             self?.persistProjectImmediately()
         }

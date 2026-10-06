@@ -119,6 +119,7 @@ struct OriginalWaveformSection: View {
                 viewModel.clearTakeSelection()
                 viewModel.selectRegion(region)
             },
+            onRegionResized: viewModel.resizeRegion,
             onRegionCleared: viewModel.clearRegion,
             onViewportChanged: viewModel.setTimelineViewport,
             onGestureActiveChanged: viewModel.setTimelineGestureActive,
