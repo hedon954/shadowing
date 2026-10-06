@@ -138,7 +138,8 @@ struct WaveformTimelineOverview: View {
             Capsule()
                 .fill(Color.accentColor.opacity(0.85))
                 .frame(width: 3, height: 22)
-                .frame(width: handleWidth, height: .infinity)
+                .frame(width: handleWidth)
+                .frame(maxHeight: .infinity)
             if alignment == .leading {
                 Spacer(minLength: 0)
             }

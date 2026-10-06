@@ -77,8 +77,12 @@ extension PracticeViewModel {
         }
     }
 
+    /// A click on the waveform only moves the playhead: the original keeps playing from there
+    /// (or stays paused). Only a playing take stops, since the playhead leaves it.
     func seekTimeline(_ sourceTime: TimeInterval) {
-        pauseTakePlaybackIfNeeded()
+        if playingTakeID != nil {
+            pauseTakePlaybackIfNeeded()
+        }
         seek(to: sourceTime)
     }
 

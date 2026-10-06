@@ -93,7 +93,10 @@ extension PracticeViewModel {
         guard activeTake != nil else {
             return
         }
-        pauseTakePlaybackIfNeeded()
+        // Deselecting stops a playing take, never the original (a waveform click lands here).
+        if playingTakeID != nil {
+            pauseTakePlaybackIfNeeded()
+        }
         activeTake = nil
         project.selectedTakeID = nil
         selectedTakePeaks = []
