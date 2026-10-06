@@ -47,7 +47,7 @@ struct WaveformSelectableTrack: View {
     @State private var dragBaseRegion: PracticeRegion?
     @State private var panOrigin: TimelineViewport?
     @State private var isGestureActive = false
-    @State private var showsResizeCursor = false
+    @ObservedObject private var edgeCursor = EdgeCursorController.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -74,6 +74,7 @@ struct WaveformSelectableTrack: View {
                     .onContinuousHover(coordinateSpace: .named(coordinateSpaceName)) { phase in
                         updateResizeCursor(phase, width: geometry.size.width)
                     }
+                    .pointerStyle(edgeCursor.showsResize(in: coordinateSpaceName) ? .columnResize : nil)
                     .accessibilityElement()
                     .accessibilityLabel(accessibilityTitle)
                     .accessibilityHint(accessibilityHintText)
@@ -95,7 +96,7 @@ struct WaveformSelectableTrack: View {
         // A drag cut short by the track going away must not leave the waveform frozen.
         .onDisappear {
             markGestureActive(false)
-            setResizeCursor(false)
+            edgeCursor.laneDisappeared(coordinateSpaceName)
         }
     }
 
@@ -127,6 +128,7 @@ struct WaveformSelectableTrack: View {
 
     private func handleInteractionEnded(_ value: DragGesture.Value, size: CGSize) {
         defer {
+            edgeCursor.dragEnded(in: coordinateSpaceName, overEdge: isOverEdge(value.location, size: size))
             draftRegion = nil
             dragKind = nil
             dragBaseRegion = nil
@@ -165,7 +167,7 @@ struct WaveformSelectableTrack: View {
         switch edges(width).pressKind(startX: value.startLocation.x, distance: dragDistance(value), region: region) {
         case let .resize(handle):
             dragBaseRegion = region
-            setResizeCursor(true)
+            edgeCursor.dragBegan(in: coordinateSpaceName)
             beginDrag(.resize(handle))
         case .select:
             beginDrag(.select)
@@ -323,30 +325,23 @@ extension WaveformSelectableTrack {
         edges(width).draggedEdgeTime(handle, of: base, from: value.startLocation.x, to: value.location.x)
     }
 
-    /// Over an edge's grab zone the pointer becomes the left-right resize cursor; it stays so
-    /// while that edge is dragged.
+    /// Reports the pointer to the one cursor owner: over an edge's grab zone the pointer is
+    /// the left-right resize cursor (see `EdgeCursorController`).
     private func updateResizeCursor(_ phase: HoverPhase, width: CGFloat) {
-        if case .resize = dragKind {
-            return
-        }
         switch phase {
         case let .active(location):
-            setResizeCursor(isEnabled && edges(width).edge(at: location.x, of: displayedRegion) != nil)
+            let overEdge = isEnabled && edges(width).edge(at: location.x, of: displayedRegion) != nil
+            edgeCursor.hover(in: coordinateSpaceName, overEdge: overEdge)
         case .ended:
-            setResizeCursor(false)
+            edgeCursor.hoverEnded(in: coordinateSpaceName)
         }
     }
 
-    private func setResizeCursor(_ shown: Bool) {
-        guard showsResizeCursor != shown else {
-            return
-        }
-        showsResizeCursor = shown
-        if shown {
-            NSCursor.resizeLeftRight.push()
-        } else {
-            NSCursor.pop()
-        }
+    /// Inside this track and in an edge's grab zone (of the selection as last drawn).
+    private func isOverEdge(_ location: CGPoint, size: CGSize) -> Bool {
+        isEnabled
+            && CGRect(origin: .zero, size: size).contains(location)
+            && edges(size.width).edge(at: location.x, of: displayedRegion) != nil
     }
 
     private func format(_ time: TimeInterval) -> String {
