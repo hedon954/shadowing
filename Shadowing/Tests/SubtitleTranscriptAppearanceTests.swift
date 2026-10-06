@@ -46,9 +46,16 @@ final class SubtitleTranscriptAppearanceTests: XCTestCase {
 
     private func textBands(dark: Bool) async throws -> [Band] {
         let size = CGSize(width: 300, height: 220)
-        let view = SubtitleTranscriptView(transcript: SubtitleTranscript(cues: cues), playhead: 11) { _ in }
-            .frame(width: size.width, height: size.height)
-            .background(Color(nsColor: .windowBackgroundColor))
+        let view = SubtitleTranscriptView(
+            transcript: SubtitleTranscript(cues: cues),
+            current: SubtitleTimeline.cueIndex(at: 11, in: cues),
+            revealToken: 0,
+            autoFollows: { true },
+            onUserScroll: {},
+            onSeek: { _ in }
+        )
+        .frame(width: size.width, height: size.height)
+        .background(Color(nsColor: .windowBackgroundColor))
         let hosting = NSHostingView(rootView: view)
         hosting.frame = CGRect(origin: .zero, size: size)
         let window = NSWindow(

@@ -4,24 +4,27 @@ import SwiftUI
 /// Timed subtitles that follow the playhead. The current sentence sits on a full-width accent
 /// band; other sentences stay secondary. Size and weight never change, so lines don't reflow.
 /// Clicking a sentence seeks to it.
+///
+/// Scrolling follows `JumpReveal`: every `revealToken` bump (and appearing) scrolls to the
+/// current sentence at once; playback moving to the next sentence scrolls only while
+/// `autoFollows()`; only the user's own scrolling (`onUserScroll`) pauses that.
 struct SubtitleTranscriptView: View {
-    /// Auto-scroll waits this long after the user scrolls by hand.
-    static let manualScrollPause: TimeInterval = TranscriptLineEmphasis.manualScrollPause
     /// Keeps the current sentence about a third of the way down.
     static let scrollAnchor = UnitPoint(x: 0, y: 0.33)
 
     let transcript: SubtitleTranscript
-    let playhead: TimeInterval
+    let current: Int?
+    let revealToken: Int
+    let autoFollows: () -> Bool
+    let onUserScroll: () -> Void
     let onSeek: (TimeInterval) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var lastManualScroll: Date?
     @State private var hoveredIndex: Int?
     @State private var increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
 
     var body: some View {
-        let current = SubtitleTimeline.cueIndex(at: playhead, in: transcript.cues)
         let bandOpacity = TranscriptLineEmphasis.bandOpacity(
             dark: colorScheme == .dark,
             increaseContrast: increaseContrast
@@ -55,18 +58,21 @@ struct SubtitleTranscriptView: View {
                 }
                 .padding(16)
             }
-            .onScrollPhaseChange { _, phase in
-                if phase == .tracking || phase == .interacting || phase == .decelerating {
-                    lastManualScroll = Date()
+            .onScrollPhaseChange { old, new in
+                if ScrollPhase.isUserScroll(from: old, to: new) {
+                    onUserScroll()
                 }
             }
-            .onAppear {
+            // Appearing (project opened, subtitles loaded) and every active jump: reveal now,
+            // paused or not. Runs after the rows are laid out, so the scroll lands.
+            .task(id: RevealRequest(token: revealToken, cueCount: transcript.cues.count)) {
+                await Task.yield()
                 if let current {
                     proxy.scrollTo(current, anchor: Self.scrollAnchor)
                 }
             }
             .onChange(of: current) { _, index in
-                guard let index, !isPausedByUser else {
+                guard let index, autoFollows() else {
                     return
                 }
                 if reduceMotion {
@@ -87,11 +93,9 @@ struct SubtitleTranscriptView: View {
         }
     }
 
-    private var isPausedByUser: Bool {
-        guard let lastManualScroll else {
-            return false
-        }
-        return Date().timeIntervalSince(lastManualScroll) < Self.manualScrollPause
+    private struct RevealRequest: Equatable {
+        let token: Int
+        let cueCount: Int
     }
 }
 

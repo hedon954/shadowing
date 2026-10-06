@@ -14,13 +14,13 @@ struct M9Fixture {
 }
 
 enum M9TestSupport {
-    static func makeProject(name: String, openedAt: TimeInterval) -> AudioProject {
+    static func makeProject(name: String, openedAt: TimeInterval, playhead: TimeInterval = 0) -> AudioProject {
         AudioProject(
             id: UUID(),
             sourceDisplayName: name,
             sourceBookmark: Data([1]),
             duration: 30,
-            playhead: 0,
+            playhead: playhead,
             currentRegion: nil,
             selectedTakeID: nil,
             keptTakeID: nil,
@@ -43,9 +43,10 @@ enum M9TestSupport {
         playOriginalWhileRecording: Bool = false,
         selectRegion: Bool = true,
         scheduler: any ComparisonPlaybackScheduler = ImmediateComparisonPlaybackScheduler(),
-        withAlignment: Bool = false
+        withAlignment: Bool = false,
+        restoredPlayhead: TimeInterval = 0
     ) async throws -> M9Fixture {
-        let project = makeProject(name: "Speech.mp3", openedAt: 100)
+        let project = makeProject(name: "Speech.mp3", openedAt: 100, playhead: restoredPlayhead)
         let region = try PracticeRegion(start: 4, end: 7, sourceDuration: 30)
         let storage = InMemoryPersistence()
         let projects = InMemoryProjectRepository(storage: storage)

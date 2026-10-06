@@ -74,6 +74,8 @@ final class PracticeViewModel: ObservableObject {
     @Published var timelineViewport: TimelineViewport
     /// When true, playhead follow must not pan the viewport (e.g. mid selection drag).
     var suspendPlayheadFollow = false
+    /// Active-jump signal for the waveform and transcript (see `JumpReveal`).
+    @Published var jumpReveal = JumpReveal()
     @Published var lastRecordingStopReason: RecordingStopReason?
     @Published var microphonePermissionPrompt: MicrophonePermissionState?
     /// Last microphone access read (refreshed whenever the app becomes active); `nil` until read.
@@ -357,6 +359,7 @@ extension PracticeViewModel {
             loopEnabled = false
         }
         playhead = clamped
+        revealPlayhead()
         performVoidCommand { [audioClient] in
             if disablesLoop {
                 try await audioClient.execute(.setLoop(nil))

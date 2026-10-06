@@ -34,6 +34,7 @@ extension PracticeViewModel {
                 take.region,
                 sourceDuration: project.duration
             )
+            revealPlayhead(focus: take.region)
         }
         await refreshTakes()
         updateRegionSnapshotNotice(for: take)
@@ -74,6 +75,7 @@ extension PracticeViewModel {
         // Always force the playhead to the take start (Designer: click take → jump).
         playhead = take.region.start
         project.playhead = take.region.start
+        revealPlayhead(focus: take.region)
         performVoidCommand { [audioClient] in
             if shouldUpdateLoop {
                 try await audioClient.execute(.setLoop(take.region))

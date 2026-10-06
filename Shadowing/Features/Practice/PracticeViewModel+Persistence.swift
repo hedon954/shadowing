@@ -159,6 +159,7 @@ extension PracticeViewModel {
                 take.region,
                 sourceDuration: project.duration
             )
+            revealPlayhead(focus: take.region)
             updateRegionNoticeForHydratedTake(take)
             return
         }
@@ -168,6 +169,8 @@ extension PracticeViewModel {
         }
         let position = min(max(playhead, 0), project.duration)
         playhead = position
+        // Opening or switching a project is an active jump: show the restored position now.
+        revealPlayhead()
         performVoidCommand { [audioClient, region = project.currentRegion] in
             if let region {
                 try await audioClient.execute(.setLoop(region))
