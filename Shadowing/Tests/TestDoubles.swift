@@ -202,12 +202,30 @@ actor PracticeAudioClientSpy: PracticeAudioClient {
         continuation = pair.continuation
     }
 
+    private var holdsNextSeek = false
+    private var heldSeek: CheckedContinuation<Void, Never>?
+
     func execute(_ command: PracticeAudioCommand) async throws {
         commands.append(command)
+        if case .seek = command, holdsNextSeek {
+            holdsNextSeek = false
+            await withCheckedContinuation { heldSeek = $0 }
+        }
     }
 
     func eventStream() async -> AsyncStream<PracticeAudioEvent> {
         stream
+    }
+
+    /// The next seek is recorded but does not return until `releaseHeldSeek()`, so a test can
+    /// deliver events while the engine has not applied it yet.
+    func holdNextSeek() {
+        holdsNextSeek = true
+    }
+
+    func releaseHeldSeek() {
+        heldSeek?.resume()
+        heldSeek = nil
     }
 
     func emit(_ event: PracticeAudioEvent) {
