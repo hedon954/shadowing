@@ -13,7 +13,9 @@ import Foundation
 extension PracticeViewModel {
     func toggleTakePlayback(_ take: Take) {
         cancelComparison()
-        if playingTakeID == take.id, isPlaying {
+        // A take that has played all its audio is finished, even while the engine's end
+        // callback (after the output latency) is still on its way: the press plays it again.
+        if playingTakeID == take.id, isPlaying, !takePlaybackReachedEnd {
             pauseTakePlaybackIfNeeded()
             return
         }
@@ -110,6 +112,7 @@ extension PracticeViewModel {
 
     func handleTakePlaybackFinished() {
         isPlaying = false
+        takePlaybackReachedEnd = false
         if let take = currentlyPlayingTake() {
             playhead = take.region.end
             project.playhead = playhead
@@ -127,6 +130,7 @@ extension PracticeViewModel {
     func takePlaybackProgressed(_ take: Take, to position: TimeInterval) {
         let local = min(max(position, 0), max(take.duration, 0))
         takePlayheads[take.id] = keptTakePlayhead(take, local)
+        takePlaybackReachedEnd = local >= take.duration - Self.takeEndReachedTolerance
         playhead = takeSourcePlayhead(take, forTakeTime: local)
     }
 
@@ -196,6 +200,10 @@ extension PracticeViewModel {
     /// the offset) counts as finished, so Play does not start a tiny blip at the end.
     static let takeEndFinishThreshold: TimeInterval = 0.5
 
+    /// The engine reports a take that played all its audio at the take's full length; this
+    /// allows for the saved length differing from the file by a few milliseconds.
+    static let takeEndReachedTolerance: TimeInterval = 0.05
+
     /// The one rule for every take playhead: `local` (take time) is kept unless it is less
     /// than `takeEndFinishThreshold` before the take's end; then nil, so the take's Play
     /// starts from its loop start (or 0). Same for any offset, as `local` already has it.
@@ -227,6 +235,7 @@ extension PracticeViewModel {
         seekGate: TimeInterval
     ) {
         playingTakeID = take.id
+        takePlaybackReachedEnd = false
         pendingLocalSeek = seekGate
         performCommand(seekGate: seekGate) { [audioClient] in
             try await audioClient.execute(.playTake(takeID: take.id, from: local, loop: loop))

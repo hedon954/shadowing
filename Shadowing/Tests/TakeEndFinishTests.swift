@@ -99,4 +99,40 @@ final class TakeEndFinishTests: XCTestCase {
             await M9TestSupport.waitUntil { !model.isPlaying }
         }
     }
+
+    /// Live, the engine's end callback comes after the output latency; until then the take
+    /// reports its full length and still counts as playing. A press then plays it again from
+    /// its start (or loop start), once; it does not pause.
+    func testOnePressAfterTheTakePlayedAllItsAudioPlaysItAgain() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        for (loop, expected) in try [(nil, 0.0), (loop(take), 0.5)] {
+            model.takeLoopSelections[take.id] = nil
+            await pressPlay(fixture, take)
+            model.takeLoopSelections[take.id] = loop
+            await fixture.audio.emit(.playheadChanged(3)) // all of it played, no end event yet
+            await M9TestSupport.waitUntil { abs(model.playhead - take.region.end) < 1e-9 }
+            XCTAssertTrue(model.isPlaying)
+
+            let sent = await pressPlay(fixture, take) // once
+            XCTAssertEqual(sent?.from ?? -1, expected, accuracy: 1e-9, "from 0, or the loop start")
+            XCTAssertTrue(model.isPlaying, "one press plays")
+            XCTAssertEqual(model.playingTakeID, take.id)
+            XCTAssertEqual(model.playhead, take.region.start + expected, accuracy: 1e-9)
+            model.toggleTakePlayback(take) // pause
+            await M9TestSupport.waitUntil { !model.isPlaying }
+        }
+    }
+
+    func testAPressJustBeforeTheEndStillPauses() async throws {
+        let (fixture, take) = try await takeFixture()
+        let model = fixture.viewModel
+        await pressPlay(fixture, take)
+        await fixture.audio.emit(.playheadChanged(2.8))
+        await M9TestSupport.waitUntil { abs(model.playhead - (take.region.start + 2.8)) < 1e-9 }
+
+        model.toggleTakePlayback(take)
+        await M9TestSupport.waitUntil { !model.isPlaying }
+        await M9TestSupport.waitForCommand(.pause, audio: fixture.audio)
+    }
 }

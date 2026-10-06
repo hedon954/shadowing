@@ -94,6 +94,8 @@ final class PracticeViewModel: ObservableObject {
     /// Each take's own playhead in take-file time (in memory). Missing: never played, or its
     /// last playback reached the end. See `TakePlaybackWorkflow`.
     var takePlayheads: [UUID: TimeInterval] = [:]
+    /// The playing take has played all its audio; only the engine's end callback is pending.
+    var takePlaybackReachedEnd = false
     @Published var timelineViewport: TimelineViewport {
         didSet {
             timelineViewportDidChange(from: oldValue)

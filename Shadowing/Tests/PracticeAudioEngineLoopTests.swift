@@ -175,4 +175,20 @@ final class PracticeAudioEngineLoopTests: XCTestCase {
         assertPlaying(reported, at: 7, "the take position keeps counting past its loop's end")
         try await engine.execute(.pause)
     }
+
+    // MARK: - A take that played to its end plays again on one press
+
+    func testATakeThatReachedItsEndPlaysAgainFromTheStart() async throws {
+        let engine = try await makeEngine()
+        let takeID = UUID()
+        try await engine.execute(.playTake(takeID: takeID, from: 9, loop: nil))
+        _ = try await render(engine, seconds: 1.5) // the take (10 s) ends at 1.0 s
+        try await Task.sleep(for: .milliseconds(50)) // its end handling runs
+
+        try await engine.execute(.playTake(takeID: takeID, from: 0, loop: nil))
+        let parts = try await render(engine, seconds: 1)
+        XCTAssertEqual(parts.filter { $0 != .before }, [], "plays the take's 0–1 s at once: \(parts)")
+        await assertPlaying(takePosition(engine), at: 1)
+        try await engine.execute(.pause)
+    }
 }
